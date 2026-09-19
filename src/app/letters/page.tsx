@@ -136,7 +136,6 @@ function LetterGenerationContent() {
     ])
   );
   const [autoSyncGap, setAutoSyncGap] = useState(true);
-  const [letterheadMode, setLetterheadMode] = useState<"stationery" | "plain">("stationery");
 
   const syncLetterToGap = () => {
     const gap = calculateDocumentGap(receivedDocs);
@@ -151,10 +150,6 @@ function LetterGenerationContent() {
 
   const resetToAllRequirements = () => {
     setRequiredDocs(CANONICAL_TRANSMISSION_DOCS.map(d => d.formalText));
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   // Documents Required (Step 2)
@@ -184,9 +179,49 @@ function LetterGenerationContent() {
   const [customRequiredInput, setCustomRequiredInput] = useState("");
   const [customReceivedInput, setCustomReceivedInput] = useState("");
 
-  // Duplicate / Lost Share Formalities Option
+  // Duplicate / Lost Share Formalities Option & Customization
   const [hasLostShares, setHasLostShares] = useState(false);
   const [lostSharesDetail, setLostSharesDetail] = useState("Share Certificate # 10451 for 1,000 shares");
+  const [duplicatePosition, setDuplicatePosition] = useState<"before_required" | "after_required" | "at_end">("before_required");
+  const [duplicateIntro, setDuplicateIntro] = useState(
+    "Kindly note that as intimated, the subject share certificate(s) are reported lost / misplaced. In order to process the issuance of duplicate share certificate(s) in favor of legal heir(s), following duplicate formalities are required:"
+  );
+  const [duplicateDocs, setDuplicateDocs] = useState<string[]>([
+    "Draft Letter of Indemnity on non-judicial stamp paper of prescribed value (Rs. 500/-) duly attested by Oath Commissioner / Notary Public along with two solvent sureties.",
+    "Specimen of newspaper publication notice of loss of shares published in one English and one Urdu daily national newspaper (approved specimen attached).",
+    "Original full-page newspaper cuttings of both publications after expiry of 7-day notice period.",
+    "Duplicate share certificate issuance fee of Rs. 200/- per certificate."
+  ]);
+  const [customDuplicateInput, setCustomDuplicateInput] = useState("");
+
+  const addDuplicateDoc = () => {
+    if (!customDuplicateInput.trim()) return;
+    setDuplicateDocs(prev => [...prev, customDuplicateInput.trim()]);
+    setCustomDuplicateInput("");
+  };
+
+  const removeDuplicateDoc = (index: number) => {
+    setDuplicateDocs(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const moveDuplicateDoc = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= duplicateDocs.length) return;
+    const copy = [...duplicateDocs];
+    const item = copy[index];
+    copy[index] = copy[targetIndex];
+    copy[targetIndex] = item;
+    setDuplicateDocs(copy);
+  };
+
+  const resetDuplicateDocs = () => {
+    setDuplicateDocs([
+      "Draft Letter of Indemnity on non-judicial stamp paper of prescribed value (Rs. 500/-) duly attested by Oath Commissioner / Notary Public along with two solvent sureties.",
+      "Specimen of newspaper publication notice of loss of shares published in one English and one Urdu daily national newspaper (approved specimen attached).",
+      "Original full-page newspaper cuttings of both publications after expiry of 7-day notice period.",
+      "Duplicate share certificate issuance fee of Rs. 200/- per certificate."
+    ]);
+  };
 
   // Plain Text Custom Observation / Remark (Seamless letter paragraph, not a loud box)
   const [includeScrutinyNote, setIncludeScrutinyNote] = useState(false);
@@ -555,6 +590,9 @@ function LetterGenerationContent() {
         scrutinyPosition,
         hasLostShares,
         lostSharesDetail,
+        duplicatePosition,
+        duplicateDocs,
+        duplicateIntro,
         deficiencies: activeDeficiencies
       };
 
@@ -608,7 +646,9 @@ function LetterGenerationContent() {
 
     let duplicateText = "";
     if (hasLostShares) {
-      duplicateText = `\nKindly note that as intimated, the subject share certificate(s) (${lostSharesDetail}) are reported lost / misplaced. In order to process issuance of duplicate share certificates, duplicate formalities (Letter of Indemnity, Newspaper notice in English & Urdu daily, and fee) are also required.\n`;
+      const intro = duplicateIntro || `Kindly note that as intimated, the subject share certificate(s) (${lostSharesDetail}) are reported lost / misplaced. In order to process issuance of duplicate share certificates, following duplicate formalities are required:`;
+      const docsList = duplicateDocs.map((d, i) => `   ${i + 1}. ${d}`).join('\n');
+      duplicateText = `\n${intro}\n${docsList}\n`;
     }
 
     let bodyText = "";
@@ -653,12 +693,14 @@ We refer to your letter regarding the captioned subject and acknowledge the rece
 ${receivedDocs.map(d => '- ' + d).join('\n')}
 ${scrutinyPosition === 'after_received' ? plainRemark : ''}
 Kindly note that as per company's record total, ${certificates} share certificate for ${shares} shares ${scripts ? `(${scripts}) ` : ''}is registered in name of deceased shareholder. In case if share certificate is lost, please intimate us accordingly.
-${duplicateText}
+${duplicatePosition === 'before_required' ? duplicateText : ''}
 ${scrutinyPosition === 'before_required' ? plainRemark : ''}
 In order to enable us to process transmission of shares and dividends in favor of legal heir(s), following documents are required:
 ${requiredDocs.map((d, i) => `${i + 1}. ${d}`).join('\n')}
+${duplicatePosition === 'after_required' ? duplicateText : ''}
 ${scrutinyPosition === 'after_required' ? plainRemark : ''}
 Please ensure details are clearly mentioned on the Succession Certificate. Should you have any query, feel free to coordinate with us.
+${duplicatePosition === 'at_end' ? duplicateText : ''}
 ${scrutinyPosition === 'at_end' ? plainRemark : ''}
 Regards,
 
@@ -1382,25 +1424,132 @@ Encl.:  As stated above.`;
             </CardHeader>
             {hasLostShares && (
               <CardContent className="space-y-3 pt-1 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">
+                      Position in Letter (لیٹر میں ڈپلیکیٹ فارمیلٹیز کی جگہ)
+                    </label>
+                    <select
+                      value={duplicatePosition}
+                      onChange={(e) => setDuplicatePosition(e.target.value as any)}
+                      className="w-full p-2 text-xs rounded border border-slate-300 bg-white font-medium text-slate-800"
+                    >
+                      <option value="before_required">1. Before Required Formalities (Above Transmission Checklist)</option>
+                      <option value="after_required">2. After Required Formalities (Middle - Recommended)</option>
+                      <option value="at_end">3. At End of Letter (Bottom - Before Signatures)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">
+                      Details of Lost Shares (Certificate &amp; Distinctive Nos)
+                    </label>
+                    <Input 
+                      value={lostSharesDetail}
+                      onChange={(e) => setLostSharesDetail(e.target.value)}
+                      placeholder="e.g. Cert # 10451 for 1,000 shares (Distinctive: 50001 - 51000)"
+                      className="h-9 text-xs bg-white"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">
-                    Details of Lost / Misplaced Shares (Certificate Nos &amp; Distinctive Numbers)
+                    Introductory Clause Text (ڈپلیکیٹ کا تعارفی پیراگراف)
                   </label>
-                  <Input 
-                    value={lostSharesDetail}
-                    onChange={(e) => setLostSharesDetail(e.target.value)}
-                    placeholder="e.g. Cert # 10451 for 1,000 shares (Distinctive: 50001 - 51000)"
-                    className="h-9 text-xs"
+                  <textarea
+                    rows={2}
+                    value={duplicateIntro}
+                    onChange={(e) => setDuplicateIntro(e.target.value)}
+                    placeholder="Enter introductory clause text..."
+                    className="w-full p-2 text-xs rounded border border-slate-300 font-sans bg-white"
                   />
                 </div>
-                <div className="p-2.5 rounded-lg bg-white border border-amber-200 text-amber-900 text-[11px] space-y-1">
-                  <p className="font-bold">The following duplicate formalities will be automatically appended to the letter:</p>
-                  <ul className="list-disc pl-4 space-y-0.5 text-slate-700">
-                    <li>Draft Letter of Indemnity on Rs. 500/- stamp paper with 2 solvent sureties.</li>
-                    <li>Specimen of Newspaper publication notice in daily English &amp; Urdu newspapers.</li>
-                    <li>Original full-page newspaper cuttings after 7-day notice period.</li>
-                    <li>Duplicate share certificate fee of Rs. 200/- per certificate.</li>
-                  </ul>
+
+                {/* Customizable Formalities Checklist */}
+                <div className="space-y-2 pt-1 border-t border-amber-200/80">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-950">
+                      Duplicate Formalities Requirements ({duplicateDocs.length} items)
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={resetDuplicateDocs}
+                      className="h-6 text-[10px] text-amber-800 hover:text-amber-950 hover:bg-amber-100/60"
+                    >
+                      Reset Defaults
+                    </Button>
+                  </div>
+
+                  {/* List of items */}
+                  <div className="space-y-1.5">
+                    {duplicateDocs.map((doc, idx) => (
+                      <div 
+                        key={idx}
+                        className="flex items-center justify-between gap-2 p-2 bg-white rounded border border-amber-200 text-xs shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden flex-1">
+                          <span className="font-bold text-amber-700 font-mono text-[11px] shrink-0">#{idx + 1}</span>
+                          <span className="text-slate-800 text-[11px] leading-snug">{doc}</span>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={idx === 0}
+                            onClick={() => moveDuplicateDoc(idx, "up")}
+                            className="h-6 w-6 p-0 text-slate-500 hover:text-slate-900"
+                            title="Move Up"
+                          >
+                            <ArrowUp className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={idx === duplicateDocs.length - 1}
+                            onClick={() => moveDuplicateDoc(idx, "down")}
+                            className="h-6 w-6 p-0 text-slate-500 hover:text-slate-900"
+                            title="Move Down"
+                          >
+                            <ArrowDown className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeDuplicateDoc(idx)}
+                            className="h-6 w-6 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                            title="Remove Requirement"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add custom item */}
+                  <div className="flex gap-2 pt-1">
+                    <Input
+                      placeholder="Add custom duplicate requirement (e.g. Police FIR copy, Bank Guarantee, etc.)..."
+                      value={customDuplicateInput}
+                      onChange={(e) => setCustomDuplicateInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && addDuplicateDoc()}
+                      className="text-xs h-8 bg-white"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={addDuplicateDoc}
+                      className="h-8 text-xs bg-amber-700 hover:bg-amber-800 text-white shrink-0 font-semibold"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Requirement
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             )}
@@ -1784,10 +1933,10 @@ Encl.:  As stated above.`;
         </div>
 
         {/* RIGHT COLUMN: Realistic Live Letter Preview */}
-        <div className="lg:col-span-5 sticky top-4 printable-letter-container">
+        <div className="lg:col-span-5 sticky top-4">
           <Card className="border-slate-300 shadow-md bg-white">
-            <CardHeader className="p-4 border-b bg-slate-50 rounded-t-xl no-print">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <CardHeader className="p-4 border-b bg-slate-50 rounded-t-xl">
+              <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700">
                     {letterStage === "first" ? "Live Letter Preview (1st Letter)" : "Live Letter Preview (2nd Letter)"}
@@ -1796,7 +1945,7 @@ Encl.:  As stated above.`;
                     Official CDCSR layout reflecting exact statutory requirements
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-1.5">
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -1815,64 +1964,11 @@ Encl.:  As stated above.`;
                     <Download className="mr-1 h-3.5 w-3.5" />
                     Word
                   </Button>
-                  <Button 
-                    size="sm" 
-                    onClick={handlePrint}
-                    className="h-8 text-xs bg-[#0B2B5E] hover:bg-[#071E43] text-white font-bold shadow-sm"
-                    title="Print official letter or Save as PDF (Ctrl+P)"
-                  >
-                    <Printer className="mr-1 h-3.5 w-3.5" />
-                    Print Letter
-                  </Button>
-                </div>
-              </div>
-
-              {/* Print Paper Mode Selector Toolbar */}
-              <div className="mt-2.5 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-600">
-                <span className="font-semibold text-slate-700 flex items-center gap-1">
-                  <FileText className="h-3.5 w-3.5 text-[#0B2B5E]" />
-                  Paper Layout:
-                </span>
-                <div className="flex items-center gap-1 bg-slate-200/70 p-0.5 rounded">
-                  <button
-                    type="button"
-                    onClick={() => setLetterheadMode("stationery")}
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
-                      letterheadMode === "stationery"
-                        ? "bg-[#0B2B5E] text-white shadow-2xs"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    Pre-Printed Letterhead
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLetterheadMode("plain")}
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
-                      letterheadMode === "plain"
-                        ? "bg-[#0B2B5E] text-white shadow-2xs"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    Plain A4 Paper
-                  </button>
                 </div>
               </div>
             </CardHeader>
 
-            <CardContent 
-              id="printable-letter"
-              className={`p-5 font-serif text-[12px] leading-relaxed text-slate-800 space-y-3.5 max-h-[750px] overflow-y-auto select-text bg-[#fcfcfc] printable-letter-content ${
-                letterheadMode === "stationery" ? "letterhead-spacing" : ""
-              }`}
-            >
-              {/* Plain Paper Digital Header (Rendered only if printing on plain A4 without pre-printed logo) */}
-              {letterheadMode === "plain" && (
-                <div className="text-center pb-2.5 mb-2 border-b-2 border-[#0B2B5E] font-sans">
-                  <h2 className="text-xs font-black tracking-wider text-[#0B2B5E] uppercase">CDC Share Registrar Services Limited</h2>
-                  <p className="text-[10px] text-slate-500">Head Office: CDC House, 99-B, Block 'B', S.M.C.H.S., Main Shahrah-e-Faisal, Karachi-74400</p>
-                </div>
-              )}
+            <CardContent className="p-5 font-serif text-[12px] leading-relaxed text-slate-800 space-y-3.5 max-h-[750px] overflow-y-auto select-text bg-[#fcfcfc]">
 
               {/* Header Info */}
               <div className="flex justify-between items-start font-sans font-bold text-xs pb-1 border-b">
@@ -1949,17 +2045,16 @@ Encl.:  As stated above.`;
                     <p className="my-2">{scrutinyRemark}</p>
                   )}
 
-                  {/* Duplicate / Lost Share Formalities In Preview */}
-                  {hasLostShares && (
+                  {/* Duplicate Formalities - Position: Before Required */}
+                  {hasLostShares && duplicatePosition === 'before_required' && (
                     <div className="my-2 p-2.5 rounded bg-amber-50/60 border border-amber-200 text-slate-800 space-y-1">
                       <p className="font-semibold text-amber-950">
-                        Kindly note that as intimated, the subject share certificate(s) ({lostSharesDetail}) are reported lost / misplaced. In order to process the issuance of duplicate share certificate(s) in favor of legal heir(s), following duplicate formalities are required:
+                        {duplicateIntro || `Kindly note that as intimated, the subject share certificate(s) (${lostSharesDetail}) are reported lost / misplaced. In order to process the issuance of duplicate share certificate(s) in favor of legal heir(s), following duplicate formalities are required:`}
                       </p>
                       <ul className="list-disc pl-5 space-y-0.5 text-[11px]">
-                        <li>Draft Letter of Indemnity on non-judicial stamp paper of Rs. 500/- duly attested by Oath Commissioner / Notary Public along with two solvent sureties.</li>
-                        <li>Specimen of newspaper publication notice published in daily English &amp; Urdu national newspapers.</li>
-                        <li>Original full-page newspaper cuttings after 7-day notice period.</li>
-                        <li>Duplicate share certificate issuance fee of Rs. 200/- per certificate.</li>
+                        {duplicateDocs.map((doc, dIdx) => (
+                          <li key={dIdx}>{doc}</li>
+                        ))}
                       </ul>
                     </div>
                   )}
@@ -2001,6 +2096,20 @@ Encl.:  As stated above.`;
                     })}
                   </ol>
 
+                  {/* Duplicate Formalities - Position: After Required (Default/Middle) */}
+                  {hasLostShares && duplicatePosition === 'after_required' && (
+                    <div className="my-2 p-2.5 rounded bg-amber-50/60 border border-amber-200 text-slate-800 space-y-1">
+                      <p className="font-semibold text-amber-950">
+                        {duplicateIntro || `Kindly note that as intimated, the subject share certificate(s) (${lostSharesDetail}) are reported lost / misplaced. In order to process the issuance of duplicate share certificate(s) in favor of legal heir(s), following duplicate formalities are required:`}
+                      </p>
+                      <ul className="list-disc pl-5 space-y-0.5 text-[11px]">
+                        {duplicateDocs.map((doc, dIdx) => (
+                          <li key={dIdx}>{doc}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   {/* Position C: After Required Formalities (Recommended) */}
                   {includeScrutinyNote && scrutinyPosition === 'after_required' && scrutinyRemark.trim() && (
                     <p className="my-2">{scrutinyRemark}</p>
@@ -2009,6 +2118,20 @@ Encl.:  As stated above.`;
                   <p className="text-[11px] text-slate-600 pt-1">
                     Please ensure that details such as company name, folio number and number of shares are clearly mentioned on the Succession Certificate. Should you have any query, feel free to coordinate with us.
                   </p>
+
+                  {/* Duplicate Formalities - Position: At End of Letter */}
+                  {hasLostShares && duplicatePosition === 'at_end' && (
+                    <div className="my-2 p-2.5 rounded bg-amber-50/60 border border-amber-200 text-slate-800 space-y-1">
+                      <p className="font-semibold text-amber-950">
+                        {duplicateIntro || `Kindly note that as intimated, the subject share certificate(s) (${lostSharesDetail}) are reported lost / misplaced. In order to process the issuance of duplicate share certificate(s) in favor of legal heir(s), following duplicate formalities are required:`}
+                      </p>
+                      <ul className="list-disc pl-5 space-y-0.5 text-[11px]">
+                        {duplicateDocs.map((doc, dIdx) => (
+                          <li key={dIdx}>{doc}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   {/* Position D: At End of Letter */}
                   {includeScrutinyNote && scrutinyPosition === 'at_end' && scrutinyRemark.trim() && (

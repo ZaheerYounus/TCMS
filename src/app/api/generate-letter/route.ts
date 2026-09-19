@@ -34,6 +34,9 @@ export async function POST(req: NextRequest) {
       scrutinyPosition = "after_required", // 'after_received' | 'before_required' | 'after_required' | 'at_end'
       hasLostShares = false,   // Whether duplicate share formalities are required
       lostSharesDetail = "",   // e.g. "Cert # 10451 for 1,000 shares"
+      duplicatePosition = "before_required", // 'before_required' | 'after_required' | 'at_end'
+      duplicateDocs = [],      // Array of duplicate requirements
+      duplicateIntro = "",     // Custom intro paragraph for duplicate shares
       deficiencies = [],       // Array of specific objections / missing items for Second Letter
     } = await req.json();
 
@@ -55,19 +58,27 @@ export async function POST(req: NextRequest) {
       })
     ] : [];
 
-    // Duplicate share formalities documents
-    const lostShareDocs = [
+    // Duplicate share formalities documents (user customizable)
+    const defaultLostDocs = [
       "Draft Letter of Indemnity on non-judicial stamp paper of prescribed value (Rs. 500/-) duly attested by Oath Commissioner / Notary Public along with two solvent sureties.",
       "Specimen of newspaper publication notice of loss of shares published in one English and one Urdu daily national newspaper (approved specimen attached).",
       "Original full-page newspaper cuttings of both publications after expiry of 7-day notice period.",
       "Duplicate share certificate issuance fee of Rs. 200/- per certificate."
     ];
 
+    const activeLostDocs = (Array.isArray(duplicateDocs) && duplicateDocs.length > 0)
+      ? duplicateDocs
+      : defaultLostDocs;
+
+    const introText = duplicateIntro.trim().length > 0
+      ? duplicateIntro.trim()
+      : `Kindly note that as intimated, the subject share certificate(s) ${lostSharesDetail ? `(${lostSharesDetail}) ` : ''}are reported lost / misplaced. In order to process the issuance of duplicate share certificate(s) in favor of legal heir(s), following duplicate formalities are also required:`;
+
     const duplicateShareParagraphs = hasLostShares ? [
       new Paragraph({
         children: [
           new TextRun({ 
-            text: `Kindly note that as intimated, the subject share certificate(s) ${lostSharesDetail ? `(${lostSharesDetail}) ` : ''}are reported lost / misplaced. In order to process the issuance of duplicate share certificate(s) in favor of legal heir(s), following duplicate formalities are also required:`, 
+            text: introText, 
             size: 21, 
             bold: true,
             font: "Calibri" 
@@ -75,9 +86,9 @@ export async function POST(req: NextRequest) {
         ],
         spacing: { before: 150, after: 80 },
       }),
-      ...lostShareDocs.map((doc, idx) => new Paragraph({
+      ...activeLostDocs.map((doc: string) => new Paragraph({
         children: [
-          new TextRun({ text: `• `, bold: true, size: 20, font: "Calibri" }),
+          new TextRun({ text: `•  `, bold: true, size: 20, font: "Calibri" }),
           new TextRun({ text: doc, size: 20, font: "Calibri" }),
         ],
         spacing: { after: 60 },
@@ -233,8 +244,8 @@ export async function POST(req: NextRequest) {
       // Position A: After Received Documents
       ...(scrutinyPosition === 'after_received' ? scrutinyParagraphs : []),
 
-      // Lost Share Formalities (if enabled)
-      ...duplicateShareParagraphs,
+      // Lost Share Formalities (Position: before_required)
+      ...(duplicatePosition === 'before_required' ? duplicateShareParagraphs : []),
 
       // Position B: Before Required Formalities
       ...(scrutinyPosition === 'before_required' ? scrutinyParagraphs : []),
@@ -310,6 +321,9 @@ export async function POST(req: NextRequest) {
       // Position C: After Required Documents
       ...(scrutinyPosition === 'after_required' ? scrutinyParagraphs : []),
 
+      // Lost Share Formalities (Position: after_required)
+      ...(duplicatePosition === 'after_required' ? duplicateShareParagraphs : []),
+
       // 7. Closing Clarification Note
       new Paragraph({
         children: [
@@ -324,6 +338,9 @@ export async function POST(req: NextRequest) {
 
       // Position D: At End Before Signatures
       ...(scrutinyPosition === 'at_end' ? scrutinyParagraphs : []),
+
+      // Lost Share Formalities (Position: at_end)
+      ...(duplicatePosition === 'at_end' ? duplicateShareParagraphs : []),
 
       // 8. Signoff (NO CDCSR printed below signatures because it's printed on official letterhead!)
       new Paragraph({
