@@ -105,7 +105,11 @@ const KNOWN_COMPANIES = [
   { name: "Meezan Bank Limited", symbol: "MEBL", aliases: ["meezan bank", "mebl"] },
   { name: "Bank AL Habib Limited", symbol: "BAHL", aliases: ["bank al habib", "bahl"] },
   { name: "Attock Petroleum Limited", symbol: "APL", aliases: ["attock petroleum", "apl"] },
-  { name: "Kot Addu Power Company Limited", symbol: "KAPCO", aliases: ["kot addu", "kapco"] }
+  { name: "Kot Addu Power Company Limited", symbol: "KAPCO", aliases: ["kot addu", "kapco"] },
+  { name: "K-Electric Limited", symbol: "KEL", aliases: ["k-electric", "kel", "kelectric"] },
+  { name: "Khyber Tobacco Company Limited", symbol: "KHTC", aliases: ["khyber tobacco", "khtc"] },
+  { name: "PAK Suzuki Motor Company Limited", symbol: "PSMC", aliases: ["pak suzuki", "psmc"] },
+  { name: "Pakistan International Airlines Corporation Limited", symbol: "PIAC", aliases: ["pakistan international airlines", "piac", "pia"] }
 ];
 
 /**
@@ -118,7 +122,9 @@ export function parseLetterText(text: string): ParsedLetterResult {
     matchSource: "document_parsed"
   };
 
-  const lower = text.toLowerCase();
+  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lower = normalized.toLowerCase();
+  const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
 
   // 1. Folio Number Detection
   const folioMatch = text.match(/(?:folio(?:\s*(?:#|no|number|num))?[:\s]*)([A-Za-z0-9\/-]{3,12})/i) ||
@@ -140,7 +146,6 @@ export function parseLetterText(text: string): ParsedLetterResult {
     }
   }
 
-  // If company not matched by alias, look for "Company Limited" or "Ltd."
   if (!result.company) {
     const compLineMatch = text.match(/([A-Z][A-Za-z0-9\s&]+(?:Company|Corporation|Bank|Cement|Fertilizer|Textile|Sugar|Power|Oil)\s+(?:Limited|Ltd\.?))/);
     if (compLineMatch) {
@@ -149,57 +154,106 @@ export function parseLetterText(text: string): ParsedLetterResult {
     }
   }
 
-  // 3. Deceased Shareholder Name
-  const lateMatch = text.match(/(?:Late\s+)([A-Z][a-zA-Z\s.]{2,35})(?=\s*\(Late\)|[\r\n,]|Folio|F\/H|\bDear\b|\bTransmission\b)/i) ||
-                    text.match(/F\/H:\s*([A-Za-z\s.]+?)(?=\s*\(Late\)|[\r\n,])/i) ||
-                    text.match(/deceased(?:\s+shareholder)?[:\s]+([A-Za-z\s.]+?)(?=[\r\n,]|registered)/i);
-  if (lateMatch && lateMatch[1]) {
-    const rawDeceased = lateMatch[1].trim().replace(/\s*\(Late\)/i, '').replace(/Late\s+/i, '');
-    if (rawDeceased.length > 2 && rawDeceased.length < 50) {
-      result.deceased = rawDeceased;
+  // 3. Header Block Parsing (Legal Heir, Deceased, Address & Contact)
+  let inAddress = false;
+  let addressParts: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.includes('Dear Concern') || line.includes('Transmission of Shares')) {
+      break;
+    }
+
+    // Match F/H line
+    if (line.match(/(?:F\/H|Father name|Husband name)[:\s]/i)) {
+      inAddress = true;
+      const decMatch = line.match(/(?:F\/H(?:\s*Name)?|Father name|Husband name)[:\s]+([A-Za-z\s.]+?)(?=\s*\(Late\)|$)/i);
+      if (decMatch) {
+        result.deceased = decMatch[1].trim().replace(/\s*\(Late\)/i, '');
+      }
+      // Previous line is typically Legal Heir name
+      if (i > 0 && !lines[i-1].match(/(?:CDCSR|CDC|\d{4}|August|September|October|November|December|January|February|March|April|May|June|July)/i)) {
+        const potentialHeir = lines[i-1].replace(/^To:\s*/i, '').trim();
+        if (potentialHeir.length > 2 && potentialHeir.length < 55) {
+          result.legalHeir = potentialHeir;
+        }
+      }
+      continue;
+    }
+
+    if (inAddress) {
+      const phoneMatch = line.match(/(?:Contact\s*(?:#|No|Number)?[:\s]*)?(\+?92[-\s]?3\d{2}[-\s]?\d{7}|03\d{2}[-\s]?\d{7}|021[-\s]?\d{7,8})/i);
+      if (phoneMatch) {
+        result.contactNo = phoneMatch[0].trim();
+        const rem = line.replace(phoneMatch[0], '').trim();
+        if (rem.length > 5 && !rem.match(/^(?:Contact|Cell|Phone|Mob)/i)) {
+          addressParts.push(rem);
+        }
+      } else if (!line.toLowerCase().includes('dear concern')) {
+        addressParts.push(line);
+      }
     }
   }
 
-  // 4. Legal Heir / Applicant Name
-  const toMatch = text.match(/To:\s*[\r\n]+\s*([A-Za-z\s.()\/]+?)(?=[\r\n]+F\/H|[\r\n]+Address|[\r\n]+House)/i) ||
-                  text.match(/(?:legal heir|applicant|addressee)[:\s]*([A-Za-z\s.]+?)(?=[\r\n,(])/i) ||
-                  text.match(/\b((?:Mr\.|Mrs\.|Ms\.|Mst\.|Dr\.|Syed)\s+[A-Z][a-zA-Z\s.]{3,35})\b/);
-  if (toMatch && toMatch[1]) {
-    const rawHeir = toMatch[1].trim();
-    if (!rawHeir.toLowerCase().includes("concern") && rawHeir.length > 2 && rawHeir.length < 55) {
-      result.legalHeir = rawHeir;
+  if (addressParts.length > 0) {
+    result.address = addressParts
+      .join(', ')
+      .replace(/,\s*,+/g, ',')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/,\s*$/, '');
+  }
+
+  // Fallback for Deceased name if not caught in F/H
+  if (!result.deceased) {
+    const lateMatch = text.match(/(?:Late\s+)([A-Z][a-zA-Z\s.]{2,35})(?=\s*\(Late\)|[\r\n,]|Folio|F\/H|\bDear\b|\bTransmission\b)/i) ||
+                      text.match(/deceased(?:\s+shareholder)?[:\s]+([A-Za-z\s.]+?)(?=[\r\n,]|registered)/i);
+    if (lateMatch && lateMatch[1]) {
+      result.deceased = lateMatch[1].trim().replace(/\s*\(Late\)/i, '').replace(/Late\s+/i, '');
     }
   }
 
-  // 5. Relation
+  // Fallback for Legal Heir name
+  if (!result.legalHeir) {
+    const toMatch = text.match(/To:\s*[\r\n]+\s*([A-Za-z\s.()\/]+?)(?=[\r\n]+F\/H|[\r\n]+Address|[\r\n]+House)/i) ||
+                    text.match(/(?:legal heir|applicant|addressee)[:\s]*([A-Za-z\s.]+?)(?=[\r\n,(])/i) ||
+                    text.match(/\b((?:Mr\.|Mrs\.|Ms\.|Mst\.|Dr\.|Syed)\s+[A-Z][a-zA-Z\s.]{3,35})\b/);
+    if (toMatch && toMatch[1]) {
+      const rawHeir = toMatch[1].trim();
+      if (!rawHeir.toLowerCase().includes("concern") && rawHeir.length > 2 && rawHeir.length < 55) {
+        result.legalHeir = rawHeir;
+      }
+    }
+  }
+
+  // Fallback for address
+  if (!result.address) {
+    const addrMatch = text.match(/((?:House|Flat|Plot|Bungalow|Apartment|D-|\d+[A-Z]?)[#\s\w\-,]+(?:Street|Block|Sector|Scheme|Road|Phase|Colony|Town)[\w\s\-,]+(?:Karachi|Lahore|Islamabad|Rawalpindi|Faisalabad|Peshawar|Quetta|Multan|Hyderabad))/i) ||
+                      text.match(/Address[:\s]*([\w\s\-,.#]{15,100})/i);
+    if (addrMatch && addrMatch[1]) {
+      result.address = addrMatch[1].trim().replace(/\s+/g, ' ');
+    }
+  }
+
+  // Fallback for contact
+  if (!result.contactNo) {
+    const contactMatch = text.match(/(?:03\d{2}[-\s]?\d{7}|021[-\s]?\d{7,8}|\+92[-\s]?3\d{2}[-\s]?\d{7})/);
+    if (contactMatch) {
+      result.contactNo = contactMatch[0].trim();
+    }
+  }
+
+  // Relation
   const relationMatch = text.match(/\((Legal Heir|Son|Daughter|Widow|Wife|Husband|Brother|Sister|Applicant)\)/i) ||
                         text.match(/(?:relation|capacity)[:\s]*([A-Za-z\s\/]+?)(?=[\r\n,])/i);
   if (relationMatch && relationMatch[1]) {
     result.relation = relationMatch[1].trim();
   } else {
-    result.relation = "Legal Heir / Applicant";
+    result.relation = "Legal Heir / Son";
   }
 
-  // 6. Address Detection
-  const addrMatch = text.match(/((?:House|Flat|Plot|Bungalow|Apartment|D-|\d+[A-Z]?)[#\s\w\-,]+(?:Street|Block|Sector|Scheme|Road|Phase|Colony|Town)[\w\s\-,]+(?:Karachi|Lahore|Islamabad|Rawalpindi|Faisalabad|Peshawar|Quetta|Multan|Hyderabad))/i) ||
-                    text.match(/Address[:\s]*([\w\s\-,.#]{15,100})/i);
-  if (addrMatch && addrMatch[1]) {
-    result.address = addrMatch[1].trim().replace(/\s+/g, ' ');
-  }
-
-  // 7. Contact Number
-  const contactMatch = text.match(/(?:03\d{2}[-\s]?\d{7}|021[-\s]?\d{7,8}|\+92[-\s]?3\d{2}[-\s]?\d{7})/);
-  if (contactMatch) {
-    result.contactNo = contactMatch[0].trim();
-  }
-
-  // 8. CNIC
-  const cnicMatch = text.match(/\b(\d{5}-\d{7}-\d)\b/);
-  if (cnicMatch) {
-    result.cnic = cnicMatch[1];
-  }
-
-  // 9. Shares and Certificates
+  // Shares and Certificates
   const certMatch = text.match(/=?(\d+)=?\s*share\s*certificates?/i);
   if (certMatch) {
     result.certificates = `=${certMatch[1].padStart(2, '0')}=`;
@@ -215,7 +269,7 @@ export function parseLetterText(text: string): ParsedLetterResult {
     result.scripts = scriptsMatch[1].trim();
   }
 
-  // 10. Auto-Identify Documents Received
+  // Auto-Identify Documents Received
   const foundDocs: string[] = [];
   if (lower.includes("written") || lower.includes("request application") || lower.includes("transmission request") || lower.includes("application")) {
     foundDocs.push("Written transmission request application");
@@ -250,12 +304,12 @@ export function parseLetterText(text: string): ParsedLetterResult {
 
   result.receivedDocs = foundDocs;
 
-  // 11. Ref No Generation
+  // Ref No Generation
   const sym = result.compSymbol || "COMP";
   const fol = result.folio || "FOLIO";
   result.refNo = `CDCSR/LTC/${sym}/${fol}/26`;
 
-  // 12. Enrich with MIS database if folio was discovered
+  // Enrich with MIS database if folio was discovered
   if (result.folio) {
     try {
       const recordsPath = path.join(process.cwd(), 'src', 'data', 'misRecords.json');
