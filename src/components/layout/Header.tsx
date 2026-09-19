@@ -50,7 +50,7 @@ export function Header() {
           </div>
           <div className="hidden md:block text-left">
             <p className="text-xs font-bold text-slate-800 leading-tight">Zaheer Ahmed</p>
-            <p className="text-[10px] text-[#F37021] font-semibold leading-tight">System Admin &amp; Lead</p>
+            <p className="text-[10px] text-[#F37021] font-semibold leading-tight">Project Lead &amp; Master Admin</p>
           </div>
         </a>
 

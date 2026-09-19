@@ -132,6 +132,35 @@ export async function POST(req: NextRequest) {
     all.unshift(newEntry);
     saveDailyData(all);
 
+    // AUTOMATIC CENTRAL MIS DATABASE SYNC
+    // Ensure folio exists in central MIS database and reflects this correspondence immediately
+    if (newEntry.folio) {
+      try {
+        const misUrl = new URL('/api/mis', req.url);
+        await fetch(misUrl.toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            folio: newEntry.folio,
+            company: newEntry.company,
+            deceased: newEntry.shareholder,
+            legalHeir: newEntry.legalHeir,
+            status: newEntry.status === 'RECEIVED' || newEntry.status === 'UNDER_REVIEW' ? 'Pending' : newEntry.status,
+            type: newEntry.type,
+            letterDate: newEntry.date,
+            remarks: newEntry.remarks || (newEntry.type === 'INWARD' ? `Inward correspondence received: ${newEntry.enclosures}` : `Outward letter dispatched: ${newEntry.enclosures}`),
+            user: `${newEntry.officerName} (${newEntry.assignedTo})`,
+            userId: newEntry.assignedTo,
+            actionTitle: newEntry.type === 'INWARD' 
+              ? `Inward Application Received (Ref: ${newEntry.refNo})` 
+              : `Outward Letter Dispatched (Ref: ${newEntry.refNo})`
+          })
+        });
+      } catch (me) {
+        console.error('MIS auto-sync error from daily register POST:', me);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       entry: newEntry
@@ -176,7 +205,10 @@ export async function PATCH(req: NextRequest) {
             folio: all[itemIndex].folio,
             company: all[itemIndex].company,
             status: status,
-            remarks: `Status updated via Daily Register to "${status}" (${remarks || ''})`
+            user: `${all[itemIndex].officerName || 'Zaheer Ahmed'} (${all[itemIndex].assignedTo || 'ZA'})`,
+            userId: all[itemIndex].assignedTo || 'ZA',
+            actionTitle: `Status updated to ${status} via Daily Register`,
+            remarks: `Status updated via Daily Register to "${status}" ${remarks ? '(' + remarks + ')' : ''}`
           })
         });
       } catch (me) {

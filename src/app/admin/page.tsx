@@ -30,10 +30,10 @@ import {
 } from "@/components/ui/table";
 
 const systemUsers = [
-  { name: "Zaheer Ahmed (You)", email: "zaheer.ahmed@cdcsr.com.pk", role: "Primary System Administrator & Lead", status: "Active (Master Admin)", lastLogin: "Active Now" },
-  { name: "Azib Yousuf", email: "azib.yousuf@cdcsr.com.pk", role: "Senior Transmission Officer", status: "Active", lastLogin: "19-09-2026 18:40" },
+  { name: "Zaheer Ahmed (You)", email: "zaheer.ahmed@cdcsr.com.pk", role: "Project Lead & Master Admin", status: "Active (Master Admin)", lastLogin: "Active Now" },
+  { name: "Azib Yousuf", email: "azib.yousuf@cdcsr.com.pk", role: "Team Lead", status: "Active", lastLogin: "19-09-2026 18:40" },
   { name: "Muqaddas Sharif", email: "muqaddas.sharif@cdcsr.com.pk", role: "Transmission Officer", status: "Active", lastLogin: "19-09-2026 16:15" },
-  { name: "Zohaib Jamal", email: "zohaib.jamal@cdcsr.com.pk", role: "Operations Officer", status: "Active", lastLogin: "19-09-2026 15:30" },
+  { name: "Zohaib Jamal", email: "zohaib.jamal@cdcsr.com.pk", role: "Senior Officer Transmission", status: "Active", lastLogin: "19-09-2026 15:30" },
   { name: "Ali Raza", email: "ali.raza@cdcsr.com.pk", role: "Filing & Vault Officer", status: "Active", lastLogin: "19-09-2026 12:05" },
 ];
 

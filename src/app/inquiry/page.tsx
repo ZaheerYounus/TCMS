@@ -37,7 +37,9 @@ import {
   ChevronRight,
   Sparkles,
   X,
-  Info
+  Info,
+  ArrowDownLeft,
+  ArrowUpRight
 } from "lucide-react";
 import {
   Table,
@@ -52,10 +54,10 @@ import Link from "next/link";
 
 // 4 Transmission Team Members
 const TEAM_USERS = [
-  { id: "ZA", name: "Zaheer Ahmed", role: "Team Lead / Registrar", color: "bg-blue-600" },
-  { id: "AY", name: "Azib Yousuf", role: "Senior Transmission Officer", color: "bg-[#F37021]" },
+  { id: "ZA", name: "Zaheer Ahmed", role: "Project Lead", color: "bg-blue-600" },
+  { id: "AY", name: "Azib Yousuf", role: "Team Lead", color: "bg-[#F37021]" },
   { id: "MS", name: "Muqaddas Sharif", role: "Transmission Officer", color: "bg-emerald-600" },
-  { id: "ZJ", name: "Zohaib Jamal", role: "Operations Officer", color: "bg-purple-600" },
+  { id: "ZJ", name: "Zohaib Jamal", role: "Senior Officer Transmission", color: "bg-purple-600" },
 ];
 
 const STAGES = [
@@ -205,7 +207,8 @@ function InquiryContent() {
       if (resJson.success && resJson.record) {
         const updated = {
           ...resJson.record,
-          filingInfo: caseRecord.filingInfo
+          filingInfo: caseRecord.filingInfo,
+          correspondenceLog: caseRecord.correspondenceLog
         };
         setCaseRecord(updated);
         setSearchResults(prev => prev.map(r => r.caseId === updated.caseId ? updated : r));
@@ -248,7 +251,8 @@ function InquiryContent() {
       if (resJson.success && resJson.record) {
         const updated = {
           ...resJson.record,
-          filingInfo: caseRecord.filingInfo
+          filingInfo: caseRecord.filingInfo,
+          correspondenceLog: caseRecord.correspondenceLog
         };
         setCaseRecord(updated);
         // Also update in searchResults list
@@ -801,6 +805,91 @@ function InquiryContent() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Daily Inward / Outward Correspondence Logs for this Folio */}
+          {caseRecord.correspondenceLog && caseRecord.correspondenceLog.length > 0 && (
+            <Card className="border-slate-200 shadow-sm border-t-4 border-t-emerald-600">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <FileText className="h-4 w-4 text-emerald-600" />
+                      Daily Register Correspondence Records ({caseRecord.correspondenceLog.length})
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Inward applications received and outward transmission letters dispatched for Folio #{caseRecord.folio}
+                    </CardDescription>
+                  </div>
+                  <Link href={`/daily?q=${encodeURIComponent(caseRecord.folio)}`}>
+                    <Badge className="bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 font-bold text-[11px] cursor-pointer">
+                      View in Daily Register →
+                    </Badge>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {caseRecord.correspondenceLog.map((c: any, cIdx: number) => {
+                    const isInward = c.type === 'INWARD';
+                    return (
+                      <div 
+                        key={c.id || cIdx} 
+                        className={`p-3.5 rounded-xl border text-xs space-y-2 ${
+                          isInward 
+                            ? 'bg-orange-50/40 border-orange-200' 
+                            : 'bg-blue-50/40 border-blue-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold flex items-center gap-1 ${
+                              isInward 
+                                ? 'bg-[#D85B10] text-white' 
+                                : 'bg-[#0B2B5E] text-white'
+                            }`}>
+                              {isInward ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
+                              {c.type}
+                            </span>
+                            <span className="font-mono font-bold text-slate-800">{c.refNo || c.id}</span>
+                          </div>
+                          <span className="text-[11px] text-slate-600 font-mono font-bold">
+                            {c.date} {c.time && `• ${c.time}`}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px] bg-white/80 p-2.5 rounded-lg border border-slate-200/80">
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">Legal Heir / Applicant:</span>
+                            <strong className="text-slate-900">{c.legalHeir || 'N/A'}</strong>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">Handled By:</span>
+                            <strong className="text-[#0B2B5E]">{c.officerName || 'Staff'} ({c.assignedTo || 'ZA'})</strong>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-slate-400 block text-[10px]">Subject / Documents:</span>
+                            <span className="text-slate-700 font-medium">{c.enclosures || 'Standard correspondence'}</span>
+                          </div>
+                          {c.remarks && (
+                            <div className="col-span-2 text-slate-600 italic text-[10px] bg-slate-50 p-1.5 rounded">
+                              &quot;{c.remarks}&quot;
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500">Recorded Status:</span>
+                          <span className="font-bold text-[#0B2B5E] bg-white px-2 py-0.5 rounded border border-slate-200">
+                            {c.status || (isInward ? 'Pending' : 'Waiting')}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Interactive Live Update Form & Discussion Logger */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

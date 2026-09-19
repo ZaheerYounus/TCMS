@@ -40,13 +40,14 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const OFFICERS = [
-  { id: "ZA", name: "Zaheer Ahmed", role: "Team Lead / Registrar" },
-  { id: "AY", name: "Azib Yousuf", role: "Senior Transmission Officer" },
+  { id: "ZA", name: "Zaheer Ahmed", role: "Project Lead" },
+  { id: "AY", name: "Azib Yousuf", role: "Team Lead" },
   { id: "MS", name: "Muqaddas Sharif", role: "Transmission Officer" },
-  { id: "ZJ", name: "Zohaib Jamal", role: "Operations Officer" },
+  { id: "ZJ", name: "Zohaib Jamal", role: "Senior Officer Transmission" },
 ];
 
 const CDCSR_STATUS_OPTIONS = [
+  { id: "Pending", label: "Pending (Under Examination / Action with Us)", badge: "bg-orange-100 text-[#D85B10] border-orange-300" },
   { id: "Waiting", label: "Waiting for Legal Heirs / Response Sent", badge: "bg-amber-100 text-amber-800 border-amber-300" },
   { id: "Co. - Case Review & Approval", label: "Co. Review & Approval", badge: "bg-indigo-100 text-indigo-800 border-indigo-300" },
   { id: "Co. - Signing", label: "Co. Signing", badge: "bg-purple-100 text-purple-800 border-purple-300" },
@@ -161,7 +162,7 @@ export default function DailyRegisterPage() {
           setNewStatus("Waiting");
           setNewEnclosures("First Formalities Letter, Transmission Checklist, Specimen Card");
         } else {
-          setNewStatus("Received");
+          setNewStatus("Pending");
         }
 
         setAutoFetchedMsg(`Found case for ${r.company || 'Issuer'}! Deceased: "${r.deceased || 'N/A'}", Legal Heir: "${r.legalHeir || 'N/A'}".`);
@@ -697,7 +698,7 @@ export default function DailyRegisterPage() {
                       setNewStatus("Waiting");
                       setNewEnclosures("Transmission Formalities Letter");
                     } else {
-                      setNewStatus("Received");
+                      setNewStatus("Pending");
                       setNewEnclosures("Written application, CNIC copy, Death Certificate");
                     }
                   }}

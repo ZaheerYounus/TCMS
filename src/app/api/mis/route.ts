@@ -7,16 +7,39 @@ let cachedMisRecords: any[] | null = null;
 let misFolioIndex = new Map<string, any[]>();
 let misCaseIdIndex = new Map<string, any>();
 let filingFolioMap = new Map<string, any[]>();
+let dailyFolioMap = new Map<string, any[]>();
 
 let lastRecordsMtime = 0;
+let lastDailyMtime = 0;
 
 function initMisData(force: boolean = false) {
   try {
     const summaryPath = path.join(process.cwd(), 'src', 'data', 'misSummary.json');
     const recordsPath = path.join(process.cwd(), 'src', 'data', 'misRecords.json');
     const filingRecordsPath = path.join(process.cwd(), 'src', 'data', 'filingRecords.json');
+    const dailyRegisterPath = path.join(process.cwd(), 'src', 'data', 'dailyRegister.json');
 
     const mtime = fs.existsSync(recordsPath) ? fs.statSync(recordsPath).mtimeMs : 0;
+    const dailyMtime = fs.existsSync(dailyRegisterPath) ? fs.statSync(dailyRegisterPath).mtimeMs : 0;
+
+    // Refresh daily correspondence map if dailyRegister.json updated
+    if (fs.existsSync(dailyRegisterPath) && (dailyMtime !== lastDailyMtime || force)) {
+      lastDailyMtime = dailyMtime;
+      try {
+        const dailyEntries = JSON.parse(fs.readFileSync(dailyRegisterPath, 'utf-8'));
+        dailyFolioMap.clear();
+        for (const item of dailyEntries) {
+          const fKey = String(item.folio || '').toLowerCase().trim();
+          if (fKey) {
+            if (!dailyFolioMap.has(fKey)) dailyFolioMap.set(fKey, []);
+            dailyFolioMap.get(fKey)!.push(item);
+          }
+        }
+      } catch (de) {
+        console.error('Failed to load daily register map in MIS API:', de);
+      }
+    }
+
     if (cachedMisRecords && cachedMisSummary && !force && mtime === lastRecordsMtime) return;
     lastRecordsMtime = mtime;
 
@@ -76,6 +99,13 @@ function getFilingInfoForRecord(r: any) {
     return rComp.includes(flComp) || flComp.includes(rComp);
   });
   return matched.length > 0 ? matched : allMatches;
+}
+
+function getDailyCorrespondenceForRecord(r: any) {
+  const fKey = String(r.folio || '').toLowerCase().trim();
+  if (!fKey) return [];
+  const entries = dailyFolioMap.get(fKey) || [];
+  return entries;
 }
 
 function recalculateMisSummary() {
@@ -186,12 +216,13 @@ export async function GET(req: NextRequest) {
   if (q && misCaseIdIndex.has(q)) {
     const singleRec = misCaseIdIndex.get(q);
     const filingInfo = getFilingInfoForRecord(singleRec);
+    const correspondenceLog = getDailyCorrespondenceForRecord(singleRec);
     return NextResponse.json({
       total: 1,
       page: 1,
       limit,
       totalPages: 1,
-      records: [{ ...singleRec, filingInfo }],
+      records: [{ ...singleRec, filingInfo, correspondenceLog }],
       summary,
     }, { headers: noCacheHeaders });
   }
@@ -201,7 +232,8 @@ export async function GET(req: NextRequest) {
     const matched = misFolioIndex.get(q) || [];
     const enriched = matched.map((rec: any) => {
       const filingInfo = getFilingInfoForRecord(rec);
-      return { ...rec, filingInfo };
+      const correspondenceLog = getDailyCorrespondenceForRecord(rec);
+      return { ...rec, filingInfo, correspondenceLog };
     });
     return NextResponse.json({
       total: matched.length,
@@ -298,7 +330,8 @@ export async function GET(req: NextRequest) {
   const pagedRecords = filtered.slice(startIndex, startIndex + limit);
   const enrichedRecords = pagedRecords.map((r: any) => {
     const filingInfo = getFilingInfoForRecord(r);
-    return { ...r, filingInfo };
+    const correspondenceLog = getDailyCorrespondenceForRecord(r);
+    return { ...r, filingInfo, correspondenceLog };
   });
 
   return NextResponse.json({
@@ -494,15 +527,39 @@ export async function POST(req: NextRequest) {
       });
 
     } else {
-      // Create brand new case in MIS
+      let newStatusCode = 'WAITING';
+      let newIsClosed = false;
+      const initStatus = status || (body.type === 'INWARD' ? 'Pending' : 'Waiting');
+      const sL = initStatus.toLowerCase();
+      if (sL.includes('partially')) {
+        newStatusCode = 'PARTIALLY_CLOSED';
+      } else if (sL === 'pending') {
+        newStatusCode = 'PENDING';
+      } else if (sL === 'waiting') {
+        newStatusCode = 'WAITING';
+      } else if (sL.includes('custody')) {
+        newStatusCode = 'WAITING_CUSTODY';
+      } else if (sL.includes('signing')) {
+        newStatusCode = 'CO_SIGNING';
+      } else if (sL.includes('review') || sL.includes('approval')) {
+        newStatusCode = 'CO_APPROVAL';
+      } else if (sL.includes('transfer')) {
+        newStatusCode = 'IN_TRANSFER';
+      } else if (sL.includes('dividend')) {
+        newStatusCode = 'CO_DIVIDEND';
+      } else if (sL.includes('closed')) {
+        newStatusCode = 'CLOSED';
+        newIsClosed = true;
+      }
+
       const newCase: any = {
         caseId: `TR-${String(records.length + 1).padStart(6, '0')}`,
         company: company || 'CDCSR Client Company',
         folio: String(folio || targetKey),
-        deceased: body.deceased || 'Subject Shareholder',
+        deceased: body.deceased || body.shareholder || 'Subject Shareholder',
         legalHeir: body.legalHeir || 'Legal Heir',
-        reqRecDate: letterDate,
-        formSentDate: letterDate,
+        reqRecDate: body.type === 'INWARD' ? letterDate : (body.reqRecDate || ''),
+        formSentDate: body.type === 'OUTWARD' ? letterDate : (body.formSentDate || ''),
         formRecDate: '',
         formSentAgain1: '',
         formRecAgain1: '',
@@ -517,16 +574,16 @@ export async function POST(req: NextRequest) {
         sharesFwdDate: '',
         chqRecComp: '',
         chqFwdLegalHeir: '',
-        status: status || 'Waiting',
-        statusCode: 'WAITING',
-        isClosed: false,
-        remarks: remarks || `1st Letter issued on ${letterDate}`,
+        status: initStatus,
+        statusCode: newStatusCode,
+        isClosed: newIsClosed,
+        remarks: remarks || (body.type === 'INWARD' ? `Inward transmission application received on ${letterDate}` : `1st Letter issued on ${letterDate}`),
         auditTrail: [
           {
             id: `AUD-${Date.now()}`,
             user: user || 'Zaheer Ahmed (ZA)',
             userId: userId || 'ZA',
-            action: 'Case Created in Transmission Register',
+            action: actionTitle || (body.type === 'INWARD' ? 'Inward Application Received' : 'Case Created in Transmission Register'),
             note: discussionNote || remarks || '',
             timestamp: nowFormatted
           }
