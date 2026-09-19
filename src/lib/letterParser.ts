@@ -2,6 +2,9 @@ import zlib from 'zlib';
 import path from 'path';
 import fs from 'fs';
 
+export * from './gapAnalyzer';
+import { calculateDocumentGap, CANONICAL_TRANSMISSION_DOCS, DocumentGapAnalysis, TransmissionDocRequirement } from './gapAnalyzer';
+
 export interface ParsedLetterResult {
   folio?: string;
   company?: string;
@@ -16,6 +19,10 @@ export interface ParsedLetterResult {
   certificates?: string;
   scripts?: string;
   receivedDocs: string[];
+  missingDocs: string[];
+  gapAnalysis: DocumentGapAnalysis;
+  hasLostShares?: boolean;
+  lostSharesDetail?: string;
   refNo?: string;
   rawTextPreview: string;
   matchSource: "document_parsed" | "mis_enriched" | "manual";
@@ -116,8 +123,23 @@ const KNOWN_COMPANIES = [
  * Smart heuristic letter text parser
  */
 export function parseLetterText(text: string): ParsedLetterResult {
+  const defaultGap: DocumentGapAnalysis = {
+    receivedCount: 0,
+    totalRequirementsCount: CANONICAL_TRANSMISSION_DOCS.length,
+    completionPercentage: 0,
+    isComplete: false,
+    receivedDocs: [],
+    missingDocs: [],
+    missingItemsDetailed: [],
+    hasLostShares: false,
+    suggestedStage: "first",
+    summaryText: "Awaiting document analysis."
+  };
+
   const result: ParsedLetterResult = {
     receivedDocs: [],
+    missingDocs: [],
+    gapAnalysis: defaultGap,
     rawTextPreview: text.slice(0, 1000),
     matchSource: "document_parsed"
   };
@@ -342,6 +364,12 @@ export function parseLetterText(text: string): ParsedLetterResult {
       console.warn("MIS lookup in letter parser skipped:", e);
     }
   }
+
+  // Calculate Document Gap Analysis & Transmission Readiness
+  const gap = calculateDocumentGap(result.receivedDocs, text);
+  result.gapAnalysis = gap;
+  result.missingDocs = gap.missingDocs;
+  result.hasLostShares = gap.hasLostShares;
 
   return result;
 }

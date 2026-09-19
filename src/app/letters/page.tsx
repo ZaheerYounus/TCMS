@@ -37,9 +37,16 @@ import {
   AlertCircle,
   Files,
   Layers,
-  FileCheck2
+  FileCheck2,
+  Printer
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { 
+  calculateDocumentGap, 
+  CANONICAL_TRANSMISSION_DOCS, 
+  DocumentGapAnalysis, 
+  TransmissionDocRequirement 
+} from "@/lib/gapAnalyzer";
 
 interface MultiFolioItem {
   folio: string;
@@ -120,6 +127,35 @@ function LetterGenerationContent() {
     "Attested Affidavit / Indemnity Bond",
     "Account maintenance certificate / IBAN details"
   ];
+
+  // Intelligent Transmission Gap Analysis State
+  const [gapAnalysis, setGapAnalysis] = useState<DocumentGapAnalysis>(() => 
+    calculateDocumentGap([
+      "Copy of CNIC of subject deceased shareholder and yourself",
+      "Written transmission request application"
+    ])
+  );
+  const [autoSyncGap, setAutoSyncGap] = useState(true);
+  const [letterheadMode, setLetterheadMode] = useState<"stationery" | "plain">("stationery");
+
+  const syncLetterToGap = () => {
+    const gap = calculateDocumentGap(receivedDocs);
+    setGapAnalysis(gap);
+    if (gap.missingDocs.length > 0) {
+      setRequiredDocs(gap.missingDocs);
+    }
+    if (gap.hasLostShares) {
+      setHasLostShares(true);
+    }
+  };
+
+  const resetToAllRequirements = () => {
+    setRequiredDocs(CANONICAL_TRANSMISSION_DOCS.map(d => d.formalText));
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   // Documents Required (Step 2)
   const [requiredDocs, setRequiredDocs] = useState<string[]>([
@@ -318,12 +354,25 @@ function LetterGenerationContent() {
       if (p.certificates) setCertificates(p.certificates);
       if (p.scripts) setScripts(p.scripts);
       if (p.refNo) setRefNo(p.refNo);
-      if (p.receivedDocs && p.receivedDocs.length > 0) {
-        setReceivedDocs(p.receivedDocs);
+      
+      const currentRec = p.receivedDocs && p.receivedDocs.length > 0 ? p.receivedDocs : receivedDocs;
+      setReceivedDocs(currentRec);
+
+      const gap = p.gapAnalysis || calculateDocumentGap(currentRec);
+      setGapAnalysis(gap);
+
+      if (gap.missingDocs && gap.missingDocs.length > 0) {
+        setRequiredDocs(gap.missingDocs);
+      }
+      if (gap.hasLostShares) {
+        setHasLostShares(true);
+      }
+      if (gap.suggestedStage) {
+        setLetterStage(gap.suggestedStage);
       }
 
       setUploadSuccessMsg(
-        `Letter analyzed successfully! Detected Folio: ${p.folio || 'N/A'}, Company: ${p.compSymbol || 'N/A'}, Legal Heir: ${p.legalHeir || 'N/A'}, Address: ${p.address ? 'Yes' : 'Manual entry'}.`
+        `Automated Gap Analysis complete! Detected Folio: ${p.folio || 'N/A'}, Company: ${p.compSymbol || 'N/A'}. Received ${gap.receivedCount} of ${gap.totalRequirementsCount} statutory documents (${gap.completionPercentage}% complete). Response letter auto-prepared with the ${gap.missingDocs.length} remaining requirements!`
       );
     } catch (err: any) {
       console.error("Upload parse error:", err);
@@ -361,12 +410,25 @@ function LetterGenerationContent() {
       if (p.certificates) setCertificates(p.certificates);
       if (p.scripts) setScripts(p.scripts);
       if (p.refNo) setRefNo(p.refNo);
-      if (p.receivedDocs && p.receivedDocs.length > 0) {
-        setReceivedDocs(p.receivedDocs);
+      
+      const currentRec = p.receivedDocs && p.receivedDocs.length > 0 ? p.receivedDocs : receivedDocs;
+      setReceivedDocs(currentRec);
+
+      const gap = p.gapAnalysis || calculateDocumentGap(currentRec, pastedText);
+      setGapAnalysis(gap);
+
+      if (gap.missingDocs && gap.missingDocs.length > 0) {
+        setRequiredDocs(gap.missingDocs);
+      }
+      if (gap.hasLostShares) {
+        setHasLostShares(true);
+      }
+      if (gap.suggestedStage) {
+        setLetterStage(gap.suggestedStage);
       }
 
       setUploadSuccessMsg(
-        `Letter text analyzed successfully! Extracted Folio: ${p.folio || 'N/A'}, Company: ${p.compSymbol || 'N/A'}, Legal Heir: ${p.legalHeir || 'N/A'}.`
+        `Letter text analyzed! Extracted Folio: ${p.folio || 'N/A'}, Company: ${p.compSymbol || 'N/A'}. Received ${gap.receivedCount} of ${gap.totalRequirementsCount} documents. Response letter auto-prepared for the ${gap.missingDocs.length} remaining requirements!`
       );
       setPasteModalOpen(false);
       setPastedText("");
@@ -432,9 +494,20 @@ function LetterGenerationContent() {
   };
 
   const toggleReceivedDoc = (doc: string) => {
-    setReceivedDocs(prev => 
-      prev.includes(doc) ? prev.filter(d => d !== doc) : [...prev, doc]
-    );
+    setReceivedDocs(prev => {
+      const next = prev.includes(doc) ? prev.filter(d => d !== doc) : [...prev, doc];
+      if (autoSyncGap) {
+        const gap = calculateDocumentGap(next);
+        setGapAnalysis(gap);
+        if (gap.missingDocs.length > 0) {
+          setRequiredDocs(gap.missingDocs);
+        }
+        if (gap.hasLostShares) {
+          setHasLostShares(true);
+        }
+      }
+      return next;
+    });
   };
 
   const toggleRequiredDoc = (doc: string) => {
@@ -601,7 +674,7 @@ Encl.:  As stated above.`;
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
       {/* Top Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0B2B5E] via-[#103a7a] to-[#1A365D] text-white p-5 sm:p-6 shadow-lg border border-blue-900/40">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0B2B5E] via-[#103a7a] to-[#1A365D] text-white p-5 sm:p-6 shadow-lg border border-blue-900/40 no-print">
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#F37021] via-orange-400 to-[#F37021]" />
         
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
@@ -634,32 +707,35 @@ Encl.:  As stated above.`;
       </div>
 
       {/* Stage Switcher: First Letter vs Second Letter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-xs font-bold text-slate-700">Letter Workflow Stage:</span>
-          <div className="flex items-center bg-slate-100 p-1 rounded-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm no-print">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
               type="button"
               onClick={() => setLetterStage("first")}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
-                letterStage === "first" ? "bg-[#0B2B5E] text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                letterStage === "first" 
+                  ? "bg-[#0B2B5E] text-white shadow-sm" 
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              First Letter (Initial Requisition)
+              First Letter (Formalities Request)
             </button>
             <button
               type="button"
               onClick={() => setLetterStage("second")}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
-                letterStage === "second" ? "bg-[#F37021] text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                letterStage === "second" 
+                  ? "bg-rose-700 text-white shadow-sm" 
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Second Letter (Dossier Scrutiny &amp; Objections)
+              Second Letter (Dossier Scrutiny / Deficiency)
             </button>
           </div>
 
           {letterStage === "first" && (
-            <div className="flex items-center bg-slate-100 p-1 rounded-lg ml-2">
+            <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
               <button
                 type="button"
                 onClick={() => setMode("single")}
@@ -699,7 +775,7 @@ Encl.:  As stated above.`;
       {/* 2-Column Working Layout: Left Form Inputs | Right Live Preview */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Configuration Form */}
-        <div className="lg:col-span-7 space-y-5">
+        <div className="lg:col-span-7 space-y-5 no-print">
 
           {/* CARD 0: SMART LETTER UPLOAD & AUTO-EXTRACTION */}
           <Card className="border-slate-200 shadow-sm border-t-4 border-t-[#F37021] bg-gradient-to-br from-orange-50/40 via-white to-blue-50/30">
@@ -774,6 +850,181 @@ Encl.:  As stated above.`;
                   </button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* AUTOMATED DOCUMENT GAP ANALYSIS & TRANSMISSION READINESS CARD */}
+          <Card className="border-slate-200 shadow-sm border-t-4 border-t-indigo-600 bg-indigo-50/15">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-sm font-bold text-indigo-950 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-indigo-600" />
+                      Automated Document Gap Analysis &amp; Transmission Readiness
+                    </CardTitle>
+                    <Badge className="bg-indigo-100 text-indigo-900 border-indigo-200 text-[10px] font-bold">
+                      Intelligent Engine
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs text-indigo-900/80">
+                    Auto-evaluates submitted documents against mandatory SECP &amp; CDCSR statutory transmission prerequisites
+                  </CardDescription>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const gap = calculateDocumentGap(receivedDocs);
+                      setGapAnalysis(gap);
+                      if (gap.missingDocs.length > 0) setRequiredDocs(gap.missingDocs);
+                    }}
+                    className="h-7 text-[11px] bg-white border-indigo-200 text-indigo-900 hover:bg-indigo-50 font-semibold"
+                  >
+                    <RotateCcw className="h-3 w-3 mr-1" /> Re-evaluate Gap
+                  </Button>
+                  <label className="flex items-center gap-1.5 text-xs text-indigo-950 font-medium cursor-pointer bg-white px-2 py-1 rounded border border-indigo-200">
+                    <input
+                      type="checkbox"
+                      checked={autoSyncGap}
+                      onChange={(e) => {
+                        setAutoSyncGap(e.target.checked);
+                        if (e.target.checked) {
+                          const gap = calculateDocumentGap(receivedDocs);
+                          setGapAnalysis(gap);
+                          if (gap.missingDocs.length > 0) setRequiredDocs(gap.missingDocs);
+                        }
+                      }}
+                      className="h-3.5 w-3.5 rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>Auto-Sync to Letter</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Progress Bar & Readiness Status */}
+              <div className="mt-3 space-y-1.5">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-indigo-950 flex items-center gap-1.5">
+                    {gapAnalysis?.isComplete ? (
+                      <span className="text-emerald-700 flex items-center gap-1">
+                        <CheckCircle2 className="h-4 w-4" /> 100% Complete &ndash; Ready for Share Transmission Execution
+                      </span>
+                    ) : (
+                      <span className="text-amber-800 flex items-center gap-1">
+                        <AlertCircle className="h-4 w-4" /> Transmission Incomplete &ndash; Formalities Pending ({gapAnalysis?.receivedCount || 0} of {gapAnalysis?.totalRequirementsCount || 10} Received)
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-mono font-bold text-indigo-900">{gapAnalysis?.completionPercentage || 0}%</span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-500 ${
+                      gapAnalysis?.isComplete ? 'bg-emerald-600' : 'bg-gradient-to-r from-amber-500 to-indigo-600'
+                    }`}
+                    style={{ width: `${gapAnalysis?.completionPercentage || 0}%` }}
+                  />
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-3 pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                {/* Column 1: Received Documents (آ چکے ہیں) */}
+                <div className="p-3 rounded-lg bg-emerald-50/80 border border-emerald-200 space-y-2">
+                  <div className="flex items-center justify-between border-b border-emerald-200 pb-1.5">
+                    <span className="font-bold text-emerald-950 flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      Documents Received (آ چکے ہیں)
+                    </span>
+                    <Badge className="bg-emerald-200/70 text-emerald-900 text-[10px] font-bold">
+                      {receivedDocs.length} On Record
+                    </Badge>
+                  </div>
+                  
+                  {receivedDocs.length === 0 ? (
+                    <p className="text-[11px] text-emerald-700 italic">No documents registered yet. Upload letter or tick items below.</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {receivedDocs.map((doc, idx) => (
+                        <li key={idx} className="flex items-start gap-1.5 text-emerald-900 leading-snug">
+                          <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                          <span className="text-[11px]">{doc}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Column 2: Pending Statutory Requirements (مزید کیا رہتے ہیں) */}
+                <div className="p-3 rounded-lg bg-amber-50/80 border border-amber-200 space-y-2">
+                  <div className="flex items-center justify-between border-b border-amber-200 pb-1.5">
+                    <span className="font-bold text-amber-950 flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      Pending Transmission Requirements (مزید کیا رہتے ہیں)
+                    </span>
+                    <Badge className="bg-amber-200/80 text-amber-950 text-[10px] font-bold">
+                      {gapAnalysis?.missingDocs?.length || 0} Remaining
+                    </Badge>
+                  </div>
+
+                  {gapAnalysis?.missingDocs?.length === 0 ? (
+                    <p className="text-[11px] text-emerald-800 font-semibold">
+                      All required transmission formalities fulfilled! No pending legal requisites.
+                    </p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {gapAnalysis?.missingItemsDetailed?.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-1.5 text-slate-800 leading-snug">
+                          <span className="text-amber-600 font-bold shrink-0 mt-0.5">&bull;</span>
+                          <div className="text-[11px]">
+                            <strong className="text-slate-900">{item.title}:</strong>{" "}
+                            <span className="text-slate-600">{item.notes}</span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {/* Auto-Letter Ready Notification Banner */}
+              <div className="p-2.5 rounded-lg bg-indigo-100/70 border border-indigo-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-indigo-950">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[#F37021] shrink-0" />
+                  <div>
+                    <p className="font-bold">
+                      Response Letter Auto-Ready!
+                    </p>
+                    <p className="text-[11px] text-indigo-900">
+                      Draft on the right is customized to request ONLY the {gapAnalysis?.missingDocs?.length || 0} pending items.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={syncLetterToGap}
+                    className="h-7 text-[11px] bg-[#0B2B5E] hover:bg-[#071E43] text-white font-bold px-2.5"
+                  >
+                    Apply Gap to Letter
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={resetToAllRequirements}
+                    className="h-7 text-[11px] border-slate-300 text-slate-700 hover:bg-slate-100 px-2"
+                  >
+                    Include All 10
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -1533,19 +1784,19 @@ Encl.:  As stated above.`;
         </div>
 
         {/* RIGHT COLUMN: Realistic Live Letter Preview */}
-        <div className="lg:col-span-5 sticky top-4">
+        <div className="lg:col-span-5 sticky top-4 printable-letter-container">
           <Card className="border-slate-300 shadow-md bg-white">
-            <CardHeader className="p-4 border-b bg-slate-50 rounded-t-xl">
-              <div className="flex items-center justify-between">
+            <CardHeader className="p-4 border-b bg-slate-50 rounded-t-xl no-print">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700">
                     {letterStage === "first" ? "Live Letter Preview (1st Letter)" : "Live Letter Preview (2nd Letter)"}
                   </CardTitle>
                   <CardDescription className="text-[11px]">
-                    Official CDCSR layout reflecting exact user order &amp; clauses
+                    Official CDCSR layout reflecting exact statutory requirements
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -1564,11 +1815,65 @@ Encl.:  As stated above.`;
                     <Download className="mr-1 h-3.5 w-3.5" />
                     Word
                   </Button>
+                  <Button 
+                    size="sm" 
+                    onClick={handlePrint}
+                    className="h-8 text-xs bg-[#0B2B5E] hover:bg-[#071E43] text-white font-bold shadow-sm"
+                    title="Print official letter or Save as PDF (Ctrl+P)"
+                  >
+                    <Printer className="mr-1 h-3.5 w-3.5" />
+                    Print Letter
+                  </Button>
+                </div>
+              </div>
+
+              {/* Print Paper Mode Selector Toolbar */}
+              <div className="mt-2.5 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-600">
+                <span className="font-semibold text-slate-700 flex items-center gap-1">
+                  <FileText className="h-3.5 w-3.5 text-[#0B2B5E]" />
+                  Paper Layout:
+                </span>
+                <div className="flex items-center gap-1 bg-slate-200/70 p-0.5 rounded">
+                  <button
+                    type="button"
+                    onClick={() => setLetterheadMode("stationery")}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                      letterheadMode === "stationery"
+                        ? "bg-[#0B2B5E] text-white shadow-2xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Pre-Printed Letterhead
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLetterheadMode("plain")}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                      letterheadMode === "plain"
+                        ? "bg-[#0B2B5E] text-white shadow-2xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Plain A4 Paper
+                  </button>
                 </div>
               </div>
             </CardHeader>
 
-            <CardContent className="p-5 font-serif text-[12px] leading-relaxed text-slate-800 space-y-3.5 max-h-[750px] overflow-y-auto select-text bg-[#fcfcfc]">
+            <CardContent 
+              id="printable-letter"
+              className={`p-5 font-serif text-[12px] leading-relaxed text-slate-800 space-y-3.5 max-h-[750px] overflow-y-auto select-text bg-[#fcfcfc] printable-letter-content ${
+                letterheadMode === "stationery" ? "letterhead-spacing" : ""
+              }`}
+            >
+              {/* Plain Paper Digital Header (Rendered only if printing on plain A4 without pre-printed logo) */}
+              {letterheadMode === "plain" && (
+                <div className="text-center pb-2.5 mb-2 border-b-2 border-[#0B2B5E] font-sans">
+                  <h2 className="text-xs font-black tracking-wider text-[#0B2B5E] uppercase">CDC Share Registrar Services Limited</h2>
+                  <p className="text-[10px] text-slate-500">Head Office: CDC House, 99-B, Block 'B', S.M.C.H.S., Main Shahrah-e-Faisal, Karachi-74400</p>
+                </div>
+              )}
+
               {/* Header Info */}
               <div className="flex justify-between items-start font-sans font-bold text-xs pb-1 border-b">
                 <span className="text-[#0B2B5E]">{letterStage === "second" ? `${refNo}-SEC` : refNo}</span>
