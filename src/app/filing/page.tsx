@@ -142,7 +142,7 @@ function FilingContent() {
     const allFiles = data?.files || [];
     const targetFile = allFiles.find((f: any) => f.fileNo.toUpperCase().trim() === assignFileNo.toUpperCase().trim());
     if (targetFile && targetFile.currentCases >= 50) {
-      setAssignError(`یہ فائل ${assignFileNo} پہلے ہی فل ہے (50/50 کیسز)۔ اس میں مزید کیسز الاؤڈ نہیں ہیں۔ برائے مہربانی دستیاب فائل منتخب کریں۔`);
+      setAssignError(`Folder ${assignFileNo} is already at maximum capacity (50/50 cases). No additional cases allowed. Please select an available folder.`);
       return;
     }
 
@@ -253,9 +253,9 @@ function FilingContent() {
               <AlertTriangle className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-xs font-bold text-red-800 uppercase tracking-wider">Full Folders (&ge;50 Cases / گنجائش ختم)</p>
+              <p className="text-xs font-bold text-red-800 uppercase tracking-wider">Full Folders (&ge;50 Cases - Locked)</p>
               <h3 className="text-2xl font-black text-red-900 mt-0.5">{criticalCount} Folders</h3>
-              <p className="text-xs text-red-600 mt-0.5 font-semibold">FULL &bull; مزید کیسز نہ ڈالیں (Do Not Assign)</p>
+              <p className="text-xs text-red-600 mt-0.5 font-semibold">FULL &bull; Maximum Capacity Reached (Do Not Assign)</p>
             </div>
           </CardContent>
         </Card>
@@ -269,7 +269,7 @@ function FilingContent() {
               <AlertCircle className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">Near Capacity (40-49 Cases / قریب الختم)</p>
+              <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">Near Capacity (40-49 Cases)</p>
               <h3 className="text-2xl font-black text-amber-900 mt-0.5">{warningCount} Folders</h3>
               <p className="text-xs text-amber-700 mt-0.5">Approaching limit &bull; 1 to 10 slots remaining</p>
             </div>
@@ -285,7 +285,7 @@ function FilingContent() {
               <CheckCircle className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Available Space (&lt;40 Cases / گنجائش موجود ہے)</p>
+              <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Available Space (&lt;40 Cases)</p>
               <h3 className="text-2xl font-black text-emerald-900 mt-0.5">{healthyCount} Folders</h3>
               <p className="text-xs text-emerald-700 mt-0.5 font-semibold">Space available &bull; Safe to assign new cases</p>
             </div>
@@ -300,7 +300,7 @@ function FilingContent() {
             <div>
               <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-[#F37021]" />
-                Browse Files by Client Company (تمام 134 کمپنیوں کی لسٹ)
+                Browse Files by Client Company (All Client Companies)
               </CardTitle>
               <CardDescription className="text-xs">
                 Select any client company to view all its physical folders and capacity status.
@@ -315,7 +315,7 @@ function FilingContent() {
                   onChange={(e) => setCompanyFilter(e.target.value)}
                   className="w-full h-8 text-xs font-bold rounded-lg border border-slate-300 bg-white px-2.5 text-[#0B2B5E] focus:ring-[#F37021] focus:border-[#F37021]"
                 >
-                  <option value="ALL">-- ALL CLIENT COMPANIES ({allCompanies.length} کل کمپنیاں) --</option>
+                  <option value="ALL">-- ALL CLIENT COMPANIES ({allCompanies.length} Companies) --</option>
                   {allCompanies.map((c: any) => (
                     <option key={c.company} value={c.company}>
                       {c.company} ({c.totalFiles} Files &bull; {c.availableFiles} Available, {c.fullFiles} Full)
@@ -374,17 +374,17 @@ function FilingContent() {
               <div className="flex items-center gap-2">
                 <div className="px-3 py-1.5 rounded-lg bg-emerald-100/80 border border-emerald-300 text-emerald-900 text-center">
                   <span className="block text-xs font-black">{activeCompanyData.availableFiles} Available</span>
-                  <span className="text-[9px] font-bold text-emerald-700">گنجائش موجود ہے</span>
+                  <span className="text-[9px] font-bold text-emerald-700">Space Available</span>
                 </div>
                 {activeCompanyData.warningFiles > 0 && (
                   <div className="px-3 py-1.5 rounded-lg bg-amber-100/80 border border-amber-300 text-amber-900 text-center">
                     <span className="block text-xs font-black">{activeCompanyData.warningFiles} Almost Full</span>
-                    <span className="text-[9px] font-bold text-amber-700">40-49 کیسز</span>
+                    <span className="text-[9px] font-bold text-amber-700">40-49 Cases</span>
                   </div>
                 )}
                 <div className="px-3 py-1.5 rounded-lg bg-red-100/80 border border-red-300 text-red-900 text-center">
                   <span className="block text-xs font-black">{activeCompanyData.fullFiles} Full</span>
-                  <span className="text-[9px] font-bold text-red-700">گنجائش ختم</span>
+                  <span className="text-[9px] font-bold text-red-700">Capacity Full</span>
                 </div>
               </div>
             </div>
@@ -409,7 +409,7 @@ function FilingContent() {
                   type="button"
                   onClick={handleClearSearch}
                   className="absolute right-2.5 top-2.5 h-5 w-5 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-600 transition-colors"
-                  title="Clear Search (ہٹائیں)"
+                  title="Clear Search"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -427,7 +427,7 @@ function FilingContent() {
                 className="h-10 px-4 text-xs font-bold border-slate-300 text-slate-700 hover:bg-slate-100 shrink-0"
               >
                 <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                Clear (ریسیٹ کریں)
+                Clear Filter
               </Button>
             )}
           </form>
@@ -442,7 +442,7 @@ function FilingContent() {
                     Folio #{searchQuery} is not currently filed in any physical folder!
                   </strong>
                   <span className="text-amber-700 text-[11px]">
-                    یہ فولیو فزیکل فائلنگ ریکارڈ میں موجود نہیں ہے۔ آپ اسے ابھی کسی دستیاب فائل میں اسائن کر سکتے ہیں۔
+                    This folio is not yet assigned to any physical folder. You can assign it to an available folder below.
                   </span>
                 </div>
               </div>
@@ -452,7 +452,7 @@ function FilingContent() {
                   className="bg-[#F37021] hover:bg-[#D85B10] text-white text-xs font-bold h-8 px-4 shadow-sm"
                 >
                   <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Assign Folio #{searchQuery} Now (فائل میں ایڈ کریں)
+                  Assign Folio #{searchQuery} to Folder
                 </Button>
                 <Button 
                   variant="ghost" 
@@ -481,7 +481,7 @@ function FilingContent() {
                   onClick={handleClearSearch}
                   className="text-xs h-7 text-slate-600 hover:text-red-600 hover:bg-red-50 font-bold"
                 >
-                  <X className="h-3.5 w-3.5 mr-1" /> Clear Search (فولیو رزلٹ ہٹائیں)
+                  <X className="h-3.5 w-3.5 mr-1" /> Clear Search
                 </Button>
               </div>
               <div className="border rounded-lg bg-white max-h-[240px] overflow-y-auto shadow-inner">
@@ -614,15 +614,15 @@ function FilingContent() {
                         <TableCell>
                           {isCritical ? (
                             <Badge className="bg-red-100 text-red-800 border-red-300 font-bold text-[10px]">
-                              FULL / مزید کیسز نہ ڈالیں
+                              FULL / Locked (50/50)
                             </Badge>
                           ) : isWarning ? (
                             <Badge className="bg-amber-100 text-amber-800 border-amber-300 font-bold text-[10px]">
-                              ALMOST FULL / {remainingSlots} باقی ہیں
+                              ALMOST FULL / {remainingSlots} remaining
                             </Badge>
                           ) : (
                             <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-bold text-[10px]">
-                              AVAILABLE / {remainingSlots} خالی ہیں
+                              AVAILABLE / {remainingSlots} slots free
                             </Badge>
                           )}
                         </TableCell>
@@ -738,7 +738,7 @@ function FilingContent() {
 
           <form onSubmit={handleAssignSubmit} className="space-y-3 py-1 text-xs">
             <div>
-              <label className="font-bold text-slate-700 block mb-0.5">Folio Number * (فولیو نمبر)</label>
+              <label className="font-bold text-slate-700 block mb-0.5">Folio Number *</label>
               <Input 
                 placeholder="e.g. 44058, 240920" 
                 value={assignFolio}
@@ -749,7 +749,7 @@ function FilingContent() {
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 block mb-0.5">Company Name (کمپنی)</label>
+              <label className="font-bold text-slate-700 block mb-0.5">Company Name</label>
               <select
                 value={assignCompany}
                 onChange={(e) => {
@@ -780,7 +780,7 @@ function FilingContent() {
             {/* Smart Folder Selector with 50-limit locking */}
             <div>
               <label className="font-bold text-slate-700 block mb-0.5">
-                Designated Physical File * (دستیاب فائل منتخب کریں)
+                Designated Physical File * (Select Available Folder)
               </label>
 
               {assignModalAvailableFiles.length > 0 ? (
@@ -804,7 +804,7 @@ function FilingContent() {
                         disabled={isFull}
                         className={isFull ? "text-red-500 bg-red-50 font-bold" : "text-slate-900"}
                       >
-                        {f.fileNo} &bull; {f.currentCases}/50 cases {isFull ? "[FULL - گنجائش ختم (LOCKED)]" : `[${remaining} slots available]`}
+                        {f.fileNo} &bull; {f.currentCases}/50 cases {isFull ? "[FULL - LOCKED (50/50)]" : `[${remaining} slots available]`}
                       </option>
                     );
                   })}

@@ -74,7 +74,6 @@ export default function Dashboard() {
   const primaryStats = [
     {
       title: "Active Cases (Pending)",
-      urduTitle: "ایکٹو کیسز (ہمارے پاس زیرِ کارروائی)",
       value: pendingCases.toLocaleString(),
       subtext: "Action required by CDCSR team",
       icon: AlertCircle,
@@ -85,7 +84,6 @@ export default function Dashboard() {
     },
     {
       title: "Worked / Responded This Month",
-      urduTitle: "اس مہینے جواب بھیجا / کارروائی کی",
       value: workedThisMonth.toLocaleString(),
       subtext: "Responses & filings sent in Sep 2026",
       icon: TrendingUp,
@@ -96,7 +94,6 @@ export default function Dashboard() {
     },
     {
       title: "Awaiting Legal Heirs",
-      urduTitle: "لیگل ہائرز کی طرف سے مطلوب",
       value: waitingLegalHeirs.toLocaleString(),
       subtext: "Formalities sent, awaiting response",
       icon: Send,
@@ -107,7 +104,6 @@ export default function Dashboard() {
     },
     {
       title: "Shares Transmitted (Closed)",
-      urduTitle: "شیئرز ٹرانسمٹ / کلوزڈ کیسز",
       value: totalClosedSharesTransmitted.toLocaleString(),
       subtext: "Transmitted & delivered to heirs",
       icon: CheckCircle,
@@ -121,7 +117,6 @@ export default function Dashboard() {
   const operationalStages = [
     {
       title: "Co. - Case Review & Approval",
-      urduTitle: "کمپنی ریویو و منظوری",
       value: coApproval.toLocaleString(),
       subtext: "Sent to company management",
       icon: Clock,
@@ -132,7 +127,6 @@ export default function Dashboard() {
     },
     {
       title: "Co. - Signing of Shares",
-      urduTitle: "کمپنی مجاز دستخط",
       value: coSigning.toLocaleString(),
       subtext: "Sent for authorized signing",
       icon: FileText,
@@ -143,7 +137,6 @@ export default function Dashboard() {
     },
     {
       title: "In Transfer Process",
-      urduTitle: "ٹرانسفر ٹیم میں پروسیس",
       value: inTransfer.toLocaleString(),
       subtext: "Live depository execution",
       icon: Archive,
@@ -154,7 +147,6 @@ export default function Dashboard() {
     },
     {
       title: "Co. - Dividend Payment",
-      urduTitle: "کمپنی ڈیویڈنڈ ادائیگی",
       value: coDividend.toLocaleString(),
       subtext: "Pending dividend clearance",
       icon: Building2,
@@ -242,7 +234,7 @@ export default function Dashboard() {
                     <h3 className="text-2xl font-black text-slate-900 mt-0.5 group-hover:text-[#0B2B5E] transition-colors">
                       {stat.value}
                     </h3>
-                    <p className="text-[11px] text-slate-500 truncate mt-0.5">{stat.urduTitle}</p>
+                    <p className="text-[11px] text-slate-500 truncate mt-0.5">{stat.subtext}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -268,7 +260,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-baseline justify-between">
                     <span className="text-xl font-extrabold text-slate-900 group-hover:text-[#0B2B5E]">{stage.value}</span>
-                    <span className="text-[10px] text-slate-500 font-medium truncate">{stage.urduTitle}</span>
+                    <span className="text-[10px] text-slate-500 font-medium truncate">{stage.subtext}</span>
                   </div>
                 </CardContent>
               </Card>

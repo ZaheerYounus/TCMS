@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
       multiFolioTable = [],    // Optional array of folios: [{ folio, company, shares, certificates, scripts }]
       receivedDocs = [],       // Documents already received from applicant
       requiredDocs = [],       // Documents still required from legal heirs
+      scrutinyRemark = "",     // Independent scrutiny remark / custom observation
+      scrutinyRemarkTitle = "Special Scrutiny Note / Observation",
+      scrutinyPosition = "after_required", // 'after_received' | 'before_required' | 'after_required' | 'at_end'
       isNADRA = true,
       isCourt = false
     } = await req.json();
@@ -41,6 +44,29 @@ export async function POST(req: NextRequest) {
     if (receivedDocs && receivedDocs.length > 0) {
       ackText = receivedDocs.join(", ");
     }
+
+    const hasScrutiny = Boolean(scrutinyRemark && scrutinyRemark.trim().length > 0);
+    const scrutinyParagraphs = hasScrutiny ? [
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: `${scrutinyRemarkTitle ? scrutinyRemarkTitle.trim() : 'Official Observation / Scrutiny Remark'}: `, 
+            bold: true, 
+            color: "0B2B5E", 
+            size: 21, 
+            font: "Calibri" 
+          }),
+          new TextRun({ 
+            text: scrutinyRemark.trim(), 
+            size: 21, 
+            italics: true,
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { before: 180, after: 180 },
+        indent: { left: 400, right: 300 }
+      })
+    ] : [];
 
     const doc = new Document({
       sections: [{
@@ -166,6 +192,12 @@ export async function POST(req: NextRequest) {
             new Paragraph({ spacing: { after: 150 } })
           ] : []),
 
+          // Position A: After Received Documents
+          ...(scrutinyPosition === 'after_received' ? scrutinyParagraphs : []),
+
+          // Position B: Before Required Formalities
+          ...(scrutinyPosition === 'before_required' ? scrutinyParagraphs : []),
+
           new Paragraph({
             children: [
               new TextRun({ 
@@ -234,6 +266,9 @@ export async function POST(req: NextRequest) {
             ];
           }),
 
+          // Position C: After Required Documents (Recommended default)
+          ...(scrutinyPosition === 'after_required' ? scrutinyParagraphs : []),
+
           // 8. Closing Reminder Note
           new Paragraph({
             children: [
@@ -245,6 +280,9 @@ export async function POST(req: NextRequest) {
             ],
             spacing: { before: 150, after: 300 },
           }),
+
+          // Position D: At End Before Signoff
+          ...(scrutinyPosition === 'at_end' ? scrutinyParagraphs : []),
 
           // 9. Signoff
           new Paragraph({

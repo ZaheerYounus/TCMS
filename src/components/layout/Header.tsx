@@ -17,7 +17,7 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6 shadow-sm sticky top-0 z-30">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-4 sm:px-6 shadow-sm sticky top-0 z-30">
       {/* Search Input with Brand Focus */}
       <div className="flex flex-1 max-w-xl items-center">
         <form onSubmit={handleGlobalSearch} className="relative w-full">

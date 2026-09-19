@@ -14,7 +14,8 @@ import {
   ChevronRight,
   Building2,
   FileSignature,
-  SearchCheck
+  SearchCheck,
+  CalendarDays
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Case Inquiry & Audit", href: "/inquiry", icon: SearchCheck, highlight: true },
   { name: "Letter Generation", href: "/letters", icon: FileSignature },
+  { name: "Daily Register", href: "/daily", icon: CalendarDays },
   { name: "Active Cases & Trail", href: "/cases", icon: FileText },
   { name: "Physical Filing", href: "/filing", icon: Archive },
   { name: "MIS & Reports", href: "/reports", icon: Files },
