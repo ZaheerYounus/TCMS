@@ -141,3 +141,55 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to record correspondence', details: err?.message }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { id, status, remarks, officerName, assignedTo, syncMis } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Entry ID is required' }, { status: 400 });
+    }
+
+    const all = getDailyData();
+    const itemIndex = all.findIndex(item => item.id === id);
+
+    if (itemIndex === -1) {
+      return NextResponse.json({ error: 'Correspondence entry not found' }, { status: 404 });
+    }
+
+    if (status !== undefined) all[itemIndex].status = status;
+    if (remarks !== undefined) all[itemIndex].remarks = remarks;
+    if (officerName !== undefined) all[itemIndex].officerName = officerName;
+    if (assignedTo !== undefined) all[itemIndex].assignedTo = assignedTo;
+
+    saveDailyData(all);
+
+    // If requested or if status changed on a transmission folio, also update MIS case
+    if (syncMis && all[itemIndex].folio) {
+      try {
+        const misUrl = new URL('/api/mis', req.url);
+        await fetch(misUrl.toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            folio: all[itemIndex].folio,
+            company: all[itemIndex].company,
+            status: status,
+            remarks: `Status updated via Daily Register to "${status}" (${remarks || ''})`
+          })
+        });
+      } catch (me) {
+        console.error('MIS sync error from daily register PATCH:', me);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      entry: all[itemIndex]
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Failed to update entry', details: err?.message }, { status: 500 });
+  }
+}
+

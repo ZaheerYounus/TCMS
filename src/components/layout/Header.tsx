@@ -43,6 +43,17 @@ export function Header() {
           CDC Pakistan Real-Time Node
         </div>
 
+        {/* Admin Profile Badge */}
+        <a href="/admin" className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200/80 border border-slate-200 transition-colors">
+          <div className="h-7 w-7 rounded-full bg-[#0B2B5E] text-white flex items-center justify-center font-bold text-xs">
+            ZA
+          </div>
+          <div className="hidden md:block text-left">
+            <p className="text-xs font-bold text-slate-800 leading-tight">Zaheer Ahmed</p>
+            <p className="text-[10px] text-[#F37021] font-semibold leading-tight">System Admin &amp; Lead</p>
+          </div>
+        </a>
+
         <Button variant="ghost" size="icon" className="relative text-slate-600 hover:text-[#0B2B5E] hover:bg-blue-50">
           <Bell className="h-5 w-5" />
           <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[#F37021]" />
