@@ -53,12 +53,13 @@ const navGroups: NavGroup[] = [
     ]
   },
   {
-    title: "Letters & Drafting",
+    title: "Letters & Correspondence",
     defaultOpen: true,
     items: [
-      { name: "Letter Generator (1st & 2nd)", href: "/letters", icon: FileSignature },
+      { name: "Letter Generator (5 Official Templates)", href: "/letters", icon: FileSignature },
+      { name: "First Transmission Letter", href: "/letters?template=first", icon: FileText },
       { name: "No Folio Found Letter", href: "/letters?template=no_folio", icon: FileText },
-      { name: "CDS Dividend Transmission", href: "/letters?template=cds_account", icon: Files },
+      { name: "Delivery of Shares / Cheques", href: "/letters?template=delivery_shares", icon: Files },
     ]
   },
   {
@@ -81,17 +82,6 @@ const navGroups: NavGroup[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    "Overview & Dashboard": true,
-    "Case Operations & Audit": true,
-    "Letters & Drafting": true,
-    "Registers & Physical Filing": true,
-    "Compliance & Governance": false,
-  });
-
-  const toggleGroup = (title: string) => {
-    setOpenGroups(prev => ({ ...prev, [title]: !prev[title] }));
-  };
 
   return (
     <aside className="flex h-full w-64 flex-col bg-[#0B2B5E] text-white border-r border-[#153a73] shadow-xl select-none">
@@ -113,64 +103,50 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Navigation Groups */}
-      <div className="flex flex-1 flex-col overflow-y-auto px-2.5 py-3 space-y-3">
-        {navGroups.map((group) => {
-          const isOpen = openGroups[group.title] ?? true;
-          return (
-            <div key={group.title} className="space-y-1">
-              <button
-                type="button"
-                onClick={() => toggleGroup(group.title)}
-                className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-300/80 hover:text-white transition-colors"
-              >
-                <span>{group.title}</span>
-                {isOpen ? (
-                  <ChevronDown className="h-3 w-3 text-blue-300" />
-                ) : (
-                  <ChevronRight className="h-3 w-3 text-blue-300/60" />
-                )}
-              </button>
-
-              {isOpen && (
-                <div className="space-y-0.5 pl-0.5">
-                  {group.items.map((item) => {
-                    const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href) && !item.href.includes("?"));
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className={cn(
-                          "group flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-all duration-150",
-                          isActive
-                            ? "bg-[#1A365D] text-white border-l-4 border-l-[#F37021] shadow-inner font-bold"
-                            : "text-blue-100 hover:bg-[#13386d] hover:text-white"
-                        )}
-                      >
-                        <div className="flex items-center min-w-0">
-                          <item.icon 
-                            className={cn(
-                              "mr-2.5 h-4 w-4 shrink-0 transition-colors",
-                              isActive ? "text-[#F37021]" : "text-blue-300 group-hover:text-white"
-                            )} 
-                          />
-                          <span className="truncate">{item.name}</span>
-                        </div>
-                        {item.badge ? (
-                          <span className="text-[9px] font-bold bg-[#F37021]/80 text-white px-1.5 py-0.2 rounded shrink-0">
-                            {item.badge}
-                          </span>
-                        ) : isActive ? (
-                          <ChevronRight className="h-3.5 w-3.5 text-[#F37021] shrink-0" />
-                        ) : null}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
+      {/* Professional Direct Navigation List (Clean & Direct) */}
+      <div className="flex flex-1 flex-col overflow-y-auto px-3 py-3 space-y-4">
+        {navGroups.map((group) => (
+          <div key={group.title} className="space-y-1">
+            <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-blue-300/70">
+              {group.title}
             </div>
-          );
-        })}
+
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href) && !item.href.includes("?"));
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={cn(
+                      "group flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold transition-all duration-150",
+                      isActive
+                        ? "bg-[#1A365D] text-white border-l-4 border-l-[#F37021] shadow-sm font-bold"
+                        : "text-blue-100 hover:bg-[#13386d] hover:text-white"
+                    )}
+                  >
+                    <div className="flex items-center min-w-0">
+                      <item.icon 
+                        className={cn(
+                          "mr-2.5 h-4 w-4 shrink-0 transition-colors",
+                          isActive ? "text-[#F37021]" : "text-blue-300 group-hover:text-white"
+                        )} 
+                      />
+                      <span className="truncate">{item.name}</span>
+                    </div>
+                    {item.badge ? (
+                      <span className="text-[9px] font-bold bg-[#F37021]/80 text-white px-1.5 py-0.5 rounded shrink-0">
+                        {item.badge}
+                      </span>
+                    ) : isActive ? (
+                      <ChevronRight className="h-3.5 w-3.5 text-[#F37021] shrink-0" />
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
 
         {/* Brand Accent Banner */}
         <div className="mt-auto pt-4">

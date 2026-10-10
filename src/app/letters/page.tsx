@@ -72,7 +72,7 @@ function LetterGenerationContent() {
   const searchParams = useSearchParams();
 
   // Template Switcher: First Letter, No Folio Found, Physical Approval Covering, Delivery of Shares
-  const [letterStage, setLetterStage] = useState<"first" | "no_folio" | "physical_approval" | "delivery_shares">("first");
+  const [letterStage, setLetterStage] = useState<"first" | "no_folio" | "physical_approval" | "delivery_shares" | "delivery_cheques">("first");
   const [openAccordion, setOpenAccordion] = useState<Record<string, boolean>>({
     quickUpload: true,
     basicDetails: true,
@@ -100,6 +100,14 @@ function LetterGenerationContent() {
   const [deliveryNotes, setDeliveryNotes] = useState(
     "Please acknowledge receipt of the share certificates by signing and returning the duplicate copy of this letter or counterfoil. In case of any query, please feel free to contact us."
   );
+  const [allCompanies, setAllCompanies] = useState<string[]>(companiesList);
+  const [newCompanyInput, setNewCompanyInput] = useState("");
+  const [showAddCompanyModal, setShowAddCompanyModal] = useState(false);
+  const [cheques, setCheques] = useState<Array<{ id: string; beneficiary: string; instrumentNo: string; amount: string }>>([
+    { id: "1", beneficiary: "Farrukh Aftab Ahmed", instrumentNo: "13519474", amount: "4,160.99/-" },
+    { id: "2", beneficiary: "Samina Nazli", instrumentNo: "13519475", amount: "2,080.49/-" },
+    { id: "3", beneficiary: "Shabana Nazli", instrumentNo: "13519476", amount: "2,080.49/-" }
+  ]);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const [companySearchQuery, setCompanySearchQuery] = useState("");
   const [mode, setMode] = useState<"single" | "multi">("single");
@@ -1089,9 +1097,19 @@ Encl.:  As stated above.`;
 
                 {/* Company Name with Full Selectable List / Autocomplete Dropdown */}
                 <div className="relative">
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Company Name (کمپنی نیم کی لسٹ میں سے سلیکٹ کریں) <span className="text-rose-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-700">
+                      Company Name (کمپنی نیم کی لسٹ میں سے سلیکٹ کریں یا نئی ایڈ کریں) <span className="text-rose-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddCompanyModal(true)}
+                      className="text-[11px] font-bold text-[#F37021] hover:text-[#D85B10] flex items-center gap-1"
+                    >
+                      <Plus className="h-3 w-3" />
+                      + Add New Company (کمپنی شامل کریں)
+                    </button>
+                  </div>
                   <div className="relative">
                     <Input 
                       value={company}
@@ -1119,9 +1137,19 @@ Encl.:  As stated above.`;
                   {/* Autocomplete Dropdown Menu */}
                   {isCompanyDropdownOpen && (
                     <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-300 rounded-lg shadow-xl py-1 text-xs">
-                      {companiesList
+                      <div 
+                        onClick={() => {
+                          setShowAddCompanyModal(true);
+                          setIsCompanyDropdownOpen(false);
+                        }}
+                        className="px-3 py-2 bg-orange-50 hover:bg-orange-100 cursor-pointer font-bold text-[#D85B10] border-b border-orange-200 flex items-center justify-between"
+                      >
+                        <span>+ Add New Company (نئی کمپنی ایڈ کریں)</span>
+                        <span className="text-[10px] bg-[#F37021] text-white px-1.5 py-0.5 rounded font-mono">Custom</span>
+                      </div>
+                      {allCompanies
                         .filter(c => c.toLowerCase().includes((companySearchQuery || "").toLowerCase()))
-                        .slice(0, 30)
+                        .slice(0, 35)
                         .map((comp, idx) => (
                           <div
                             key={idx}
@@ -1138,9 +1166,26 @@ Encl.:  As stated above.`;
                             <span className="text-[10px] text-slate-400 font-mono">{comp.split(' ')[0]}</span>
                           </div>
                         ))}
-                      {companiesList.filter(c => c.toLowerCase().includes((companySearchQuery || "").toLowerCase())).length === 0 && (
-                        <div className="p-3 text-slate-400 text-center italic">
-                          No company found. You can type custom company name above.
+                      {allCompanies.filter(c => c.toLowerCase().includes((companySearchQuery || "").toLowerCase())).length === 0 && (
+                        <div className="p-3 text-slate-500 text-center text-xs">
+                          <p>No existing company matches "{companySearchQuery}".</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newName = companySearchQuery.trim();
+                              if (newName) {
+                                setAllCompanies(prev => [newName, ...prev]);
+                                setCompany(newName);
+                                const sym = newName.split(' ')[0].toUpperCase();
+                                setCompSymbol(sym);
+                                setRefNo(`CDCSR/LTC/${sym}/${folio || '0000'}/26`);
+                                setIsCompanyDropdownOpen(false);
+                              }
+                            }}
+                            className="mt-1 text-xs font-bold text-[#F37021] hover:underline"
+                          >
+                            Use "{companySearchQuery}" as company &rarr;
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1825,7 +1870,8 @@ Encl.:  As stated above.`;
                     >
                       <option value="top">1. Top / Introductory (Above acknowledgment paragraph)</option>
                       <option value="middle">2. Middle (Between acknowledgment and required checklist)</option>
-                      <option value="bottom">3. Bottom / Closing (Below required checklist before sign)</option>
+                      <option value="bottom">3. Bottom / Closing (Below required checklist)</option>
+                      <option value="at_end">4. Very End of Letter (Before Signatures - بالکل آخر میں دستخط سے اوپر)</option>
                     </select>
                   </div>
 
@@ -1977,7 +2023,8 @@ Encl.:  As stated above.`;
                   {letterStage === "first" && `Transmission of Shares and Dividends – Late ${deceased} – Folio # ${mode === "single" ? folio : multiFolios.map(m => m.folio).filter(Boolean).join(", ")}`}
                   {letterStage === "no_folio" && `Transmission of Shares & Verification of Title – Late ${deceased} – Folio # ${folio}`}
                   {letterStage === "physical_approval" && `TRANSMISSION OF SHARES IN RESPECT OF LATE ${deceased} - FOLIO # ${folio}`}
-                  {letterStage === "delivery_shares" && `Dispatch / Handover of Share Certificates – Folio # ${folio} (Transmission Completed)`}
+                  {letterStage === "delivery_shares" && `Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}`}
+                  {letterStage === "delivery_cheques" && `Transmission of Dividends – Late ${deceased} – Folio # ${folio}`}
                 </p>
               </div>
 
@@ -2162,27 +2209,74 @@ Encl.:  As stated above.`;
                 </>
               )}
 
-              {/* TEMPLATE 4: DELIVERY OF SHARES PREVIEW */}
+              {/* TEMPLATE 4: DELIVERY OF SHARES PREVIEW (Exact match: Late Muhammad Boota Bhatti) */}
               {letterStage === "delivery_shares" && (
                 <>
                   <p>
-                    We are pleased to inform you that transmission of shares in respect of late <strong>{deceased}</strong> has been successfully completed in accordance with the Succession Certificate.
+                    We are pleased to forward herewith <strong>{certificates}</strong> shares certificates for <strong>{shares}</strong> shares of above deceased shareholder of {company} duly transmitted / transferred in the name following legal heirs, details are as follows:
                   </p>
 
-                  <p>
-                    Accordingly, please find enclosed herewith the fresh physical share certificate(s) totaling <strong>{shares}</strong> shares {scripts ? `(${scripts})` : ''} dispatched via <strong>{deliveryMode}</strong> {dispatchTrackingNo ? `(Consignment / Tracking #: ${dispatchTrackingNo})` : ''}.
-                  </p>
-
-                  <div className="p-2.5 rounded bg-indigo-50/70 border border-indigo-200 text-indigo-950 font-sans text-[11px]">
-                    <p className="font-bold">Dispatch Particulars:</p>
-                    <p>&bull; Mode of Delivery: {deliveryMode}</p>
-                    <p>&bull; Tracking / Consignment #: {dispatchTrackingNo || 'N/A'}</p>
-                    <p>&bull; Shares Handed Over: {shares} shares</p>
+                  <div className="border rounded overflow-hidden font-sans text-[11px] my-2">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-bold border-b">
+                        <tr>
+                          <th className="p-1.5">Folio #</th>
+                          <th className="p-1.5">Name of Legal Heirs</th>
+                          <th className="p-1.5 text-right"># of Shares</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transferees.map((t, i) => (
+                          <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
+                            <td className="p-1.5 font-bold text-slate-700">{t.folio}</td>
+                            <td className="p-1.5 font-bold text-slate-900">{t.name}</td>
+                            <td className="p-1.5 font-bold text-emerald-800 text-right">{t.shares}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-slate-50 font-bold border-t">
+                          <td className="p-1.5">Total</td>
+                          <td className="p-1.5"></td>
+                          <td className="p-1.5 text-right text-emerald-900">{shares}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
 
-                  <p className="pt-1">
-                    {deliveryNotes || "Please acknowledge receipt of the share certificates by signing and returning the duplicate copy of this letter or counterfoil. In case of any query, please feel free to contact us."}
+                  <p>Kindly acknowledge the receipt.</p>
+                  <p>Legal heirs are requested to always quote their above-mentioned folio numbers in correspondence with us.</p>
+                </>
+              )}
+
+              {/* TEMPLATE 5: DELIVERY OF CHEQUES PREVIEW (Exact match: Folio 23927_ Delivery of Cheques) */}
+              {letterStage === "delivery_cheques" && (
+                <>
+                  <p>
+                    We are pleased to forward herewith <strong>={cheques.length}=</strong> Banker's cheques against unpaid dividend warrants of above deceased shareholder of {company} duly issued in the name of following legal heirs, details are as follows:
                   </p>
+
+                  <div className="border rounded overflow-hidden font-sans text-[11px] my-2">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-bold border-b">
+                        <tr>
+                          <th className="p-1.5">Beneficiary</th>
+                          <th className="p-1.5">Instrument #</th>
+                          <th className="p-1.5 text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cheques.map((c, i) => (
+                          <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
+                            <td className="p-1.5 font-bold text-slate-900">{c.beneficiary}</td>
+                            <td className="p-1.5 font-mono text-slate-700">{c.instrumentNo}</td>
+                            <td className="p-1.5 font-bold text-teal-800 text-right">{c.amount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p>Please note that there is no outstanding dividend remaining in the name of deceased shareholder.</p>
+                  <p>Kindly acknowledge the receipt.</p>
                 </>
               )}
 
@@ -2199,6 +2293,64 @@ Encl.:  As stated above.`;
           </Card>
         </div>
       </div>
+
+
+      {/* Add New Company Modal */}
+      <Dialog open={showAddCompanyModal} onOpenChange={setShowAddCompanyModal}>
+        <DialogContent className="max-w-md border-t-4 border-t-[#F37021]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-[#0B2B5E] flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-[#F37021]" />
+              Add New Client Company (نئی کمپنی کا اندراج)
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Enter the full official name of the company. It will be immediately selectable and saved in your active list.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-3">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Company Full Legal Name:</label>
+              <Input
+                value={newCompanyInput}
+                onChange={(e) => setNewCompanyInput(e.target.value)}
+                placeholder="e.g. Ferozsons Laboratories Limited"
+                className="text-xs h-9"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAddCompanyModal(false)}
+              className="text-xs h-8"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const name = newCompanyInput.trim();
+                if (name) {
+                  setAllCompanies(prev => [name, ...prev]);
+                  setCompany(name);
+                  const sym = name.split(' ')[0].toUpperCase();
+                  setCompSymbol(sym);
+                  setRefNo(`CDCSR/LTC/${sym}/${folio || '0000'}/26`);
+                  setNewCompanyInput("");
+                  setShowAddCompanyModal(false);
+                }
+              }}
+              disabled={!newCompanyInput.trim()}
+              className="bg-[#F37021] hover:bg-[#D85B10] text-white text-xs font-bold h-8 px-4"
+            >
+              Add &amp; Select
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Paste Letter Text Dialog */}
       <Dialog open={pasteModalOpen} onOpenChange={setPasteModalOpen}>
