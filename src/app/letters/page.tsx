@@ -98,6 +98,7 @@ function LetterGenerationContent() {
   const [hasLossRegister, setHasLossRegister] = useState(true);
   const [lossReceiptNo, setLossReceiptNo] = useState("LR-2026/089");
   const [hasSplitRegister, setHasSplitRegister] = useState(false);
+  const [splitRegisterPages, setSplitRegisterPages] = useState("02 (02 Copies)");
   const [splitReceiptNo, setSplitReceiptNo] = useState("SR-2026/044");
   const [approvalCoveringNotes, setApprovalCoveringNotes] = useState(
     "You are kindly requested to please accord your formal approval / sign the attached Transmission Register and return the same to us along with blank share certificates to enable us to execute the transfer."
@@ -987,7 +988,7 @@ Encl.:  As stated above.`;
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                    1. Smart Letter Upload &amp; Auto-Fill (درخواست لیٹر اپلوڈ)
+                    1. Smart Letter Upload &amp; Auto-Fill
                   </h3>
                   <p className="text-[11px] text-slate-500 font-normal">
                     Upload incoming shareholder request (.docx, .doc, .pdf) or paste text to auto-fill details
@@ -1077,7 +1078,7 @@ Encl.:  As stated above.`;
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                    2. Shareholder &amp; Legal Heir Particulars (شیئر ہولڈر اور لیگل ہائر کی معلومات)
+                    2. Shareholder &amp; Legal Heir Particulars
                   </h3>
                   <p className="text-[11px] text-slate-500 font-normal">
                     Company selectable list, Folio auto-lookup, Deceased &amp; Legal Heir info with mobile &amp; address
@@ -1140,7 +1141,7 @@ Encl.:  As stated above.`;
                 <div className="relative">
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-bold text-slate-700">
-                      Company Name (کمپنی نیم کی لسٹ میں سے سلیکٹ کریں یا نئی ایڈ کریں) <span className="text-rose-500">*</span>
+                      Company Name <span className="text-rose-500">*</span>
                     </label>
                     <button
                       type="button"
@@ -1148,7 +1149,7 @@ Encl.:  As stated above.`;
                       className="text-[11px] font-bold text-[#F37021] hover:text-[#D85B10] flex items-center gap-1"
                     >
                       <Plus className="h-3 w-3" />
-                      + Add New Company (کمپنی شامل کریں)
+                      + Add New Company
                     </button>
                   </div>
                   <div className="relative">
@@ -1185,7 +1186,7 @@ Encl.:  As stated above.`;
                         }}
                         className="px-3 py-2 bg-orange-50 hover:bg-orange-100 cursor-pointer font-bold text-[#D85B10] border-b border-orange-200 flex items-center justify-between"
                       >
-                        <span>+ Add New Company (نئی کمپنی ایڈ کریں)</span>
+                        <span>+ Add New Company</span>
                         <span className="text-[10px] bg-[#F37021] text-white px-1.5 py-0.5 rounded font-mono">Custom</span>
                       </div>
                       {allCompanies
@@ -1357,7 +1358,7 @@ Encl.:  As stated above.`;
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="text-xs font-bold text-slate-700 block mb-1">
-                        Legal Heir Name (لیگل ہائر کا نام) <span className="text-rose-500">*</span>
+                        Legal Heir Name <span className="text-rose-500">*</span>
                       </label>
                       <Input 
                         value={legalHeir} 
@@ -1368,7 +1369,7 @@ Encl.:  As stated above.`;
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-slate-700 block mb-1">
-                        Capacity / Relationship (اختیاری)
+                        Capacity / Relationship (Optional)
                       </label>
                       <Input 
                         value={relation} 
@@ -1379,7 +1380,7 @@ Encl.:  As stated above.`;
                     </div>
                     <div>
                       <label className="text-xs font-bold text-slate-700 block mb-1">
-                        Mobile / Contact Number (موبائل نمبر)
+                        Mobile / Contact Number
                       </label>
                       <Input 
                         value={contactNo} 
@@ -1392,7 +1393,7 @@ Encl.:  As stated above.`;
 
                   <div>
                     <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Complete Mailing Address (ایڈریس)
+                      Complete Mailing Address
                     </label>
                     <Input 
                       value={address} 
@@ -1422,7 +1423,7 @@ Encl.:  As stated above.`;
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                      3. Documents Received &amp; Required Checklist (موصول شدہ اور مطلوبہ دستاویزات)
+                      3. Documents Received &amp; Required Checklist
                     </h3>
                     <p className="text-[11px] text-slate-500 font-normal">
                       Acknowledge received documents and specify statutory requirements demanded from heirs
@@ -1448,7 +1449,7 @@ Encl.:  As stated above.`;
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                        Step 1: Documents Received (خط میں اعتراف کریں)
+                        Step 1: Documents Received (Acknowledged in Letter)
                       </span>
                       <span className="text-[11px] text-slate-400">{receivedDocs.length} selected</span>
                     </div>
@@ -1500,7 +1501,7 @@ Encl.:  As stated above.`;
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[#0B2B5E] flex items-center gap-1.5">
                         <ShieldCheck className="h-3.5 w-3.5 text-[#F37021]" />
-                        Step 2: Documents Required (مطلوبہ دستاویزات کی فہرست)
+                        Step 2: Documents Required (Requisite Documents List)
                       </span>
                       <span className="text-[11px] text-slate-400">{requiredDocs.length} items</span>
                     </div>
@@ -1580,7 +1581,7 @@ Encl.:  As stated above.`;
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                      3. Transferees Breakdown &amp; Registers (ٹرانسفر ہونے والے لیگل ہائرز اور رجسٹر)
+                      3. Transferees Breakdown &amp; Registers
                     </h3>
                     <p className="text-[11px] text-slate-500 font-normal">
                       Add/remove transferees (1, 2, 4, 6+), set shares/CNIC, Loss Register #, Split Register #
@@ -1605,7 +1606,7 @@ Encl.:  As stated above.`;
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-800">
-                        Legal Heirs / Transferees List (جتنے مرضی لیگل ہائرز ایڈ کریں):
+                        Legal Heirs / Transferees List:
                       </span>
                       <Button
                         type="button"
@@ -1776,7 +1777,7 @@ Encl.:  As stated above.`;
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                      3. Share Delivery &amp; Dispatch Mode (شیئر سرٹیفکیٹس کی ترسیل کی تفصیل)
+                      3. Share Delivery &amp; Dispatch Mode
                     </h3>
                     <p className="text-[11px] text-slate-500 font-normal">
                       Delivery mode (By Hand, TCS, Registered Post), Tracking Consignment #, Receipt counterfoil
@@ -1843,7 +1844,7 @@ Encl.:  As stated above.`;
             <div className="border border-amber-200 rounded-xl overflow-hidden shadow-xs bg-amber-50/20 p-4 space-y-2">
               <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
-                Additional Comments / Advice for No Folio Response (اختیاری ریمارک):
+                Additional Comments / Advice for No Folio Response (Optional):
               </label>
               <textarea
                 rows={3}
@@ -1855,6 +1856,96 @@ Encl.:  As stated above.`;
             </div>
           )}
 
+          {/* --- CASE E: DELIVERY OF CHEQUES ACCORDION --- */}
+          {letterStage === "delivery_cheques" && (
+            <div className="border border-teal-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+              <div className="p-4 bg-gradient-to-r from-teal-50/70 via-white to-slate-50 border-b border-teal-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-teal-700" />
+                    3. Dividend Cheques Breakdown
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-normal">
+                    Enter Beneficiary name, Banker's cheque / Instrument #, and Amount for each legal heir
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const nextId = (cheques.length + 1).toString();
+                    setCheques(prev => [
+                      ...prev,
+                      { id: nextId, beneficiary: legalHeir || `Beneficiary ${nextId}`, instrumentNo: "1351947" + nextId, amount: "2,000.00/-" }
+                    ]);
+                  }}
+                  className="h-7 text-xs bg-teal-700 hover:bg-teal-800 text-white font-bold"
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Add Cheque
+                </Button>
+              </div>
+
+              <div className="p-4 space-y-2 bg-white">
+                {cheques.map((chk, idx) => (
+                  <div key={chk.id || idx} className="grid grid-cols-12 gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 items-center text-xs">
+                    <div className="col-span-1 text-center font-bold text-slate-500">
+                      #{idx + 1}
+                    </div>
+                    <div className="col-span-4">
+                      <Input
+                        placeholder="Beneficiary Name"
+                        value={chk.beneficiary}
+                        onChange={(e) => {
+                          const copy = [...cheques];
+                          copy[idx].beneficiary = e.target.value;
+                          setCheques(copy);
+                        }}
+                        className="h-8 text-xs font-semibold"
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      <Input
+                        placeholder="Instrument #"
+                        value={chk.instrumentNo}
+                        onChange={(e) => {
+                          const copy = [...cheques];
+                          copy[idx].instrumentNo = e.target.value;
+                          setCheques(copy);
+                        }}
+                        className="h-8 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      <Input
+                        placeholder="Amount (PKR)"
+                        value={chk.amount}
+                        onChange={(e) => {
+                          const copy = [...cheques];
+                          copy[idx].amount = e.target.value;
+                          setCheques(copy);
+                        }}
+                        className="h-8 text-xs font-bold text-teal-800"
+                      />
+                    </div>
+                    <div className="col-span-1 flex justify-center">
+                      {cheques.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCheques(prev => prev.filter((_, i) => i !== idx))}
+                          className="h-7 w-7 p-0 text-rose-500 hover:bg-rose-50 shrink-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           {/* ACCORDION 4: CUSTOM OBSERVATION & PLACEMENT (Only active on First Letter / General) */}
           {letterStage === "first" && (
             <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
@@ -1869,7 +1960,7 @@ Encl.:  As stated above.`;
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                      4. Custom Observation &amp; Flexible Position (کسٹم ریمارکس اور جگہ کا انتخاب)
+                      4. Custom Observation &amp; Flexible Placement
                     </h3>
                     <p className="text-[11px] text-slate-500 font-normal">
                       Add any custom observation line and choose its position (Top / Middle / Bottom)
@@ -1902,7 +1993,7 @@ Encl.:  As stated above.`;
                 <div className="p-4 pt-3 border-t border-slate-100 space-y-3 bg-white text-xs">
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">
-                      Position in Letter (لیٹر میں ریمارکس کی پوزیشن منتخب کریں):
+                      Placement in Letter:
                     </label>
                     <select
                       value={scrutinyPosition}
@@ -1912,13 +2003,13 @@ Encl.:  As stated above.`;
                       <option value="top">1. Top / Introductory (Above acknowledgment paragraph)</option>
                       <option value="middle">2. Middle (Between acknowledgment and required checklist)</option>
                       <option value="bottom">3. Bottom / Closing (Below required checklist)</option>
-                      <option value="at_end">4. Very End of Letter (Before Signatures - بالکل آخر میں دستخط سے اوپر)</option>
+                      <option value="at_end">4. Very End of Letter (Before Signatures)</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">
-                      Observation Text (ریمارکس ٹائپ کریں یا نیچے سے سلیکٹ کریں):
+                      Observation Text:
                     </label>
                     <textarea 
                       rows={3}
@@ -2331,7 +2422,7 @@ Encl.:  As stated above.`;
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-[#0B2B5E] flex items-center gap-2">
               <Building2 className="h-5 w-5 text-[#F37021]" />
-              Add New Client Company (نئی کمپنی کا اندراج)
+              Add New Client Company
             </DialogTitle>
             <DialogDescription className="text-xs">
               Enter the full official name of the company. It will be immediately selectable and saved in your active list.

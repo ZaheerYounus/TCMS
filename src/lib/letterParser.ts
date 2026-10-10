@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 
 export * from './gapAnalyzer';
-import { calculateDocumentGap, CANONICAL_TRANSMISSION_DOCS, DocumentGapAnalysis, TransmissionDocRequirement } from './gapAnalyzer';
+import { calculateDocumentGap, CANONICAL_TRANSMISSION_DOCS, DocumentGapAnalysis } from './gapAnalyzer';
 
 export interface ParsedLetterResult {
   folio?: string;
@@ -29,12 +29,87 @@ export interface ParsedLetterResult {
 }
 
 /**
- * Extract raw text from docx, doc, or plain buffer
+ * Extract PDF text from streams and text objects
+ */
+function extractPDFText(buffer: Buffer): string {
+  let fullText = '';
+  const str = buffer.toString('binary');
+
+  function parsePdfOperators(content: string): string {
+    let out = '';
+    const tjRegex = /\(([^)]*)\)\s*Tj/g;
+    let m;
+    while ((m = tjRegex.exec(content)) !== null) {
+      out += m[1] + ' ';
+    }
+    const arrayRegex = /\[(.*?)\]\s*TJ/g;
+    while ((m = arrayRegex.exec(content)) !== null) {
+      const inner = m[1];
+      const innerMatches = inner.match(/\(([^)]*)\)/g);
+      if (innerMatches) {
+        out += innerMatches.map(s => s.slice(1, -1)).join('') + ' ';
+      }
+    }
+    return out;
+  }
+
+  const streamRegex = /stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g;
+  let match;
+  while ((match = streamRegex.exec(str)) !== null) {
+    const rawData = Buffer.from(match[1], 'binary');
+    let decompressed: Buffer | null = null;
+    try {
+      decompressed = zlib.inflateSync(rawData);
+    } catch (e) {
+      try {
+        decompressed = zlib.inflateRawSync(rawData);
+      } catch (e2) {}
+    }
+
+    if (decompressed) {
+      const text = parsePdfOperators(decompressed.toString('utf8'));
+      if (text) fullText += '\n' + text;
+    }
+  }
+
+  const uncompressed = parsePdfOperators(str);
+  if (uncompressed) {
+    fullText += '\n' + uncompressed;
+  }
+
+  if (fullText.trim().length < 30) {
+    const rawMatches = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\xFF]/g, ' ')
+      .match(/[A-Za-z0-9][A-Za-z0-9 ,.\-\/()#:&@\n\r]{6,}/g);
+    if (rawMatches) {
+      fullText = rawMatches.join('\n');
+    }
+  }
+
+  return fullText.replace(/\\(\d{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)))
+    .replace(/\r/g, '\n')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Extract raw text from docx, doc, pdf, or plain buffer
  */
 export function extractTextFromBuffer(buffer: Buffer, filename: string = ""): string {
   const lowerName = filename.toLowerCase();
 
-  // 1. DOCX format (Zip containing word/document.xml)
+  // 1. PDF detection
+  if (lowerName.endsWith('.pdf') || (buffer.length > 4 && buffer.toString('utf8', 0, 4) === '%PDF')) {
+    try {
+      const pdfText = extractPDFText(buffer);
+      if (pdfText && pdfText.length > 10) {
+        return pdfText;
+      }
+    } catch (err) {
+      console.warn('PDF extraction failed:', err);
+    }
+  }
+
+  // 2. DOCX format
   if (lowerName.endsWith('.docx') || (buffer.length > 4 && buffer[0] === 0x50 && buffer[1] === 0x4B)) {
     try {
       let idx = 0;
@@ -82,10 +157,10 @@ export function extractTextFromBuffer(buffer: Buffer, filename: string = ""): st
     }
   }
 
-  // 2. DOC (OLE2 binary) or binary fallback: extract printable character runs
+  // 3. DOC (OLE2 binary) or binary fallback
   const str = buffer.toString('binary');
   const cleanRuns = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ');
-  const matches = cleanRuns.match(/[A-Za-z0-9][A-Za-z0-9 ,.\-\/()#:&@\n\r]{10,}/g);
+  const matches = cleanRuns.match(/[A-Za-z0-9][A-Za-z0-9 ,.\-\/()#:&@\n\r]{6,}/g);
   if (matches && matches.length > 0) {
     return matches.join('\n').replace(/ {2,}/g, ' ').trim();
   }
@@ -93,31 +168,15 @@ export function extractTextFromBuffer(buffer: Buffer, filename: string = ""): st
   return buffer.toString('utf8');
 }
 
-/**
- * Known Karachi / PSX listed client companies handled by CDCSR
- */
-const KNOWN_COMPANIES = [
-  { name: "Oil & Gas Development Company Limited", symbol: "OGDC", aliases: ["oil & gas", "ogdc", "ogdcl"] },
-  { name: "Habib Bank Limited", symbol: "HBL", aliases: ["habib bank", "hbl"] },
-  { name: "MCB Bank Limited", symbol: "MCB", aliases: ["mcb", "mcb bank"] },
-  { name: "Pakistan State Oil Company Limited", symbol: "PSO", aliases: ["pakistan state oil", "pso"] },
-  { name: "United Bank Limited", symbol: "UBL", aliases: ["united bank", "ubl"] },
-  { name: "Engro Corporation Limited", symbol: "ENGRO", aliases: ["engro", "engro corp"] },
-  { name: "Fauji Fertilizer Company Limited", symbol: "FFC", aliases: ["fauji fertilizer", "ffc"] },
-  { name: "Lucky Cement Limited", symbol: "LUCK", aliases: ["lucky cement", "luck"] },
-  { name: "The Hub Power Company Limited", symbol: "HUBCO", aliases: ["hub power", "hubco"] },
-  { name: "National Bank of Pakistan", symbol: "NBP", aliases: ["national bank", "nbp"] },
-  { name: "Pakistan Petroleum Limited", symbol: "PPL", aliases: ["pakistan petroleum", "ppl"] },
-  { name: "Mari Energies Limited", symbol: "MARI", aliases: ["mari", "mari energies", "mari petroleum"] },
-  { name: "Meezan Bank Limited", symbol: "MEBL", aliases: ["meezan bank", "mebl"] },
-  { name: "Bank AL Habib Limited", symbol: "BAHL", aliases: ["bank al habib", "bahl"] },
-  { name: "Attock Petroleum Limited", symbol: "APL", aliases: ["attock petroleum", "apl"] },
-  { name: "Kot Addu Power Company Limited", symbol: "KAPCO", aliases: ["kot addu", "kapco"] },
-  { name: "K-Electric Limited", symbol: "KEL", aliases: ["k-electric", "kel", "kelectric"] },
-  { name: "Khyber Tobacco Company Limited", symbol: "KHTC", aliases: ["khyber tobacco", "khtc"] },
-  { name: "PAK Suzuki Motor Company Limited", symbol: "PSMC", aliases: ["pak suzuki", "psmc"] },
-  { name: "Pakistan International Airlines Corporation Limited", symbol: "PIAC", aliases: ["pakistan international airlines", "piac", "pia"] }
-];
+function getAllCompaniesList(): string[] {
+  try {
+    const p = path.join(process.cwd(), 'src', 'data', 'companiesList.json');
+    if (fs.existsSync(p)) {
+      return JSON.parse(fs.readFileSync(p, 'utf8'));
+    }
+  } catch (e) {}
+  return [];
+}
 
 /**
  * Smart heuristic letter text parser
@@ -149,133 +208,81 @@ export function parseLetterText(text: string): ParsedLetterResult {
   const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
 
   // 1. Folio Number Detection
-  const folioMatch = text.match(/(?:folio(?:\s*(?:#|no|number|num))?[:\s]*)([A-Za-z0-9\/-]{3,12})/i) ||
+  const folioMatch = text.match(/(?:folio(?:\s*(?:#|no|number|num))?[:\s]*)([A-Za-z0-9\/-]{2,15})/i) ||
                      text.match(/CDCSR\/LTC\/[A-Z0-9]+\/([0-9A-Za-z]+)\//i) ||
-                     text.match(/\bFolio\s+([0-9]{3,8})\b/i);
+                     text.match(/\bFolio\s+([0-9]{2,10})\b/i);
   if (folioMatch && folioMatch[1]) {
     const rawF = folioMatch[1].trim();
-    if (!['number', 'details', 'particulars'].includes(rawF.toLowerCase())) {
+    if (!['number', 'details', 'particulars', 'no', 'num'].includes(rawF.toLowerCase())) {
       result.folio = rawF;
     }
   }
 
-  // 2. Company Detection
-  for (const comp of KNOWN_COMPANIES) {
-    if (comp.aliases.some(alias => lower.includes(alias))) {
-      result.company = comp.name;
-      result.compSymbol = comp.symbol;
+  // 2. Company Detection (Check entire registered 183+ companies list)
+  const allComps = getAllCompaniesList();
+  for (const comp of allComps) {
+    const cLow = comp.toLowerCase();
+    const shortName = cLow.replace(/\s+(limited|ltd\.?|corporation|bank|company).*$/i, '').trim();
+    if (lower.includes(cLow) || (shortName.length > 3 && lower.includes(shortName))) {
+      result.company = comp;
+      result.compSymbol = comp.split(' ')[0].toUpperCase();
       break;
     }
   }
 
   if (!result.company) {
-    const compLineMatch = text.match(/([A-Z][A-Za-z0-9\s&]+(?:Company|Corporation|Bank|Cement|Fertilizer|Textile|Sugar|Power|Oil)\s+(?:Limited|Ltd\.?))/);
+    const compLineMatch = text.match(/([A-Z][A-Za-z0-9\s&]+(?:Company|Corporation|Bank|Cement|Fertilizer|Textile|Sugar|Power|Oil)\s+(?:Limited|Ltd\.?))/i);
     if (compLineMatch) {
       result.company = compLineMatch[1].trim();
       result.compSymbol = result.company.split(' ')[0].toUpperCase();
     }
   }
 
-  // 3. Header Block Parsing (Legal Heir, Deceased, Address & Contact)
-  let inAddress = false;
-  let addressParts: string[] = [];
+  // 3. Deceased Name Detection
+  const decMatch = text.match(/(?:Late\s+)([A-Z][a-zA-Z\s.]{2,40})(?=\s*\(Late\)|[\r\n,]|Folio|F\/H|\bDear\b|\bTransmission\b)/i) ||
+                   text.match(/F\/H[:\s]+([A-Za-z\s.]+?)(?=\s*\(Late\)|[\r\n,]|$)/i) ||
+                   text.match(/(?:deceased(?:\s+shareholder)?|deceased)[:\s]+([A-Za-z\s.]+?)(?=[\r\n,]|registered)/i);
+  if (decMatch && decMatch[1]) {
+    result.deceased = decMatch[1].trim().replace(/\s*\(Late\)/i, '').replace(/^Late\s+/i, '');
+  }
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    if (line.includes('Dear Concern') || line.includes('Transmission of Shares')) {
-      break;
-    }
-
-    // Match F/H line
-    if (line.match(/(?:F\/H|Father name|Husband name)[:\s]/i)) {
-      inAddress = true;
-      const decMatch = line.match(/(?:F\/H(?:\s*Name)?|Father name|Husband name)[:\s]+([A-Za-z\s.]+?)(?=\s*\(Late\)|$)/i);
-      if (decMatch) {
-        result.deceased = decMatch[1].trim().replace(/\s*\(Late\)/i, '');
-      }
-      // Previous line is typically Legal Heir name
-      if (i > 0 && !lines[i-1].match(/(?:CDCSR|CDC|\d{4}|August|September|October|November|December|January|February|March|April|May|June|July)/i)) {
-        const potentialHeir = lines[i-1].replace(/^To:\s*/i, '').trim();
-        if (potentialHeir.length > 2 && potentialHeir.length < 55) {
-          result.legalHeir = potentialHeir;
-        }
-      }
-      continue;
-    }
-
-    if (inAddress) {
-      const phoneMatch = line.match(/(?:Contact\s*(?:#|No|Number)?[:\s]*)?(\+?92[-\s]?3\d{2}[-\s]?\d{7}|03\d{2}[-\s]?\d{7}|021[-\s]?\d{7,8})/i);
-      if (phoneMatch) {
-        result.contactNo = phoneMatch[0].trim();
-        const rem = line.replace(phoneMatch[0], '').trim();
-        if (rem.length > 5 && !rem.match(/^(?:Contact|Cell|Phone|Mob)/i)) {
-          addressParts.push(rem);
-        }
-      } else if (!line.toLowerCase().includes('dear concern')) {
-        addressParts.push(line);
-      }
+  // 4. Legal Heir Name Detection
+  const toMatch = text.match(/(?:Legal\s*Heir|Applicant|Name\s*of\s*Legal\s*Heir|To)[:\s]*([A-Za-z\s.()\/]{3,45})(?=[\r\n,]|F\/H|Address)/i) ||
+                  text.match(/\b((?:Mr\.|Mrs\.|Ms\.|Mst\.|Dr\.|Syed|Syeda)\s+[A-Z][a-zA-Z\s.]{3,35})\b/i);
+  if (toMatch && toMatch[1]) {
+    const rawHeir = toMatch[1].trim();
+    if (!rawHeir.toLowerCase().includes("concern") && !rawHeir.toLowerCase().includes("secretary")) {
+      result.legalHeir = rawHeir;
     }
   }
 
-  if (addressParts.length > 0) {
-    result.address = addressParts
-      .join(', ')
-      .replace(/,\s*,+/g, ',')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/,\s*$/, '');
-  }
-
-  // Fallback for Deceased name if not caught in F/H
-  if (!result.deceased) {
-    const lateMatch = text.match(/(?:Late\s+)([A-Z][a-zA-Z\s.]{2,35})(?=\s*\(Late\)|[\r\n,]|Folio|F\/H|\bDear\b|\bTransmission\b)/i) ||
-                      text.match(/deceased(?:\s+shareholder)?[:\s]+([A-Za-z\s.]+?)(?=[\r\n,]|registered)/i);
-    if (lateMatch && lateMatch[1]) {
-      result.deceased = lateMatch[1].trim().replace(/\s*\(Late\)/i, '').replace(/Late\s+/i, '');
-    }
-  }
-
-  // Fallback for Legal Heir name
   if (!result.legalHeir) {
-    const toMatch = text.match(/To:\s*[\r\n]+\s*([A-Za-z\s.()\/]+?)(?=[\r\n]+F\/H|[\r\n]+Address|[\r\n]+House)/i) ||
-                    text.match(/(?:legal heir|applicant|addressee)[:\s]*([A-Za-z\s.]+?)(?=[\r\n,(])/i) ||
-                    text.match(/\b((?:Mr\.|Mrs\.|Ms\.|Mst\.|Dr\.|Syed)\s+[A-Z][a-zA-Z\s.]{3,35})\b/);
-    if (toMatch && toMatch[1]) {
-      const rawHeir = toMatch[1].trim();
-      if (!rawHeir.toLowerCase().includes("concern") && rawHeir.length > 2 && rawHeir.length < 55) {
-        result.legalHeir = rawHeir;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes('F/H:') && i > 0) {
+        const prev = lines[i - 1].replace(/^To:\s*/i, '').trim();
+        if (prev.length > 2 && prev.length < 50 && !prev.includes('CDCSR') && !prev.includes('202')) {
+          result.legalHeir = prev;
+          break;
+        }
       }
     }
   }
 
-  // Fallback for address
-  if (!result.address) {
-    const addrMatch = text.match(/((?:House|Flat|Plot|Bungalow|Apartment|D-|\d+[A-Z]?)[#\s\w\-,]+(?:Street|Block|Sector|Scheme|Road|Phase|Colony|Town)[\w\s\-,]+(?:Karachi|Lahore|Islamabad|Rawalpindi|Faisalabad|Peshawar|Quetta|Multan|Hyderabad))/i) ||
-                      text.match(/Address[:\s]*([\w\s\-,.#]{15,100})/i);
-    if (addrMatch && addrMatch[1]) {
-      result.address = addrMatch[1].trim().replace(/\s+/g, ' ');
-    }
+  // 5. Contact / Mobile Number Detection
+  const contactMatch = text.match(/(?:Contact\s*(?:#|No|Number)?[:\s]*)?(\+?92[-\s]?3\d{2}[-\s]?\d{7}|03\d{2}[-\s]?\d{7}|021[-\s]?\d{7,8})/i) ||
+                       text.match(/\b(03[0-4][0-9][-\s]?[0-9]{7})\b/);
+  if (contactMatch) {
+    result.contactNo = contactMatch[0].replace(/^(?:Contact\s*(?:#|No|Number)?[:\s]*)/i, '').trim();
   }
 
-  // Fallback for contact
-  if (!result.contactNo) {
-    const contactMatch = text.match(/(?:03\d{2}[-\s]?\d{7}|021[-\s]?\d{7,8}|\+92[-\s]?3\d{2}[-\s]?\d{7})/);
-    if (contactMatch) {
-      result.contactNo = contactMatch[0].trim();
-    }
+  // 6. Address Detection
+  const addrMatch = text.match(/((?:House|Flat|Plot|Bungalow|Apartment|D-|\d+[A-Z]?)[#\s\w\-,]+(?:Street|Block|Sector|Scheme|Road|Phase|Colony|Town)[\w\s\-,]+(?:Karachi|Lahore|Islamabad|Rawalpindi|Faisalabad|Peshawar|Quetta|Multan|Hyderabad))/i) ||
+                    text.match(/Address[:\s]*([\w\s\-,.#]{12,120})/i);
+  if (addrMatch && addrMatch[1]) {
+    result.address = addrMatch[1].trim().replace(/\s+/g, ' ');
   }
 
-  // Relation
-  const relationMatch = text.match(/\((Legal Heir|Son|Daughter|Widow|Wife|Husband|Brother|Sister|Applicant)\)/i) ||
-                        text.match(/(?:relation|capacity)[:\s]*([A-Za-z\s\/]+?)(?=[\r\n,])/i);
-  if (relationMatch && relationMatch[1]) {
-    result.relation = relationMatch[1].trim();
-  } else {
-    result.relation = "Legal Heir / Son";
-  }
-
-  // Shares and Certificates
+  // 7. Shares and Certificates Detection
   const certMatch = text.match(/=?(\d+)=?\s*share\s*certificates?/i);
   if (certMatch) {
     result.certificates = `=${certMatch[1].padStart(2, '0')}=`;
@@ -285,48 +292,34 @@ export function parseLetterText(text: string): ParsedLetterResult {
     result.shares = `=${sharesMatch[1]}=`;
   }
 
-  // Distinctive numbers or scripts
-  const scriptsMatch = text.match(/(Cert(?:ificate)?\s*(?:#|no)?\s*[\d\w\s\-]+(?:\(Distinctive:?\s*[\d\w\s\-]+\))?)/i);
-  if (scriptsMatch) {
-    result.scripts = scriptsMatch[1].trim();
-  }
-
-  // Auto-Identify Documents Received
+  // 8. Auto-Identify Documents Received
   const foundDocs: string[] = [];
   if (lower.includes("written") || lower.includes("request application") || lower.includes("transmission request") || lower.includes("application")) {
     foundDocs.push("Written transmission request application");
   }
   if (lower.includes("death certificate") || lower.includes("death cert")) {
-    foundDocs.push("Certified copy of computerized Death Certificate");
+    foundDocs.push("Legible notarized copy of death certificate of subject deceased shareholder");
   }
-  if (lower.includes("cnic of deceased") || (lower.includes("cnic") && lower.includes("deceased"))) {
-    foundDocs.push("Attested copy of CNIC of deceased shareholder");
-  }
-  if (lower.includes("cnic") && (lower.includes("applicant") || lower.includes("legal heir") || lower.includes("yourself"))) {
-    foundDocs.push("Attested copy of CNIC of legal heir / applicant");
+  if (lower.includes("cnic") && (lower.includes("deceased") || lower.includes("both") || lower.includes("yourself"))) {
+    foundDocs.push("Copy of CNIC of subject deceased shareholder and yourself");
   }
   if (lower.includes("original physical") || lower.includes("original share certificate") || lower.includes("physical share")) {
     foundDocs.push("Original physical share certificate(s)");
   }
   if (lower.includes("family registration") || lower.includes("frc")) {
-    foundDocs.push("Family Registration Certificate (FRC) issued by NADRA");
+    foundDocs.push("Copy of Family Registration Certificate (FRC)");
   }
   if (lower.includes("succession certificate") || lower.includes("court order") || lower.includes("letter of administration")) {
     foundDocs.push("Succession Certificate / Letter of Administration");
   }
-  if (lower.includes("indemnity") || lower.includes("affidavit") || lower.includes("stamp paper")) {
-    foundDocs.push("Attested Affidavit / Indemnity Bond");
-  }
 
   if (foundDocs.length === 0) {
+    foundDocs.push("Copy of CNIC of subject deceased shareholder and yourself");
     foundDocs.push("Written transmission request application");
-    foundDocs.push("Attested copy of CNIC of deceased shareholder");
-    foundDocs.push("Attested copy of CNIC of legal heir / applicant");
   }
 
   result.receivedDocs = foundDocs;
 
-  // Ref No Generation
   const sym = result.compSymbol || "COMP";
   const fol = result.folio || "FOLIO";
   result.refNo = `CDCSR/LTC/${sym}/${fol}/26`;
@@ -365,7 +358,6 @@ export function parseLetterText(text: string): ParsedLetterResult {
     }
   }
 
-  // Calculate Document Gap Analysis & Transmission Readiness
   const gap = calculateDocumentGap(result.receivedDocs, text);
   result.gapAnalysis = gap;
   result.missingDocs = gap.missingDocs;
