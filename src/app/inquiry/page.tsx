@@ -655,27 +655,6 @@ function InquiryContent() {
                 </div>
                 <CardTitle className="text-xl font-black text-slate-900 mt-1 flex items-center justify-between">
                   <span>{caseRecord.company}</span>
-                  <div className="flex items-center gap-1.5">
-                    {(() => {
-                      const p = getCompanyPolicy(caseRecord.company);
-                      return (
-                        <>
-                          <Badge className={`text-[10px] font-black ${p.formType === 'TD' ? 'bg-purple-100 text-purple-900 border-purple-300' : 'bg-blue-100 text-blue-900 border-blue-300'}`}>
-                            {p.formType} Required
-                          </Badge>
-                          {p.custodyAvailable ? (
-                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-bold">
-                              Custody With Us
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-slate-100 text-slate-600 text-[10px]">
-                              No Custody
-                            </Badge>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
                 </CardTitle>
                 <CardDescription className="text-xs">
                   Folio # <span className="font-bold text-[#F37021] font-mono text-sm">{caseRecord.folio}</span>
@@ -968,9 +947,9 @@ function InquiryContent() {
                   {[
                     "Notarized Death Certificate verified against NADRA database",
                     "Succession Certificate / Court Decree copy complete with Order",
-                    "SIF / Transmission Deed signed by all legal heirs",
+                    "Application signed by all legal heirs",
                     "Share Transfer Duty / Revenue Stamps verified",
-                    "Physical Share Certificates checked against Custody records"
+                    "Physical Share Certificates checked against company records"
                   ].map((chk, i) => (
                     <div key={i} className="flex items-center gap-2 text-[11px] text-slate-800">
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
@@ -1032,7 +1011,6 @@ function InquiryContent() {
                       >
                         <option value="Pending">Pending (Action with Us)</option>
                         <option value="Waiting">Waiting (Awaiting Legal Heirs)</option>
-                        <option value="Custody Items Awaited">Custody Items Awaited</option>
                         <option value="Partially Closed">Partially Closed (Shares Delivered, Residual Pending)</option>
                         <option value="Co. - Case Review & Approval">Co. - Case Review &amp; Approval</option>
                         <option value="Co. - Signing">Co. - Signing</option>
@@ -1069,7 +1047,6 @@ function InquiryContent() {
                         { label: "Pending", val: "Pending", color: "hover:bg-orange-600 bg-orange-500 text-white" },
                         { label: "Partially Closed", val: "Partially Closed", color: "hover:bg-teal-700 bg-teal-600 text-white" },
                         { label: "Waiting", val: "Waiting", color: "hover:bg-amber-600 bg-amber-500 text-white" },
-                        { label: "Custody Items Awaited", val: "Custody Items Awaited", color: "hover:bg-purple-600 bg-purple-500 text-white" },
                         { label: "Co. Signing", val: "Co. - Signing", color: "hover:bg-cyan-700 bg-cyan-600 text-white" },
                         { label: "Co. Approval", val: "Co. - Case Review & Approval", color: "hover:bg-indigo-700 bg-indigo-600 text-white" },
                         { label: "In Transfer", val: "In Transfer", color: "hover:bg-blue-700 bg-blue-600 text-white" },

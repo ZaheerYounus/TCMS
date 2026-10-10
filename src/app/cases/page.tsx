@@ -360,23 +360,11 @@ function CasesContent() {
                           </Link>
                         </TableCell>
 
-                        {/* Client Company with SIF/TD & Custody Tag */}
+                        {/* Client Company */}
                         <TableCell className="font-semibold text-slate-800">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1.5">
-                              <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                              <span className="truncate max-w-[180px] font-bold" title={c.company}>{c.company}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Badge className={`text-[9px] font-black px-1 py-0 ${policy.formType === 'TD' ? 'bg-purple-100 text-purple-900 border-purple-300' : 'bg-blue-100 text-blue-900 border-blue-300'}`}>
-                                {policy.formType}
-                              </Badge>
-                              {policy.custodyAvailable ? (
-                                <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0 rounded font-semibold">Custody With Us</span>
-                              ) : (
-                                <span className="text-[9px] bg-slate-100 text-slate-600 px-1 py-0 rounded">No Custody</span>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-1.5">
+                            <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate max-w-[200px] font-bold" title={c.company}>{c.company}</span>
                           </div>
                         </TableCell>
 
@@ -402,8 +390,8 @@ function CasesContent() {
                           <div className="space-y-1">
                             <div>{getStatusBadge(c.status, c.isClosed, c.workedThisMonth)}</div>
                             {isWaitingHeirs && (
-                              <div className="text-[10px] text-amber-900 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 max-w-[160px] truncate" title="Awaiting: Notarized Death Cert, CNIC, Succession Certificate, SIF">
-                                Awaiting: Death Cert, Succession, SIF
+                              <div className="text-[10px] text-amber-900 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 max-w-[160px] truncate" title="Awaiting: Notarized Death Cert, CNIC, Succession Certificate">
+                                Awaiting: Death Cert, Succession
                               </div>
                             )}
                             {agingDays > 10 && !c.isClosed && (

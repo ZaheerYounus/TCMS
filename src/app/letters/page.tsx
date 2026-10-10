@@ -88,7 +88,14 @@ function LetterGenerationContent() {
     { id: "1", name: "Syed Sajjad Imam Jafri", cnic: "42101-1234567-1", shares: "=500=", folio: "NEW-01", relation: "Son / Legal Heir" },
     { id: "2", name: "Syeda Fatima Jafri", cnic: "42101-7654321-2", shares: "=500=", folio: "NEW-02", relation: "Daughter / Legal Heir" }
   ]);
-  const [hasLossRegister, setHasLossRegister] = useState(false);
+  const [transferReceipts, setTransferReceipts] = useState<Array<{ id: string; receiptNo: string; name: string }>>([
+    { id: "1", receiptNo: "469", name: "MRS. SARA KHALID" },
+    { id: "2", receiptNo: "470", name: "MRS. IMRANA NASIR" },
+    { id: "3", receiptNo: "471", name: "MRS. MOBINA AMAN" }
+  ]);
+  const [transferRegisterPages, setTransferRegisterPages] = useState("06 (02 Copies)");
+  const [lossRegisterPages, setLossRegisterPages] = useState("02 (02 Copies)");
+  const [hasLossRegister, setHasLossRegister] = useState(true);
   const [lossReceiptNo, setLossReceiptNo] = useState("LR-2026/089");
   const [hasSplitRegister, setHasSplitRegister] = useState(false);
   const [splitReceiptNo, setSplitReceiptNo] = useState("SR-2026/044");
@@ -748,25 +755,59 @@ Encl.:  As stated above.`;
 
 The Company Secretary
 ${company}
+${approvalCompanyAddress || ''}
 
-Subject: TRANSMISSION OF SHARES IN RESPECT OF LATE ${deceased} - FOLIO # ${folio}
+${approvalSalutation || 'Dear Sir / Madam,'}
 
-Dear Sir / Madam,
+${company} (${approvalSymbol || 'SYM'}) Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}
 
-We are enclosing herewith transmission case along with valid Succession Certificate / title documents in respect of late ${deceased} holding ${shares} shares under Folio # ${folio}.
+We refer to your office letter ref: ${approvalOfficeRef || 'nil'} dated ${approvalOfficeDate || 'nil'} regarding approval of transmission of shares in favor of legal heirs of above deceased shareholder. In this regard we are pleased to enclose herewith =${approvalCertificatesCount || certificates || '01'}= share certificates for =${shares || '0'}= shares along with their relevant Loss & Transfer registers and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
 
-The shares are proposed to be transmitted in favor of the legal heir(s) / transferee(s) as detailed below:
+No. of transfer receipt(s) : ${approvalTransferReceiptsCount || transferReceiptList.length || '01'}
+${transferReceiptList.map(r => `Transfer receipt(s) # : ${r.receiptNo} (in the name of ${r.name})`).join('\n')}
+Transfer register no. of page(s) : ${approvalTransferRegisterPages || '02'} (02 Copies)
+Loss receipt(s) # : ${approvalLossReceiptNo || 'nil'}
+Loss register no. of page(s) : ${approvalLossRegisterPages || 'nil'} (02 Copies)
 
-${transferees.map((t, i) => `${i + 1}. ${t.name} (CNIC: ${t.cnic || 'N/A'}) - Shares: ${t.shares} - Proposed Folio: ${t.folio || 'N/A'}`).join('\n')}
-${hasLossRegister ? `\nNote: Loss of Shares Register receipt entry #${lossReceiptNo} is completed.` : ''}
-${hasSplitRegister ? `\nNote: Split of Certificates Register receipt entry #${splitReceiptNo} is completed.` : ''}
+In view of above you are requested to kindly return the enclosed following documents duly approved / signed by the Directors / Authorized Signatories of the Company at your earliest:
 
-${approvalCoveringNotes || 'You are kindly requested to please accord your formal approval / sign the attached Transmission Register and return the same to us along with blank share certificates to enable us to execute the transfer.'}
+${approvalSignDuplicates ? `1. Authorized Signatory's signatures on the face of =${approvalCertificatesCount || '01'}= duplicate shares certificates (if applicable).\n` : ''}2. Authorized Signatory's signatures on the Memorandum of Transfers (on the back of each share certificate).
+3. Authorized Signatory's signature on Loss & Transfer register.
 
-Regards,
+After approval of transfer / transmission of shares as requested above, kindly arrange to return transfer registers along with share certificates / documents related to this transmission case.
+
+Further, please arrange to check whether any other dividend warrant(s) pertaining to above deceased shareholder is/are still unpaid, if so, then please arrange to issue cheque(s) / online payment in favor of above legal heirs as per their entitlement.
+
+Yours faithfully,
+For CDC Share Registrar Services Limited
 
 Authorized Signatory         Authorized Signatory
-CDC Share Registrar Services Limited`;
+Encl.:  As stated above.`;
+    } else if (letterStage === "delivery_cheques") {
+      bodyText = `${refNo}              ${date}
+
+${legalHeir}
+${address}
+${contactNo ? 'Contact: ' + contactNo : ''}
+
+Dear Concern,
+
+${company}
+Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}
+
+We refer to transmission of shares of the captioned deceased shareholder.
+
+Please find enclosed herewith following dividend cheque(s) / instrument(s) in respect of deceased shareholder:
+
+${chequeList.map((c, i) => `${i + 1}. Beneficiary: ${c.beneficiary} | Instrument #: ${c.instrumentNo} | Amount (PKR): ${c.amount}`).join('\n')}
+
+Please acknowledge receipt of the cheque(s) / instrument(s).
+
+Yours faithfully,
+For CDC Share Registrar Services Limited
+
+Authorized Signatory         Authorized Signatory
+Encl.:  As stated above.`;
     } else if (letterStage === "delivery_shares") {
       bodyText = `${refNo}              ${date}
 
@@ -2022,7 +2063,7 @@ Encl.:  As stated above.`;
                 <p className="font-bold text-slate-900 underline">
                   {letterStage === "first" && `Transmission of Shares and Dividends – Late ${deceased} – Folio # ${mode === "single" ? folio : multiFolios.map(m => m.folio).filter(Boolean).join(", ")}`}
                   {letterStage === "no_folio" && `Transmission of Shares & Verification of Title – Late ${deceased} – Folio # ${folio}`}
-                  {letterStage === "physical_approval" && `TRANSMISSION OF SHARES IN RESPECT OF LATE ${deceased} - FOLIO # ${folio}`}
+                  {letterStage === "physical_approval" && `Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}`}
                   {letterStage === "delivery_shares" && `Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}`}
                   {letterStage === "delivery_cheques" && `Transmission of Dividends – Late ${deceased} – Folio # ${folio}`}
                 </p>
@@ -2155,56 +2196,45 @@ Encl.:  As stated above.`;
                 </>
               )}
 
-              {/* TEMPLATE 3: PHYSICAL APPROVAL COVERING PREVIEW */}
+              {/* TEMPLATE 3: PHYSICAL APPROVAL COVERING PREVIEW (Exact match: Late Allah Bakhsh) */}
               {letterStage === "physical_approval" && (
                 <>
                   <p>
-                    We are enclosing herewith transmission case along with valid Succession Certificate / title documents in respect of late <strong>{deceased}</strong> holding <strong>{shares}</strong> shares under Folio # <strong>{folio}</strong>.
+                    We refer to the transmission case in respect of the above deceased shareholder. In this regard we are pleased to enclose herewith <strong>{certificates}</strong> share certificates for <strong>{shares}</strong> shares along with their relevant Loss & Transfer registers and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
                   </p>
 
-                  <p className="font-semibold text-slate-900">
-                    The shares are proposed to be transmitted in favor of the legal heir(s) / transferee(s) as detailed below:
+                  <p className="font-bold text-slate-900 pt-1">
+                    The details of transfers being sent to you are given below:
                   </p>
 
-                  <div className="border rounded overflow-hidden font-sans text-[11px] my-2">
-                    <table className="w-full text-left">
-                      <thead className="bg-slate-100 text-slate-700 font-bold border-b">
-                        <tr>
-                          <th className="p-1.5">S #</th>
-                          <th className="p-1.5">Transferee / Legal Heir</th>
-                          <th className="p-1.5">CNIC</th>
-                          <th className="p-1.5">Shares</th>
-                          <th className="p-1.5">Proposed Folio</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {transferees.map((t, i) => (
-                          <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
-                            <td className="p-1.5 font-bold text-slate-500">{i + 1}</td>
-                            <td className="p-1.5 font-bold text-slate-900">{t.name}</td>
-                            <td className="p-1.5 font-mono">{t.cnic || 'N/A'}</td>
-                            <td className="p-1.5 font-bold text-emerald-800">{t.shares}</td>
-                            <td className="p-1.5 font-mono">{t.folio || 'N/A'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="font-sans text-[11px] space-y-1 p-2 rounded bg-slate-50 border border-slate-200">
+                    <p><strong>No. of transfer receipt(s) :</strong> {String(transferReceipts.length).padStart(2, '0')}</p>
+                    {transferReceipts.map((tr, i) => (
+                      <p key={i}><strong>Transfer receipt(s) # :</strong> {tr.receiptNo} (in the name of {tr.name})</p>
+                    ))}
+                    <p><strong>Transfer register no. of page(s) :</strong> {transferRegisterPages}</p>
+                    {hasLossRegister && (
+                      <>
+                        <p><strong>Loss receipt(s) # :</strong> {lossReceiptNo || '295'}</p>
+                        <p><strong>Loss register no. of page(s) :</strong> {lossRegisterPages}</p>
+                      </>
+                    )}
                   </div>
 
-                  {hasLossRegister && (
-                    <p className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-950 font-sans text-[11px]">
-                      <strong>Note on Loss Register:</strong> Loss of Shares Register entry receipt #{lossReceiptNo} has been duly recorded.
-                    </p>
-                  )}
-
-                  {hasSplitRegister && (
-                    <p className="p-2 rounded bg-blue-50 border border-blue-200 text-blue-950 font-sans text-[11px]">
-                      <strong>Note on Split Register:</strong> Split of Certificates Register entry receipt #{splitReceiptNo} has been processed.
-                    </p>
-                  )}
+                  <p className="font-bold text-slate-900 pt-1">
+                    Following actions are requested for approval of above transmission of shares:
+                  </p>
+                  <ul className="list-disc pl-5 space-y-1 text-[11px] text-slate-700">
+                    <li>Authorized Signatory's signatures on the face of duplicate shares certificates (if applicable).</li>
+                    <li>Authorized Signatory's signatures on the Memorandum of Transfers (on the back of each share certificate).</li>
+                    <li>Authorized Signatory's signature on Loss & Transfer register.</li>
+                  </ul>
 
                   <p className="pt-1">
-                    {approvalCoveringNotes || "You are kindly requested to please accord your formal approval / sign the attached Transmission Register and return the same to us along with blank share certificates to enable us to execute the transfer."}
+                    After approval of transfer / transmission of shares as requested above, kindly arrange to return transfer registers along with share certificates / documents related to this transmission case.
+                  </p>
+                  <p>
+                    Further, please arrange to check whether any other dividend warrant(s) pertaining to above deceased shareholder is/are still unpaid, if so, then please arrange to issue cheque(s) / online payment in favor of above legal heirs as per their entitlement.
                   </p>
                 </>
               )}
