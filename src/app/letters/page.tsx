@@ -123,7 +123,7 @@ function LetterGenerationContent() {
   const [copied, setCopied] = useState(false);
   const [syncToMis, setSyncToMis] = useState(true);
   const [searchingFolio, setSearchingFolio] = useState(false);
-  const [includeStandardCertLine, setIncludeStandardCertLine] = useState(true); // Requirement 13
+  const [includeStandardCertLine, setIncludeStandardCertLine] = useState(false); // Requirement 13
   const [cleanHeirNameOnly, setCleanHeirNameOnly] = useState(true); // Requirement 9
   const [stampDutyProvince, setStampDutyProvince] = useState<"Sindh" | "Punjab" | "Federal Capital" | "KPK" | "Balochistan">("Sindh"); // Requirement 12
   const [includeStampDutyTable, setIncludeStampDutyTable] = useState(false); // Requirement 18
@@ -847,7 +847,7 @@ Transmission of Shares and Dividends – Late ${deceased} – Folio # ${mode ===
 ${scrutinyPosition === 'top' && plainRemark ? plainRemark + '\n' : ''}We refer to your letter regarding the captioned subject and acknowledge the receipt of:
 ${receivedDocs.map(d => '- ' + d).join('\n')}
 
-Kindly note that as per company's record total, ${certificates} share certificate for ${shares} shares ${scripts ? `(${scripts}) ` : ''}is registered in name of deceased shareholder. In case if share certificate is lost, please intimate us accordingly.
+Kindly note that as per company's record total, ${certificates} share certificate for ${shares} shares under folio of ${company} is registered in name of deceased shareholder (details of shares attached).${includeStandardCertLine ? '\n\nShare certificates shall be sent upon our further instructions.' : ''}${hasLostShares ? '\n\n' + duplicateIntro + '\n' + duplicateDocs.map((d, i) => '• ' + d).join('\n') : ''}
 ${scrutinyPosition === 'middle' && plainRemark ? plainRemark + '\n' : ''}
 In order to enable us to process transmission of shares and dividends in favor of legal heir(s), following documents are required:
 ${requiredDocs.map((d, i) => `${i + 1}. ${d}`).join('\n')}
@@ -991,7 +991,7 @@ Encl.:  As stated above.`;
                     1. Smart Letter Upload &amp; Auto-Fill
                   </h3>
                   <p className="text-[11px] text-slate-500 font-normal">
-                    Upload incoming shareholder request (.docx, .doc, .pdf) or paste text to auto-fill details
+                    Upload incoming shareholder request (PDF, Word, or Photo/Scanned Image) to auto-fill details
                   </p>
                 </div>
               </div>
@@ -1017,7 +1017,7 @@ Encl.:  As stated above.`;
                       handleFileUpload(e.target.files[0]);
                     }
                   }}
-                  accept=".docx,.doc,.pdf,.txt,image/*" 
+                  accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png,.webp,image/*" 
                   className="hidden" 
                 />
 
@@ -1030,19 +1030,9 @@ Encl.:  As stated above.`;
                     className="h-10 border-dashed border-2 border-[#F37021]/60 hover:border-[#F37021] hover:bg-orange-50/60 text-[#D85B10] font-bold text-xs"
                   >
                     <FileUp className="mr-2 h-4 w-4 text-[#F37021]" />
-                    {uploadingFile ? "Analyzing Document..." : "Upload Incoming Letter (.docx/.doc)"}
+                    {uploadingFile ? "Analyzing Document..." : "Upload Letter / Application Document (PDF, Word, JPG, PNG)"}
                   </Button>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setPasteModalOpen(true)}
-                    disabled={uploadingFile}
-                    className="h-10 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs"
-                  >
-                    <ClipboardPaste className="mr-2 h-4 w-4 text-blue-700" />
-                    Paste Letter Text
-                  </Button>
                 </div>
 
                 {uploadSuccessMsg && (
@@ -1340,7 +1330,8 @@ Encl.:  As stated above.`;
                   </div>
                 )}
 
-                {/* Certificate Distinctive Scripts */}
+                {/* Certificate Distinctive Scripts (Hidden for First Letter) */}
+                {letterStage !== "first" && (
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">
                     Certificate Numbers &amp; Distinctive Range
@@ -1352,6 +1343,7 @@ Encl.:  As stated above.`;
                     className="text-xs h-9 text-slate-600"
                   />
                 </div>
+                )}
 
                 {/* Legal Heir Details (Name, Contact/Mobile, Mailing Address) */}
                 <div className="pt-2 border-t border-slate-100 space-y-3">
@@ -2015,7 +2007,7 @@ Encl.:  As stated above.`;
                       rows={3}
                       value={scrutinyRemark}
                       onChange={(e) => setScrutinyRemark(e.target.value)}
-                      placeholder="Type custom officer note or observation..."
+                      placeholder="Type custom officer note or observation (e.g. Loss of share certificates reported; duplicate formalities required)..."
                       className="w-full p-2.5 text-xs rounded-lg border border-slate-300 font-sans"
                     />
                   </div>

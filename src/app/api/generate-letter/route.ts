@@ -262,7 +262,7 @@ export async function POST(req: NextRequest) {
         new Paragraph({
           children: [
             new TextRun({ 
-              text: `Kindly note that as per company's record total, ${shareCertificates} share certificate for ${noOfShares} shares ${scripts ? `(${scripts}) ` : ''}under folio of ${companyName} is registered in the name of subject deceased shareholder (details of shares attached). In case if share certificate is lost, please intimate us accordingly.`, 
+              text: `Kindly note that as per company's record total, ${shareCertificates} share certificate for ${noOfShares} shares under folio of ${companyName} is registered in the name of subject deceased shareholder (details of shares attached).`, 
               size: 21, 
               font: "Calibri" 
             }),
@@ -271,18 +271,20 @@ export async function POST(req: NextRequest) {
         })
       ]),
 
-      // Requirement 13: Standard wording
-      new Paragraph({
-        children: [
-          new TextRun({ 
-            text: "Share certificates shall be sent upon our further instructions.", 
-            bold: true,
-            size: 20, 
-            font: "Calibri" 
-          }),
-        ],
-        spacing: { after: 120 },
-      }),
+      // Standard cert line only if explicitly enabled
+      ...(includeStandardCertLine ? [
+        new Paragraph({
+          children: [
+            new TextRun({ 
+              text: "Share certificates shall be sent upon our further instructions.", 
+              bold: true,
+              size: 20, 
+              font: "Calibri" 
+            }),
+          ],
+          spacing: { after: 120 },
+        })
+      ] : []),
 
       // Position A: After Received Documents
       ...(scrutinyPosition === 'after_received' ? scrutinyParagraphs : []),
