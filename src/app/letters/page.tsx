@@ -38,8 +38,14 @@ import {
   Files,
   Layers,
   FileCheck2,
-  Printer
+  Printer,
+  ChevronDown,
+  ChevronUp,
+  Send,
+  CheckSquare,
+  Truck
 } from "lucide-react";
+import companiesList from "@/data/companiesList.json";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { 
   calculateDocumentGap, 
@@ -65,8 +71,37 @@ interface ScrutinyDocItem {
 function LetterGenerationContent() {
   const searchParams = useSearchParams();
 
-  // Stage Switcher: First Letter, Second Letter, No Folio Found, CDS Account Dividend (Requirements 19, 20)
-  const [letterStage, setLetterStage] = useState<"first" | "second" | "no_folio" | "cds_account">("first");
+  // Template Switcher: First Letter, No Folio Found, Physical Approval Covering, Delivery of Shares
+  const [letterStage, setLetterStage] = useState<"first" | "no_folio" | "physical_approval" | "delivery_shares">("first");
+  const [openAccordion, setOpenAccordion] = useState<Record<string, boolean>>({
+    quickUpload: true,
+    basicDetails: true,
+    documentsChecklist: true,
+    observations: true,
+    transferees: true,
+    deliveryDetails: true,
+  });
+  const toggleAccordion = (name: string) => {
+    setOpenAccordion(prev => ({ ...prev, [name]: !prev[name] }));
+  };
+  const [transferees, setTransferees] = useState<Array<{ id: string; name: string; cnic: string; shares: string; folio: string; relation: string }>>([
+    { id: "1", name: "Syed Sajjad Imam Jafri", cnic: "42101-1234567-1", shares: "=500=", folio: "NEW-01", relation: "Son / Legal Heir" },
+    { id: "2", name: "Syeda Fatima Jafri", cnic: "42101-7654321-2", shares: "=500=", folio: "NEW-02", relation: "Daughter / Legal Heir" }
+  ]);
+  const [hasLossRegister, setHasLossRegister] = useState(false);
+  const [lossReceiptNo, setLossReceiptNo] = useState("LR-2026/089");
+  const [hasSplitRegister, setHasSplitRegister] = useState(false);
+  const [splitReceiptNo, setSplitReceiptNo] = useState("SR-2026/044");
+  const [approvalCoveringNotes, setApprovalCoveringNotes] = useState(
+    "You are kindly requested to please accord your formal approval / sign the attached Transmission Register and return the same to us along with blank share certificates to enable us to execute the transfer."
+  );
+  const [deliveryMode, setDeliveryMode] = useState<string>("By Hand");
+  const [dispatchTrackingNo, setDispatchTrackingNo] = useState("TCS-789012345");
+  const [deliveryNotes, setDeliveryNotes] = useState(
+    "Please acknowledge receipt of the share certificates by signing and returning the duplicate copy of this letter or counterfoil. In case of any query, please feel free to contact us."
+  );
+  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
+  const [companySearchQuery, setCompanySearchQuery] = useState("");
   const [mode, setMode] = useState<"single" | "multi">("single");
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -237,7 +272,7 @@ function LetterGenerationContent() {
   const [scrutinyRemark, setScrutinyRemark] = useState(
     "Upon scrutiny of submitted documents, a variation in the deceased shareholder's name has been observed between CNIC and Share Register. This matter is being taken up with the issuer company for necessary verification."
   );
-  const [scrutinyPosition, setScrutinyPosition] = useState<"after_received" | "before_required" | "after_required" | "at_end">("after_required");
+  const [scrutinyPosition, setScrutinyPosition] = useState<"top" | "middle" | "bottom" | "after_received" | "before_required" | "after_required" | "at_end">("middle");
 
   // Second Letter: Document Scrutiny Checklist with Objections
   const [dossierScrutiny, setDossierScrutiny] = useState<ScrutinyDocItem[]>([
@@ -581,7 +616,7 @@ function LetterGenerationContent() {
     try {
       const payload = {
         letterStage,
-        refNo: letterStage === "second" ? `${refNo}-SEC` : refNo,
+        refNo: refNo,
         date,
         legalHeir: cleanHeirNameOnly ? legalHeir : (relation ? `${legalHeir} (${relation})` : legalHeir),
         shareholder: deceased,
@@ -602,12 +637,20 @@ function LetterGenerationContent() {
         duplicatePosition,
         duplicateDocs,
         duplicateIntro,
-        deficiencies: activeDeficiencies,
         includeStandardCertLine,
         includeStampDutyTable,
         stampDutyProvince,
-        cdsAccountNo,
-        noFolioComments
+        // Physical Approval parameters
+        transferees,
+        hasLossRegister,
+        lossReceiptNo,
+        hasSplitRegister,
+        splitReceiptNo,
+        approvalCoveringNotes,
+        // Delivery parameters
+        deliveryMode,
+        dispatchTrackingNo,
+        deliveryNotes,
       };
 
       const res = await fetch("/api/generate-letter", {
@@ -623,7 +666,7 @@ function LetterGenerationContent() {
       const a = document.createElement("a");
       a.href = url;
       const fileFolio = mode === "single" ? folio : "Multi_Folios";
-      a.download = `CDCSR_Transmission_${letterStage === 'second' ? 'Second_Letter' : 'Letter'}_${compSymbol || 'COMP'}_${fileFolio}.docx`;
+      a.download = `CDCSR_Transmission_${'Letter'}_${compSymbol || 'COMP'}_${fileFolio}.docx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -637,7 +680,7 @@ function LetterGenerationContent() {
             body: JSON.stringify({
               folio,
               formSentDate: new Date().toISOString().split('T')[0],
-              remarks: `${letterStage === 'second' ? 'Second Deficiency Letter' : 'First Response Letter'} sent to ${legalHeir} on ${date}`
+              remarks: `${'Transmission Response Letter'} sent to ${legalHeir} on ${date}`
             })
           });
         } catch (e) {
@@ -666,31 +709,7 @@ function LetterGenerationContent() {
     }
 
     let bodyText = "";
-    if (letterStage === "second") {
-      bodyText = `${refNo}-SEC              ${date}
-
-${legalHeir}
-F/H: ${deceased} (Late)
-${address}
-${contactNo ? 'Contact: ' + contactNo : ''}
-
-Dear Concern,
-
-${company}
-Transmission of Shares and Dividends – Late ${deceased} – Folio # ${folio} (Scrutiny Observations & Rectification)
-
-We refer to the transmission dossier and documents submitted in our office regarding the transmission of shares of subject deceased shareholder in favor of legal heir(s).
-
-Upon preliminary scrutiny and legal examination of the submitted documents, following deficiencies / discrepancies have been observed:
-${activeDeficiencies.map((d, i) => `${i + 1}. ${d}`).join('\n')}
-${plainRemark}
-You are requested to please rectify the above discrepancies and furnish the amended / required documents at your earliest to enable us to proceed with the transmission of shares.
-
-Regards,
-
-Authorized Signatory         Authorized Signatory
-Encl.:  As stated above.`;
-    } else {
+    if (letterStage === "no_folio") {
       bodyText = `${refNo}              ${date}
 
 ${legalHeir}
@@ -701,21 +720,90 @@ ${contactNo ? 'Contact: ' + contactNo : ''}
 Dear Concern,
 
 ${company}
+Transmission of Shares & Verification of Title – Late ${deceased} – Folio # ${folio}
+
+We refer to your query / communication regarding transmission of shares of the subject deceased shareholder.
+
+Please be advised that upon thorough scrutiny and search of the share register / records of ${company}, no shareholding or folio exists in the name of the deceased shareholder under the provided folio / particulars (${folio}).
+
+${noFolioComments ? noFolioComments + '\n\n' : ''}In order to enable us to investigate further, please furnish:
+1. Legible copies of original share certificates / counterfoils (if available).
+2. Dividend counterfoils / warrants previously issued by the Company.
+3. Complete CNIC of the deceased shareholder along with previous aliases / addresses.
+
+Regards,
+
+Authorized Signatory         Authorized Signatory
+Encl.:  As stated above.`;
+    } else if (letterStage === "physical_approval") {
+      bodyText = `${refNo}              ${date}
+
+The Company Secretary
+${company}
+
+Subject: TRANSMISSION OF SHARES IN RESPECT OF LATE ${deceased} - FOLIO # ${folio}
+
+Dear Sir / Madam,
+
+We are enclosing herewith transmission case along with valid Succession Certificate / title documents in respect of late ${deceased} holding ${shares} shares under Folio # ${folio}.
+
+The shares are proposed to be transmitted in favor of the legal heir(s) / transferee(s) as detailed below:
+
+${transferees.map((t, i) => `${i + 1}. ${t.name} (CNIC: ${t.cnic || 'N/A'}) - Shares: ${t.shares} - Proposed Folio: ${t.folio || 'N/A'}`).join('\n')}
+${hasLossRegister ? `\nNote: Loss of Shares Register receipt entry #${lossReceiptNo} is completed.` : ''}
+${hasSplitRegister ? `\nNote: Split of Certificates Register receipt entry #${splitReceiptNo} is completed.` : ''}
+
+${approvalCoveringNotes || 'You are kindly requested to please accord your formal approval / sign the attached Transmission Register and return the same to us along with blank share certificates to enable us to execute the transfer.'}
+
+Regards,
+
+Authorized Signatory         Authorized Signatory
+CDC Share Registrar Services Limited`;
+    } else if (letterStage === "delivery_shares") {
+      bodyText = `${refNo}              ${date}
+
+${legalHeir}
+F/H: ${deceased} (Late)
+${address}
+${contactNo ? 'Contact: ' + contactNo : ''}
+
+Dear Concern,
+
+${company}
+Dispatch / Handover of Share Certificates – Folio # ${folio} (Transmission Completed)
+
+We are pleased to inform you that transmission of shares in respect of late ${deceased} has been successfully completed in accordance with the Succession Certificate.
+
+Accordingly, please find enclosed herewith the fresh physical share certificate(s) totaling ${shares} shares (${scripts || 'as attached'}) dispatched via ${deliveryMode} ${dispatchTrackingNo ? `(Consignment / Tracking #: ${dispatchTrackingNo})` : ''}.
+
+${deliveryNotes || 'Please acknowledge receipt of the share certificates by signing and returning the duplicate copy of this letter or counterfoil. In case of any query, please feel free to contact us.'}
+
+Regards,
+
+Authorized Signatory         Authorized Signatory
+Encl.: Share Certificates & Acknowledgement Slip`;
+    } else {
+      bodyText = `${refNo}              ${date}
+
+${legalHeir}
+${cleanHeirNameOnly ? '' : `F/H: ${deceased} (Late)\n`}${address}
+${contactNo ? 'Contact: ' + contactNo : ''}
+
+Dear Concern,
+
+${company}
 Transmission of Shares and Dividends – Late ${deceased} – Folio # ${mode === 'single' ? folio : multiFolios.map(m => m.folio).join(', ')}
 
-We refer to your letter regarding the captioned subject and acknowledge the receipt of:
+${scrutinyPosition === 'top' && plainRemark ? plainRemark + '\n' : ''}We refer to your letter regarding the captioned subject and acknowledge the receipt of:
 ${receivedDocs.map(d => '- ' + d).join('\n')}
-${scrutinyPosition === 'after_received' ? plainRemark : ''}
+
 Kindly note that as per company's record total, ${certificates} share certificate for ${shares} shares ${scripts ? `(${scripts}) ` : ''}is registered in name of deceased shareholder. In case if share certificate is lost, please intimate us accordingly.
-${duplicatePosition === 'before_required' ? duplicateText : ''}
-${scrutinyPosition === 'before_required' ? plainRemark : ''}
+${scrutinyPosition === 'middle' && plainRemark ? plainRemark + '\n' : ''}
 In order to enable us to process transmission of shares and dividends in favor of legal heir(s), following documents are required:
 ${requiredDocs.map((d, i) => `${i + 1}. ${d}`).join('\n')}
-${duplicatePosition === 'after_required' ? duplicateText : ''}
-${scrutinyPosition === 'after_required' ? plainRemark : ''}
+${scrutinyPosition === 'bottom' && plainRemark ? plainRemark + '\n' : ''}
 Please ensure details are clearly mentioned on the Succession Certificate. Should you have any query, feel free to coordinate with us.
-${duplicatePosition === 'at_end' ? duplicateText : ''}
-${scrutinyPosition === 'at_end' ? plainRemark : ''}
+
 Regards,
 
 Authorized Signatory         Authorized Signatory
@@ -756,13 +844,18 @@ Encl.:  As stated above.`;
               className="bg-[#F37021] hover:bg-[#D85B10] text-white font-bold text-xs shadow-md h-9 px-4"
             >
               <Download className="mr-1.5 h-4 w-4" />
-              {downloading ? "Generating Word..." : `Download Word (${letterStage === 'second' ? '2nd Letter' : '1st Letter'})`}
+              {downloading ? "Generating Word..." : `Download Word (${
+                letterStage === 'first' ? '1st Letter' :
+                letterStage === 'no_folio' ? 'No Folio Found' :
+                letterStage === 'physical_approval' ? 'Approval Covering' :
+                'Delivery of Shares'
+              })`}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Stage Switcher: First Letter vs Second Letter */}
+      {/* Template Stage Switcher Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm no-print">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
@@ -775,18 +868,7 @@ Encl.:  As stated above.`;
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              First Letter
-            </button>
-            <button
-              type="button"
-              onClick={() => setLetterStage("second")}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                letterStage === "second" 
-                  ? "bg-rose-700 text-white shadow-sm" 
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Second Letter (Scrutiny)
+              1. First Letter
             </button>
             <button
               type="button"
@@ -797,43 +879,31 @@ Encl.:  As stated above.`;
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              No Folio Found
+              2. No Folio Found
             </button>
             <button
               type="button"
-              onClick={() => setLetterStage("cds_account")}
+              onClick={() => setLetterStage("physical_approval" as any)}
               className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                letterStage === "cds_account" 
-                  ? "bg-purple-700 text-white shadow-sm" 
+                letterStage === ("physical_approval" as any) 
+                  ? "bg-emerald-700 text-white shadow-sm" 
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              CDS Dividend Letter
+              3. Physical Approval Covering
+            </button>
+            <button
+              type="button"
+              onClick={() => setLetterStage("delivery_shares" as any)}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                letterStage === ("delivery_shares" as any) 
+                  ? "bg-indigo-700 text-white shadow-sm" 
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              4. Delivery of Shares
             </button>
           </div>
-
-          {letterStage === "first" && (
-            <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
-              <button
-                type="button"
-                onClick={() => setMode("single")}
-                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
-                  mode === "single" ? "bg-white text-[#0B2B5E] shadow-xs" : "text-slate-600"
-                }`}
-              >
-                Single Folio
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("multi")}
-                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
-                  mode === "multi" ? "bg-white text-[#0B2B5E] shadow-xs" : "text-slate-600"
-                }`}
-              >
-                Multiple Folios
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -845,409 +915,241 @@ Encl.:  As stated above.`;
             className="h-4 w-4 rounded border-slate-300 text-[#F37021] focus:ring-[#F37021]"
           />
           <label htmlFor="syncMis" className="text-xs text-slate-700 font-medium cursor-pointer">
-            Auto-sync dispatch date in MIS correspondence
+            Auto-sync dispatch in MIS correspondence
           </label>
         </div>
       </div>
 
       {/* 2-Column Working Layout: Left Form Inputs | Right Live Preview */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: Configuration Form */}
-        <div className="lg:col-span-7 space-y-5 no-print">
+        {/* LEFT COLUMN: Configuration Form with Clean Accordion Style */}
+        <div className="lg:col-span-7 space-y-4 no-print">
 
-          {/* CARD 0: SMART LETTER UPLOAD & AUTO-EXTRACTION */}
-          <Card className="border-slate-200 shadow-sm border-t-4 border-t-[#F37021] bg-gradient-to-br from-orange-50/40 via-white to-blue-50/30">
-            <CardHeader className="pb-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-[#F37021]" />
-                    {letterStage === "first" ? "Smart First Letter Upload & Auto-Extraction" : "Multi-Document Scrutiny Dossier Upload"}
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    {letterStage === "first" 
-                      ? "Upload incoming request letter (.docx, .doc, .pdf, .txt) or paste text to auto-fill folio, company, legal heir & address" 
-                      : "Upload returned documents (Succession, Death Cert, CNICs, FRC, Shares) to inspect & draft objection letter"}
-                  </CardDescription>
+          {/* ACCORDION 1: SMART UPLOAD & AUTO-EXTRACTION (Optional for convenience) */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+            <button
+              type="button"
+              onClick={() => toggleAccordion("quickUpload")}
+              className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-orange-50/50 via-white to-blue-50/30 hover:bg-orange-50/80 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-[#F37021]/10 text-[#F37021]">
+                  <Sparkles className="h-4 w-4" />
                 </div>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                    1. Smart Letter Upload &amp; Auto-Fill (درخواست لیٹر اپلوڈ)
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-normal">
+                    Upload incoming shareholder request (.docx, .doc, .pdf) or paste text to auto-fill details
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
                 <Badge className="bg-orange-100 text-[#D85B10] border-orange-200 text-[10px] font-bold">
                   OCR &amp; Auto-Fill
                 </Badge>
+                {openAccordion.quickUpload ? (
+                  <ChevronUp className="h-4 w-4 text-slate-500" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                )}
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-1">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleFileUpload(e.target.files[0]);
-                  }
-                }}
-                accept=".docx,.doc,.pdf,.txt,image/*" 
-                className="hidden" 
-              />
+            </button>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingFile}
-                  className="h-10 border-dashed border-2 border-[#F37021]/60 hover:border-[#F37021] hover:bg-orange-50/60 text-[#D85B10] font-bold text-xs"
-                >
-                  <FileUp className="mr-2 h-4 w-4 text-[#F37021]" />
-                  {uploadingFile ? "Analyzing Document..." : "Upload Incoming Letter (.docx/.doc)"}
-                </Button>
+            {openAccordion.quickUpload && (
+              <div className="p-4 pt-2 border-t border-slate-100 space-y-3 bg-white">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleFileUpload(e.target.files[0]);
+                    }
+                  }}
+                  accept=".docx,.doc,.pdf,.txt,image/*" 
+                  className="hidden" 
+                />
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setPasteModalOpen(true)}
-                  disabled={uploadingFile}
-                  className="h-10 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs"
-                >
-                  <ClipboardPaste className="mr-2 h-4 w-4 text-blue-700" />
-                  Paste Letter Text
-                </Button>
-              </div>
-
-              {uploadSuccessMsg && (
-                <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 flex items-start gap-2 text-xs text-emerald-900">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-semibold">{uploadSuccessMsg}</p>
-                    <span className="text-[10px] text-emerald-700">Particulars and address populated below. You can review and adjust any field.</span>
-                  </div>
-                  <button 
-                    type="button" 
-                    onClick={() => setUploadSuccessMsg("")}
-                    className="text-emerald-700 hover:text-emerald-950"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile}
+                    className="h-10 border-dashed border-2 border-[#F37021]/60 hover:border-[#F37021] hover:bg-orange-50/60 text-[#D85B10] font-bold text-xs"
                   >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    <FileUp className="mr-2 h-4 w-4 text-[#F37021]" />
+                    {uploadingFile ? "Analyzing Document..." : "Upload Incoming Letter (.docx/.doc)"}
+                  </Button>
 
-          {/* AUTOMATED DOCUMENT GAP ANALYSIS & TRANSMISSION READINESS CARD */}
-          <Card className="border-slate-200 shadow-sm border-t-4 border-t-indigo-600 bg-indigo-50/15">
-            <CardHeader className="pb-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setPasteModalOpen(true)}
+                    disabled={uploadingFile}
+                    className="h-10 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs"
+                  >
+                    <ClipboardPaste className="mr-2 h-4 w-4 text-blue-700" />
+                    Paste Letter Text
+                  </Button>
+                </div>
+
+                {uploadSuccessMsg && (
+                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 flex items-start gap-2 text-xs text-emerald-900">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-semibold">{uploadSuccessMsg}</p>
+                      <span className="text-[10px] text-emerald-700">Particulars and address populated below. You can review and adjust any field.</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setUploadSuccessMsg("")}
+                      className="text-emerald-700 hover:text-emerald-950"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ACCORDION 2: BASIC DETAILS (Company Dropdown, Folio, Legal Heir, Contact, Deceased) */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+            <button
+              type="button"
+              onClick={() => toggleAccordion("basicDetails")}
+              className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-50/60 via-white to-slate-50 hover:bg-blue-50/80 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-[#0B2B5E]/10 text-[#0B2B5E]">
+                  <FileText className="h-4 w-4" />
+                </div>
                 <div>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                    2. Shareholder &amp; Legal Heir Particulars (شیئر ہولڈر اور لیگل ہائر کی معلومات)
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-normal">
+                    Company selectable list, Folio auto-lookup, Deceased &amp; Legal Heir info with mobile &amp; address
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-mono font-bold text-[#0B2B5E] bg-blue-100 px-2 py-0.5 rounded">
+                  {company ? (company.length > 25 ? company.slice(0, 25) + '...' : company) : 'Select Company'}
+                </span>
+                {openAccordion.basicDetails ? (
+                  <ChevronUp className="h-4 w-4 text-slate-500" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                )}
+              </div>
+            </button>
+
+            {openAccordion.basicDetails && (
+              <div className="p-4 pt-3 border-t border-slate-100 space-y-4 bg-white">
+                {/* Mode switcher (Single vs Multi Folio) */}
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-sm font-bold text-indigo-950 flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-indigo-600" />
-                      Automated Document Gap Analysis &amp; Transmission Readiness
-                    </CardTitle>
-                    <Badge className="bg-indigo-100 text-indigo-900 border-indigo-200 text-[10px] font-bold">
-                      Intelligent Engine
-                    </Badge>
+                    <span className="text-xs font-bold text-slate-700">Holding Mode:</span>
+                    <button
+                      type="button"
+                      onClick={() => setMode("single")}
+                      className={`px-2.5 py-1 text-xs rounded font-bold transition-all ${
+                        mode === "single" ? "bg-[#0B2B5E] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      Single Folio
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMode("multi")}
+                      className={`px-2.5 py-1 text-xs rounded font-bold transition-all ${
+                        mode === "multi" ? "bg-[#0B2B5E] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      Multiple Folios
+                    </button>
                   </div>
-                  <CardDescription className="text-xs text-indigo-900/80">
-                    Auto-evaluates submitted documents against mandatory SECP &amp; CDCSR statutory transmission prerequisites
-                  </CardDescription>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const gap = calculateDocumentGap(receivedDocs);
-                      setGapAnalysis(gap);
-                      if (gap.missingDocs.length > 0) setRequiredDocs(gap.missingDocs);
-                    }}
-                    className="h-7 text-[11px] bg-white border-indigo-200 text-indigo-900 hover:bg-indigo-50 font-semibold"
-                  >
-                    <RotateCcw className="h-3 w-3 mr-1" /> Re-evaluate Gap
-                  </Button>
-                  <label className="flex items-center gap-1.5 text-xs text-indigo-950 font-medium cursor-pointer bg-white px-2 py-1 rounded border border-indigo-200">
-                    <input
-                      type="checkbox"
-                      checked={autoSyncGap}
-                      onChange={(e) => {
-                        setAutoSyncGap(e.target.checked);
-                        if (e.target.checked) {
-                          const gap = calculateDocumentGap(receivedDocs);
-                          setGapAnalysis(gap);
-                          if (gap.missingDocs.length > 0) setRequiredDocs(gap.missingDocs);
-                        }
-                      }}
-                      className="h-3.5 w-3.5 rounded text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>Auto-Sync to Letter</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Progress Bar & Readiness Status */}
-              <div className="mt-3 space-y-1.5">
-                <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-indigo-950 flex items-center gap-1.5">
-                    {gapAnalysis?.isComplete ? (
-                      <span className="text-emerald-700 flex items-center gap-1">
-                        <CheckCircle2 className="h-4 w-4" /> 100% Complete &ndash; Ready for Share Transmission Execution
-                      </span>
-                    ) : (
-                      <span className="text-amber-800 flex items-center gap-1">
-                        <AlertCircle className="h-4 w-4" /> Transmission Incomplete &ndash; Formalities Pending ({gapAnalysis?.receivedCount || 0} of {gapAnalysis?.totalRequirementsCount || 10} Received)
-                      </span>
-                    )}
-                  </span>
-                  <span className="font-mono font-bold text-indigo-900">{gapAnalysis?.completionPercentage || 0}%</span>
-                </div>
-                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                  <div 
-                    className={`h-2 rounded-full transition-all duration-500 ${
-                      gapAnalysis?.isComplete ? 'bg-emerald-600' : 'bg-gradient-to-r from-amber-500 to-indigo-600'
-                    }`}
-                    style={{ width: `${gapAnalysis?.completionPercentage || 0}%` }}
-                  />
-                </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-3 pt-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                {/* Column 1: Received Documents (آ چکے ہیں) */}
-                <div className="p-3 rounded-lg bg-emerald-50/80 border border-emerald-200 space-y-2">
-                  <div className="flex items-center justify-between border-b border-emerald-200 pb-1.5">
-                    <span className="font-bold text-emerald-950 flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                      Documents Received (آ چکے ہیں)
-                    </span>
-                    <Badge className="bg-emerald-200/70 text-emerald-900 text-[10px] font-bold">
-                      {receivedDocs.length} On Record
-                    </Badge>
-                  </div>
-                  
-                  {receivedDocs.length === 0 ? (
-                    <p className="text-[11px] text-emerald-700 italic">No documents registered yet. Upload letter or tick items below.</p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {receivedDocs.map((doc, idx) => (
-                        <li key={idx} className="flex items-start gap-1.5 text-emerald-900 leading-snug">
-                          <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                          <span className="text-[11px]">{doc}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                {/* Column 2: Pending Statutory Requirements (مزید کیا رہتے ہیں) */}
-                <div className="p-3 rounded-lg bg-amber-50/80 border border-amber-200 space-y-2">
-                  <div className="flex items-center justify-between border-b border-amber-200 pb-1.5">
-                    <span className="font-bold text-amber-950 flex items-center gap-1.5">
-                      <AlertTriangle className="h-4 w-4 text-amber-600" />
-                      Pending Transmission Requirements (مزید کیا رہتے ہیں)
-                    </span>
-                    <Badge className="bg-amber-200/80 text-amber-950 text-[10px] font-bold">
-                      {gapAnalysis?.missingDocs?.length || 0} Remaining
-                    </Badge>
-                  </div>
-
-                  {gapAnalysis?.missingDocs?.length === 0 ? (
-                    <p className="text-[11px] text-emerald-800 font-semibold">
-                      All required transmission formalities fulfilled! No pending legal requisites.
-                    </p>
-                  ) : (
-                    <ul className="space-y-1.5">
-                      {gapAnalysis?.missingItemsDetailed?.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-1.5 text-slate-800 leading-snug">
-                          <span className="text-amber-600 font-bold shrink-0 mt-0.5">&bull;</span>
-                          <div className="text-[11px]">
-                            <strong className="text-slate-900">{item.title}:</strong>{" "}
-                            <span className="text-slate-600">{item.notes}</span>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-
-              {/* Auto-Letter Ready Notification Banner */}
-              <div className="p-2.5 rounded-lg bg-indigo-100/70 border border-indigo-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-indigo-950">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-[#F37021] shrink-0" />
-                  <div>
-                    <p className="font-bold">
-                      Response Letter Auto-Ready!
-                    </p>
-                    <p className="text-[11px] text-indigo-900">
-                      Draft on the right is customized to request ONLY the {gapAnalysis?.missingDocs?.length || 0} pending items.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={syncLetterToGap}
-                    className="h-7 text-[11px] bg-[#0B2B5E] hover:bg-[#071E43] text-white font-bold px-2.5"
-                  >
-                    Apply Gap to Letter
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={resetToAllRequirements}
-                    className="h-7 text-[11px] border-slate-300 text-slate-700 hover:bg-slate-100 px-2"
-                  >
-                    Include All 10
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* SECOND LETTER: DOSSIER SCRUTINY & DEFICIENCY CHECKLIST */}
-          {letterStage === "second" && (
-            <Card className="border-slate-200 shadow-sm border-t-4 border-t-rose-600 bg-rose-50/20">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-sm font-bold text-rose-950 flex items-center gap-2">
-                      <FileCheck2 className="h-4 w-4 text-rose-600" />
-                      Returned Documents Scrutiny &amp; Discrepancy Checklist
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      Mark each returned legal document as valid, deficient, or missing. Deficiencies will be numbered in the Second Letter.
-                    </CardDescription>
-                  </div>
-                  <Badge className="bg-rose-100 text-rose-900 border-rose-300 text-[10px] font-bold">
-                    {activeDeficiencies.length} Objections Found
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-1 text-xs">
-                {/* Upload scanned images / photos of returned documents */}
-                <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                      <Files className="h-3.5 w-3.5 text-rose-600" />
-                      Upload Returned Dossier Scans / Photos:
-                    </span>
-                    <input 
-                      type="file" 
-                      multiple 
-                      ref={dossierInputRef} 
-                      onChange={handleDossierUpload} 
-                      className="hidden" 
-                      accept="image/*,.pdf,.doc,.docx"
-                    />
+                  {mode === "single" && (
                     <Button 
                       type="button" 
-                      size="sm" 
                       variant="outline" 
-                      onClick={() => dossierInputRef.current?.click()}
-                      className="h-7 text-xs border-rose-300 text-rose-700 hover:bg-rose-50 font-bold"
+                      size="sm" 
+                      onClick={handleLookupFolio}
+                      disabled={searchingFolio}
+                      className="text-xs h-7 border-[#F37021] text-[#F37021] hover:bg-orange-50 font-bold"
                     >
-                      <Plus className="h-3 w-3 mr-1" /> Add Scans / Photos
+                      <Search className="mr-1 h-3 w-3" />
+                      {searchingFolio ? "Searching..." : "Auto-Fetch Folio"}
                     </Button>
-                  </div>
-                  {dossierFiles.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {dossierFiles.map((fn, i) => (
-                        <Badge key={i} variant="secondary" className="text-[10px] bg-slate-100 text-slate-800">
-                          {fn}
-                        </Badge>
-                      ))}
-                    </div>
                   )}
                 </div>
 
-                {/* 8-Point Scrutiny Items */}
-                <div className="space-y-2">
-                  {dossierScrutiny.map((item, idx) => (
-                    <div key={idx} className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-2xs space-y-1.5">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <span className="font-bold text-slate-900">{item.name}</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => updateScrutinyStatus(idx, "valid")}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              item.status === "valid" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                            }`}
-                          >
-                            ✓ Valid
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateScrutinyStatus(idx, "deficient")}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              item.status === "deficient" ? "bg-amber-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                            }`}
-                          >
-                            ⚠ Deficient
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateScrutinyStatus(idx, "missing")}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              item.status === "missing" ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                            }`}
-                          >
-                            ✗ Missing
-                          </button>
-                        </div>
-                      </div>
+                {/* Company Name with Full Selectable List / Autocomplete Dropdown */}
+                <div className="relative">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Company Name (کمپنی نیم کی لسٹ میں سے سلیکٹ کریں) <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input 
+                      value={company}
+                      onChange={(e) => {
+                        setCompany(e.target.value);
+                        setCompanySearchQuery(e.target.value);
+                        setIsCompanyDropdownOpen(true);
+                      }}
+                      onFocus={() => {
+                        setCompanySearchQuery(company);
+                        setIsCompanyDropdownOpen(true);
+                      }}
+                      placeholder="Search and select from 175+ registered companies..." 
+                      className="text-xs h-9 pr-8 font-semibold text-[#0B2B5E]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                      className="absolute right-2 top-2 text-slate-400 hover:text-slate-700"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </div>
 
-                      {item.status !== "valid" && (
-                        <div className="pt-1">
-                          <Input
-                            value={item.objection}
-                            onChange={(e) => updateScrutinyObjection(idx, e.target.value)}
-                            placeholder="Specify exact discrepancy or legal objection..."
-                            className="h-8 text-xs font-sans text-rose-950 border-rose-200 bg-rose-50/30"
-                          />
+                  {/* Autocomplete Dropdown Menu */}
+                  {isCompanyDropdownOpen && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-300 rounded-lg shadow-xl py-1 text-xs">
+                      {companiesList
+                        .filter(c => c.toLowerCase().includes((companySearchQuery || "").toLowerCase()))
+                        .slice(0, 30)
+                        .map((comp, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              setCompany(comp);
+                              const sym = comp.split(' ')[0].toUpperCase();
+                              setCompSymbol(sym);
+                              setRefNo(`CDCSR/LTC/${sym}/${folio || '0000'}/26`);
+                              setIsCompanyDropdownOpen(false);
+                            }}
+                            className="px-3 py-2 hover:bg-blue-50 cursor-pointer font-medium text-slate-800 border-b border-slate-50 last:border-0 flex items-center justify-between"
+                          >
+                            <span>{comp}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">{comp.split(' ')[0]}</span>
+                          </div>
+                        ))}
+                      {companiesList.filter(c => c.toLowerCase().includes((companySearchQuery || "").toLowerCase())).length === 0 && (
+                        <div className="p-3 text-slate-400 text-center italic">
+                          No company found. You can type custom company name above.
                         </div>
                       )}
                     </div>
-                  ))}
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Card 1: Shareholder & Folio Information */}
-          <Card className="border-slate-200 shadow-sm border-t-4 border-t-[#0B2B5E]">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold text-[#0B2B5E] flex items-center gap-1.5">
-                    <FileText className="h-4 w-4 text-[#F37021]" />
-                    Folio &amp; Company Particulars
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Enter folio number and holding details
-                  </CardDescription>
-                </div>
-                {mode === "single" && (
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleLookupFolio}
-                    disabled={searchingFolio}
-                    className="text-xs h-8 border-[#F37021] text-[#F37021] hover:bg-orange-50 font-semibold"
-                  >
-                    <Search className="mr-1 h-3 w-3" />
-                    {searchingFolio ? "Searching..." : "Auto-Fetch Folio"}
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-1">
-              {mode === "single" ? (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Folio & Shareholding */}
+                {mode === "single" ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div>
                       <label className="text-xs font-semibold text-slate-700 block mb-1">Folio Number</label>
                       <Input 
@@ -1260,25 +1162,13 @@ Encl.:  As stated above.`;
                         className="text-xs h-9 font-bold text-[#0B2B5E]"
                       />
                     </div>
-                    <div className="sm:col-span-2">
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">Company Name</label>
-                      <Input 
-                        value={company} 
-                        onChange={(e) => setCompany(e.target.value)}
-                        placeholder="e.g. Oil & Gas Development Company Limited" 
-                        className="text-xs h-9"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">Deceased Shareholder Name</label>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Deceased Shareholder</label>
                       <Input 
                         value={deceased} 
                         onChange={(e) => setDeceased(e.target.value)}
                         placeholder="e.g. Saiyed Ali Imam Jafri" 
-                        className="text-xs h-9"
+                        className="text-xs h-9 font-medium"
                       />
                     </div>
                     <div>
@@ -1291,7 +1181,7 @@ Encl.:  As stated above.`;
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">Number of Certificates</label>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Certificates Count</label>
                       <Input 
                         value={certificates} 
                         onChange={(e) => setCertificates(e.target.value)}
@@ -1300,672 +1190,714 @@ Encl.:  As stated above.`;
                       />
                     </div>
                   </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Certificate Nos / Distinctive Scripts</label>
-                    <Input 
-                      value={scripts} 
-                      onChange={(e) => setScripts(e.target.value)}
-                      placeholder="e.g. Cert # 10451 (Distinctive: 50001 - 51000)" 
-                      className="text-xs h-9 text-slate-600"
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-slate-700">Multiple Folios Breakdown</p>
-                    <Button 
-                      type="button" 
-                      onClick={addMultiFolioRow} 
-                      size="sm" 
-                      className="h-8 text-xs bg-[#0B2B5E] hover:bg-[#103a7a] text-white"
-                    >
-                      <Plus className="mr-1 h-3 w-3" /> Add Folio
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {multiFolios.map((row, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
-                        <Input 
-                          placeholder="Folio #" 
-                          value={row.folio} 
-                          onChange={(e) => updateMultiFolioRow(idx, "folio", e.target.value)}
-                          className="h-8 text-xs w-24 font-bold"
-                        />
-                        <Input 
-                          placeholder="Company" 
-                          value={row.company} 
-                          onChange={(e) => updateMultiFolioRow(idx, "company", e.target.value)}
-                          className="h-8 text-xs flex-1"
-                        />
-                        <Input 
-                          placeholder="Shares" 
-                          value={row.shares} 
-                          onChange={(e) => updateMultiFolioRow(idx, "shares", e.target.value)}
-                          className="h-8 text-xs w-20"
-                        />
-                        <Input 
-                          placeholder="Certs" 
-                          value={row.certificates} 
-                          onChange={(e) => updateMultiFolioRow(idx, "certificates", e.target.value)}
-                          className="h-8 text-xs w-16"
-                        />
-                        <Input 
-                          placeholder="Scripts / Dist #" 
-                          value={row.scripts} 
-                          onChange={(e) => updateMultiFolioRow(idx, "scripts", e.target.value)}
-                          className="h-8 text-xs flex-1"
-                        />
-                        {multiFolios.length > 1 && (
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => removeMultiFolioRow(idx)}
-                            className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Card 2: Legal Heir & Recipient Information (NO CNIC printed in letter) */}
-          <Card className="border-slate-200 shadow-sm border-t-4 border-t-[#F37021]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                <User className="h-4 w-4 text-[#F37021]" />
-                Legal Heir / Addressee Particulars
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Recipient information for letterhead dispatch (CNIC is kept for records only and omitted from letter)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Legal Heir / Recipient Name</label>
-                  <Input 
-                    value={legalHeir} 
-                    onChange={(e) => setLegalHeir(e.target.value)}
-                    placeholder="e.g. Syed Sajjad Imam Jafri" 
-                    className="text-xs h-9 font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Capacity / Relationship</label>
-                  <Input 
-                    value={relation} 
-                    onChange={(e) => setRelation(e.target.value)}
-                    placeholder="e.g. Legal Heir / Son / Widow" 
-                    className="text-xs h-9"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Complete Mailing Address (Auto-Fetched from Document)</label>
-                <Input 
-                  value={address} 
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. D-231, Street 24, South Navy Housing scheme, Clifton, Karachi." 
-                  className="text-xs h-9"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Mobile / Contact Number</label>
-                <Input 
-                  value={contactNo} 
-                  onChange={(e) => setContactNo(e.target.value)}
-                  placeholder="e.g. 0333-3535404" 
-                  className="text-xs h-9"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* CARD 3: DUPLICATE / LOST SHARE FORMALITIES (NEW FEATURE) */}
-          <Card className="border-slate-200 shadow-sm border-t-4 border-t-amber-600 bg-amber-50/20">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold text-amber-950 flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    Duplicate / Lost Share Formalities
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Enable if the applicant reported original share certificate(s) as lost or misplaced
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="checkbox"
-                    id="lostSharesToggle"
-                    checked={hasLostShares}
-                    onChange={(e) => setHasLostShares(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-                  />
-                  <label htmlFor="lostSharesToggle" className="text-xs font-bold text-slate-700 cursor-pointer">
-                    Shares Reported Lost
-                  </label>
-                </div>
-              </div>
-            </CardHeader>
-            {hasLostShares && (
-              <CardContent className="space-y-3 pt-1 text-xs">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="font-semibold text-slate-700 block mb-1">
-                      Position in Letter (لیٹر میں ڈپلیکیٹ فارمیلٹیز کی جگہ)
-                    </label>
-                    <select
-                      value={duplicatePosition}
-                      onChange={(e) => setDuplicatePosition(e.target.value as any)}
-                      className="w-full p-2 text-xs rounded border border-slate-300 bg-white font-medium text-slate-800"
-                    >
-                      <option value="before_required">1. Before Required Formalities (Above Transmission Checklist)</option>
-                      <option value="after_required">2. After Required Formalities (Middle - Recommended)</option>
-                      <option value="at_end">3. At End of Letter (Bottom - Before Signatures)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="font-semibold text-slate-700 block mb-1">
-                      Details of Lost Shares (Certificate &amp; Distinctive Nos)
-                    </label>
-                    <Input 
-                      value={lostSharesDetail}
-                      onChange={(e) => setLostSharesDetail(e.target.value)}
-                      placeholder="e.g. Cert # 10451 for 1,000 shares (Distinctive: 50001 - 51000)"
-                      className="h-9 text-xs bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">
-                    Introductory Clause Text (ڈپلیکیٹ کا تعارفی پیراگراف)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={duplicateIntro}
-                    onChange={(e) => setDuplicateIntro(e.target.value)}
-                    placeholder="Enter introductory clause text..."
-                    className="w-full p-2 text-xs rounded border border-slate-300 font-sans bg-white"
-                  />
-                </div>
-
-                {/* Customizable Formalities Checklist */}
-                <div className="space-y-2 pt-1 border-t border-amber-200/80">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-amber-950">
-                      Duplicate Formalities Requirements ({duplicateDocs.length} items)
-                    </span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={resetDuplicateDocs}
-                      className="h-6 text-[10px] text-amber-800 hover:text-amber-950 hover:bg-amber-100/60"
-                    >
-                      Reset Defaults
-                    </Button>
-                  </div>
-
-                  {/* List of items */}
-                  <div className="space-y-1.5">
-                    {duplicateDocs.map((doc, idx) => (
-                      <div 
-                        key={idx}
-                        className="flex items-center justify-between gap-2 p-2 bg-white rounded border border-amber-200 text-xs shadow-2xs"
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-slate-700">Multiple Folios Breakdown</p>
+                      <Button 
+                        type="button" 
+                        onClick={addMultiFolioRow} 
+                        size="sm" 
+                        className="h-7 text-xs bg-[#0B2B5E] text-white"
                       >
-                        <div className="flex items-center gap-2 overflow-hidden flex-1">
-                          <span className="font-bold text-amber-700 font-mono text-[11px] shrink-0">#{idx + 1}</span>
-                          <span className="text-slate-800 text-[11px] leading-snug">{doc}</span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={idx === 0}
-                            onClick={() => moveDuplicateDoc(idx, "up")}
-                            className="h-6 w-6 p-0 text-slate-500 hover:text-slate-900"
-                            title="Move Up"
-                          >
-                            <ArrowUp className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={idx === duplicateDocs.length - 1}
-                            onClick={() => moveDuplicateDoc(idx, "down")}
-                            className="h-6 w-6 p-0 text-slate-500 hover:text-slate-900"
-                            title="Move Down"
-                          >
-                            <ArrowDown className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeDuplicateDoc(idx)}
-                            className="h-6 w-6 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
-                            title="Remove Requirement"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Add custom item */}
-                  <div className="flex gap-2 pt-1">
-                    <Input
-                      placeholder="Add custom duplicate requirement (e.g. Police FIR copy, Bank Guarantee, etc.)..."
-                      value={customDuplicateInput}
-                      onChange={(e) => setCustomDuplicateInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && addDuplicateDoc()}
-                      className="text-xs h-8 bg-white"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={addDuplicateDoc}
-                      className="h-8 text-xs bg-amber-700 hover:bg-amber-800 text-white shrink-0 font-semibold"
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Requirement
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-
-          {/* CARD 4: STEP 1 & 2 FOR FIRST LETTER */}
-          {letterStage === "first" && (
-            <>
-              {/* Step 1: Documents Received */}
-              <Card className="border-slate-200 shadow-sm border-t-4 border-t-emerald-600">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-sm font-bold text-emerald-800 flex items-center gap-1.5">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                        Step 1: Documents Received from Applicant
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Select &amp; reorder documents already received to acknowledge in the letter
-                      </CardDescription>
+                        <Plus className="mr-1 h-3 w-3" /> Add Folio
+                      </Button>
                     </div>
-                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]">
-                      {receivedDocs.length} Selected
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 pt-1">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    {receivedDocOptions.map((doc, i) => {
-                      const isChecked = receivedDocs.includes(doc);
-                      return (
-                        <div 
-                          key={i} 
-                          onClick={() => toggleReceivedDoc(doc)}
-                          className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${
-                            isChecked ? 'bg-emerald-50/70 border-emerald-300 font-medium text-emerald-900' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          <input 
-                            type="checkbox" 
-                            checked={isChecked} 
-                            onChange={() => {}} 
-                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" 
+                    <div className="space-y-2">
+                      {multiFolios.map((row, idx) => (
+                        <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
+                          <Input 
+                            placeholder="Folio #" 
+                            value={row.folio} 
+                            onChange={(e) => updateMultiFolioRow(idx, "folio", e.target.value)}
+                            className="h-8 text-xs w-24 font-bold"
                           />
-                          <span className="leading-snug">{doc}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex gap-2 pt-1 border-t border-slate-100">
-                    <Input 
-                      placeholder="Add custom received document..." 
-                      value={customReceivedInput}
-                      onChange={(e) => setCustomReceivedInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && addCustomReceivedDoc()}
-                      className="text-xs h-9"
-                    />
-                    <Button 
-                      type="button" 
-                      size="sm" 
-                      onClick={addCustomReceivedDoc}
-                      className="h-9 text-xs bg-emerald-700 hover:bg-emerald-800 text-white shrink-0"
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" /> Add
-                    </Button>
-                  </div>
-
-                  {receivedDocs.length > 0 && (
-                    <div className="space-y-1 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                      {receivedDocs.map((item, idx) => (
-                        <div 
-                          key={idx}
-                          draggable
-                          onDragStart={(e) => handleReceivedDragStart(e, idx)}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={(e) => handleReceivedDrop(e, idx)}
-                          className="flex items-center justify-between gap-2 p-1.5 bg-white rounded border border-slate-200 shadow-2xs hover:border-emerald-400 cursor-grab active:cursor-grabbing text-xs"
-                        >
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <GripVertical className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                            <span className="font-bold text-emerald-800 font-mono text-[11px] w-5">#{idx + 1}</span>
-                            <span className="truncate text-slate-800">{item}</span>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
+                          <Input 
+                            placeholder="Company" 
+                            value={row.company} 
+                            onChange={(e) => updateMultiFolioRow(idx, "company", e.target.value)}
+                            className="h-8 text-xs flex-1"
+                          />
+                          <Input 
+                            placeholder="Shares" 
+                            value={row.shares} 
+                            onChange={(e) => updateMultiFolioRow(idx, "shares", e.target.value)}
+                            className="h-8 text-xs w-20"
+                          />
+                          <Input 
+                            placeholder="Certs" 
+                            value={row.certificates} 
+                            onChange={(e) => updateMultiFolioRow(idx, "certificates", e.target.value)}
+                            className="h-8 text-xs w-16"
+                          />
+                          <Input 
+                            placeholder="Scripts / Dist #" 
+                            value={row.scripts} 
+                            onChange={(e) => updateMultiFolioRow(idx, "scripts", e.target.value)}
+                            className="h-8 text-xs flex-1"
+                          />
+                          {multiFolios.length > 1 && (
                             <Button 
                               type="button" 
                               variant="ghost" 
                               size="sm" 
-                              disabled={idx === 0}
-                              onClick={() => moveReceivedDoc(idx, "up")}
-                              className="h-6 w-6 p-0 text-slate-500 hover:text-slate-900"
-                              title="Move Up"
+                              onClick={() => removeMultiFolioRow(idx)}
+                              className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
                             >
-                              <ArrowUp className="h-3 w-3" />
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="sm" 
-                              disabled={idx === receivedDocs.length - 1}
-                              onClick={() => moveReceivedDoc(idx, "down")}
-                              className="h-6 w-6 p-0 text-slate-500 hover:text-slate-900"
-                              title="Move Down"
-                            >
-                              <ArrowDown className="h-3 w-3" />
-                            </Button>
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => removeReceivedDoc(idx)}
-                              className="h-6 w-6 p-0 text-red-500 hover:bg-red-50"
-                              title="Remove"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
+                          )}
                         </div>
                       ))}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </div>
+                )}
 
-              {/* Step 2: Required Formalities Checklist */}
-              <Card className="border-slate-200 shadow-sm border-t-4 border-t-[#0B2B5E]">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
+                {/* Certificate Distinctive Scripts */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    Certificate Numbers &amp; Distinctive Range
+                  </label>
+                  <Input 
+                    value={scripts} 
+                    onChange={(e) => setScripts(e.target.value)}
+                    placeholder="e.g. Cert # 10451 (Distinctive: 50001 - 51000)" 
+                    className="text-xs h-9 text-slate-600"
+                  />
+                </div>
+
+                {/* Legal Heir Details (Name, Contact/Mobile, Mailing Address) */}
+                <div className="pt-2 border-t border-slate-100 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <CardTitle className="text-sm font-bold text-[#0B2B5E] flex items-center gap-1.5">
-                        <ShieldCheck className="h-4 w-4 text-[#F37021]" />
-                        Step 2: Required Formalities (Numbered Checklist)
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Select &amp; reorder required documents to process the transmission
-                      </CardDescription>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                        Legal Heir Name (لیگل ہائر کا نام) <span className="text-rose-500">*</span>
+                      </label>
+                      <Input 
+                        value={legalHeir} 
+                        onChange={(e) => setLegalHeir(e.target.value)}
+                        placeholder="e.g. Syed Sajjad Imam Jafri" 
+                        className="text-xs h-9 font-bold text-slate-900"
+                      />
                     </div>
-                    <Badge className="bg-blue-100 text-[#0B2B5E] border-blue-200 text-[10px]">
-                      {requiredDocs.length} Requirements
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 pt-1">
-                  <div className="space-y-1.5 text-xs">
-                    {requiredDocOptions.map((doc, i) => {
-                      const isChecked = requiredDocs.includes(doc);
-                      const isSuccession = doc.includes("Succession Certificate");
-                      return (
-                        <div 
-                          key={i} 
-                          onClick={() => toggleRequiredDoc(doc)}
-                          className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${
-                            isChecked 
-                              ? isSuccession 
-                                ? 'bg-amber-50/80 border-amber-300 font-bold text-amber-950 shadow-2xs' 
-                                : 'bg-blue-50/70 border-blue-300 font-medium text-[#0B2B5E]' 
-                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          <input 
-                            type="checkbox" 
-                            checked={isChecked} 
-                            onChange={() => {}} 
-                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#0B2B5E] focus:ring-[#0B2B5E]" 
-                          />
-                          <div className="leading-snug flex-1">
-                            {isSuccession ? (
-                              <div className="flex items-center gap-1.5">
-                                <Scale className="h-3.5 w-3.5 text-[#F37021]" />
-                                <span className="text-[#0B2B5E] font-bold">{doc}</span>
-                                <Badge className="bg-amber-200 text-amber-900 text-[9px] px-1 py-0 ml-1">Key Legal Req</Badge>
-                              </div>
-                            ) : (
-                              <span>{doc}</span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">
+                        Capacity / Relationship (اختیاری)
+                      </label>
+                      <Input 
+                        value={relation} 
+                        onChange={(e) => setRelation(e.target.value)}
+                        placeholder="e.g. Legal Heir / Son / Widow" 
+                        className="text-xs h-9"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                        Mobile / Contact Number (موبائل نمبر)
+                      </label>
+                      <Input 
+                        value={contactNo} 
+                        onChange={(e) => setContactNo(e.target.value)}
+                        placeholder="e.g. 0333-3535404" 
+                        className="text-xs h-9 font-semibold text-[#0B2B5E]"
+                      />
+                    </div>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-100 space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                      <Plus className="h-3.5 w-3.5 text-[#F37021]" />
-                      Add Additional Required Document (will be numbered in list):
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Complete Mailing Address (ایڈریس)
                     </label>
-                    <div className="flex gap-2">
+                    <Input 
+                      value={address} 
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="e.g. D-231, Street 24, South Navy Housing scheme, Clifton, Karachi." 
+                      className="text-xs h-9"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* TEMPLATE-SPECIFIC ACCORDIONS */}
+
+          {/* --- CASE A: FIRST LETTER (Checklists: Received vs Required) --- */}
+          {letterStage === "first" && (
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("documentsChecklist")}
+                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50/60 via-white to-blue-50/40 hover:bg-emerald-50/80 transition-colors text-left"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-emerald-600/10 text-emerald-700">
+                    <CheckSquare className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                      3. Documents Received &amp; Required Checklist (موصول شدہ اور مطلوبہ دستاویزات)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-normal">
+                      Acknowledge received documents and specify statutory requirements demanded from heirs
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge className="bg-emerald-100 text-emerald-800 text-[10px]">
+                    {receivedDocs.length} Recv / {requiredDocs.length} Req
+                  </Badge>
+                  {openAccordion.documentsChecklist ? (
+                    <ChevronUp className="h-4 w-4 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-slate-500" />
+                  )}
+                </div>
+              </button>
+
+              {openAccordion.documentsChecklist && (
+                <div className="p-4 pt-3 border-t border-slate-100 space-y-4 bg-white">
+                  {/* Step 1: Documents Received */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        Step 1: Documents Received (خط میں اعتراف کریں)
+                      </span>
+                      <span className="text-[11px] text-slate-400">{receivedDocs.length} selected</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      {receivedDocOptions.map((doc, i) => {
+                        const isChecked = receivedDocs.includes(doc);
+                        return (
+                          <div 
+                            key={i} 
+                            onClick={() => toggleReceivedDoc(doc)}
+                            className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${
+                              isChecked ? 'bg-emerald-50/80 border-emerald-300 font-medium text-emerald-950' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <input 
+                              type="checkbox" 
+                              checked={isChecked} 
+                              onChange={() => {}} 
+                              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" 
+                            />
+                            <span className="leading-snug text-[11px]">{doc}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
                       <Input 
-                        placeholder="e.g. Attested copy of Nikahnama / Marriage Certificate..." 
-                        value={customRequiredInput}
-                        onChange={(e) => setCustomRequiredInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && addCustomRequiredDoc()}
-                        className="text-xs h-9"
+                        placeholder="Add custom received document..." 
+                        value={customReceivedInput}
+                        onChange={(e) => setCustomReceivedInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && addCustomReceivedDoc()}
+                        className="text-xs h-8"
                       />
                       <Button 
                         type="button" 
                         size="sm" 
-                        onClick={addCustomRequiredDoc}
-                        className="h-9 text-xs bg-[#0B2B5E] hover:bg-[#103a7a] text-white shrink-0 font-bold"
+                        onClick={addCustomReceivedDoc}
+                        className="h-8 text-xs bg-emerald-700 hover:bg-emerald-800 text-white shrink-0"
                       >
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add
                       </Button>
                     </div>
                   </div>
 
-                  {requiredDocs.length > 0 && (
-                    <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                      {requiredDocs.map((item, idx) => {
-                        const isSuccession = item.includes("Succession Certificate");
+                  {/* Step 2: Documents Required */}
+                  <div className="space-y-2 pt-3 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#0B2B5E] flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-[#F37021]" />
+                        Step 2: Documents Required (مطلوبہ دستاویزات کی فہرست)
+                      </span>
+                      <span className="text-[11px] text-slate-400">{requiredDocs.length} items</span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs">
+                      {requiredDocOptions.map((doc, i) => {
+                        const isChecked = requiredDocs.includes(doc);
+                        const isSuccession = doc.includes("Succession Certificate");
                         return (
                           <div 
-                            key={idx}
-                            draggable
-                            onDragStart={(e) => handleRequiredDragStart(e, idx)}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => handleRequiredDrop(e, idx)}
-                            className={`flex items-center justify-between gap-2 p-2 bg-white rounded-md border shadow-2xs cursor-grab active:cursor-grabbing text-xs transition-all ${
-                              isSuccession ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200 hover:border-blue-300'
+                            key={i} 
+                            onClick={() => toggleRequiredDoc(doc)}
+                            className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${
+                              isChecked 
+                                ? isSuccession 
+                                  ? 'bg-amber-50/80 border-amber-300 font-bold text-amber-950' 
+                                  : 'bg-blue-50/80 border-blue-300 font-medium text-[#0B2B5E]' 
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                             }`}
                           >
-                            <div className="flex items-center gap-2 overflow-hidden flex-1">
-                              <GripVertical className="h-4 w-4 text-slate-400 shrink-0" />
-                              <span className="font-bold text-[#0B2B5E] font-mono text-xs w-6">{idx + 1}.</span>
-                              <span className={`truncate ${isSuccession ? 'font-bold text-amber-950' : 'text-slate-800'}`}>
-                                {item}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm" 
-                                disabled={idx === 0}
-                                onClick={() => moveRequiredDoc(idx, "up")}
-                                className="h-6 w-6 p-0 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                                title="Move Up"
-                              >
-                                <ArrowUp className="h-3 w-3" />
-                              </Button>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm" 
-                                disabled={idx === requiredDocs.length - 1}
-                                onClick={() => moveRequiredDoc(idx, "down")}
-                                className="h-6 w-6 p-0 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                                title="Move Down"
-                              >
-                                <ArrowDown className="h-3 w-3" />
-                              </Button>
-                              <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => removeRequiredDoc(idx)}
-                                className="h-6 w-6 p-0 text-red-500 hover:bg-red-50"
-                                title="Remove"
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
+                            <input 
+                              type="checkbox" 
+                              checked={isChecked} 
+                              onChange={() => {}} 
+                              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-[#0B2B5E] focus:ring-[#0B2B5E]" 
+                            />
+                            <div className="leading-snug flex-1 text-[11px]">
+                              {isSuccession ? (
+                                <div className="flex items-center gap-1.5">
+                                  <Scale className="h-3.5 w-3.5 text-[#F37021]" />
+                                  <span className="text-[#0B2B5E] font-bold">{doc}</span>
+                                  <Badge className="bg-amber-200 text-amber-900 text-[9px] px-1 py-0 ml-1">Key Legal Req</Badge>
+                                </div>
+                              ) : (
+                                <span>{doc}</span>
+                              )}
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          )}
 
-          {/* CARD 5: NATURAL OBSERVATION / SCRUTINY REMARK (SEAMLESS BODY PARAGRAPH) */}
-          <Card className="border-slate-200 shadow-sm border-t-4 border-t-blue-700">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold text-[#0B2B5E] flex items-center gap-2">
-                    <MessageSquarePlus className="h-4 w-4 text-blue-700" />
-                    Special Scrutiny Observation (Seamless Letter Paragraph)
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Adds natural letter paragraph text (e.g. name discrepancy, company referral, succession tally) without loud banners or numbering
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="checkbox"
-                    id="incScrutiny"
-                    checked={includeScrutinyNote}
-                    onChange={(e) => setIncludeScrutinyNote(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-[#0B2B5E] focus:ring-[#0B2B5E]"
-                  />
-                  <label htmlFor="incScrutiny" className="text-xs font-bold text-slate-700 cursor-pointer">
-                    Include Remark
-                  </label>
-                </div>
-              </div>
-            </CardHeader>
-            {includeScrutinyNote && (
-              <CardContent className="space-y-3 pt-1 text-xs">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Placement Position in Letter</label>
-                  <select
-                    value={scrutinyPosition}
-                    onChange={(e: any) => setScrutinyPosition(e.target.value)}
-                    className="w-full h-9 text-xs font-bold rounded-lg border border-slate-300 bg-white px-2.5 text-[#0B2B5E]"
-                  >
-                    <option value="after_received">1. After Received Documents (Under Acknowledgement)</option>
-                    <option value="before_required">2. Before Required Formalities (Above Checklist)</option>
-                    <option value="after_required">3. After Required Formalities (Recommended)</option>
-                    <option value="at_end">4. At End of Letter (Before Signatures)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Plain Text Observation / Paragraph</label>
-                  <textarea 
-                    rows={3}
-                    value={scrutinyRemark}
-                    onChange={(e) => setScrutinyRemark(e.target.value)}
-                    placeholder="Type natural observation text to include in letter..."
-                    className="w-full p-2.5 text-xs rounded-lg border border-slate-300 font-sans"
-                  />
-                </div>
-
-                <div className="space-y-1 pt-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                    Quick Standard Presets:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setScrutinyRemark("Upon scrutiny of submitted documents, a variation in the deceased shareholder's name has been observed between CNIC and Share Register. This matter is being taken up with the issuer company for necessary verification and confirmation.");
-                      }}
-                      className="h-6 text-[10px] px-2 py-0 border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-[#0B2B5E]"
-                    >
-                      Name Discrepancy
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setScrutinyRemark("The submitted Succession Certificate does not clearly specify distinctive numbers for subject share certificates. An amended schedule or certified court order specifying distinctive share numbers is required to complete transmission.");
-                      }}
-                      className="h-6 text-[10px] px-2 py-0 border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-[#0B2B5E]"
-                    >
-                      Succession Script Discrepancy
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setScrutinyRemark("We have forwarded the case documents to the management of the issuer company for necessary approval and confirmation. Upon receipt of advice, further proceedings shall be initiated accordingly.");
-                      }}
-                      className="h-6 text-[10px] px-2 py-0 border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-[#0B2B5E]"
-                    >
-                      Company Takeover / Advice
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setScrutinyRemark("Accumulated unpaid dividend warrants are currently withheld pending transmission and will be released in favor of legal heir(s) in accordance with the Succession Certificate.");
-                      }}
-                      className="h-6 text-[10px] px-2 py-0 border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-[#0B2B5E]"
-                    >
-                      Withheld Dividends
-                    </Button>
+                    <div className="flex gap-2 pt-1">
+                      <Input 
+                        placeholder="Add custom required document (e.g. Attested copy of Nikahnama)..." 
+                        value={customRequiredInput}
+                        onChange={(e) => setCustomRequiredInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && addCustomRequiredDoc()}
+                        className="text-xs h-8"
+                      />
+                      <Button 
+                        type="button" 
+                        size="sm" 
+                        onClick={addCustomRequiredDoc}
+                        className="h-8 text-xs bg-[#0B2B5E] hover:bg-[#103a7a] text-white shrink-0 font-bold"
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            )}
-          </Card>
+              )}
+            </div>
+          )}
+
+          {/* --- CASE B: PHYSICAL APPROVAL (Transferees Distribution & Special Registers) --- */}
+          {letterStage === "physical_approval" && (
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("transferees")}
+                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50/60 via-white to-slate-50 hover:bg-emerald-50/80 transition-colors text-left"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-emerald-600/10 text-emerald-800">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                      3. Transferees Breakdown &amp; Registers (ٹرانسفر ہونے والے لیگل ہائرز اور رجسٹر)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-normal">
+                      Add/remove transferees (1, 2, 4, 6+), set shares/CNIC, Loss Register #, Split Register #
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge className="bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+                    {transferees.length} Transferee(s)
+                  </Badge>
+                  {openAccordion.transferees ? (
+                    <ChevronUp className="h-4 w-4 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-slate-500" />
+                  )}
+                </div>
+              </button>
+
+              {openAccordion.transferees && (
+                <div className="p-4 pt-3 border-t border-slate-100 space-y-4 bg-white">
+                  {/* Dynamic Transferees Table */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800">
+                        Legal Heirs / Transferees List (جتنے مرضی لیگل ہائرز ایڈ کریں):
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          const nextNum = transferees.length + 1;
+                          setTransferees(prev => [
+                            ...prev,
+                            { id: Date.now().toString(), name: `Legal Heir ${nextNum}`, cnic: "", shares: "=0=", folio: `NEW-0${nextNum}`, relation: "Legal Heir" }
+                          ]);
+                        }}
+                        className="h-7 text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> Add Transferee
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {transferees.map((t, idx) => (
+                        <div key={t.id || idx} className="grid grid-cols-12 gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 items-center text-xs">
+                          <div className="col-span-1 text-center font-bold text-slate-500">
+                            #{idx + 1}
+                          </div>
+                          <div className="col-span-4">
+                            <Input
+                              placeholder="Transferee Name"
+                              value={t.name}
+                              onChange={(e) => {
+                                const copy = [...transferees];
+                                copy[idx].name = e.target.value;
+                                setTransferees(copy);
+                              }}
+                              className="h-8 text-xs font-semibold"
+                            />
+                          </div>
+                          <div className="col-span-3">
+                            <Input
+                              placeholder="CNIC (e.g. 42101-...)"
+                              value={t.cnic}
+                              onChange={(e) => {
+                                const copy = [...transferees];
+                                copy[idx].cnic = e.target.value;
+                                setTransferees(copy);
+                              }}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <Input
+                              placeholder="Shares (=500=)"
+                              value={t.shares}
+                              onChange={(e) => {
+                                const copy = [...transferees];
+                                copy[idx].shares = e.target.value;
+                                setTransferees(copy);
+                              }}
+                              className="h-8 text-xs font-bold text-emerald-800"
+                            />
+                          </div>
+                          <div className="col-span-2 flex items-center gap-1">
+                            <Input
+                              placeholder="Folio"
+                              value={t.folio}
+                              onChange={(e) => {
+                                const copy = [...transferees];
+                                copy[idx].folio = e.target.value;
+                                setTransferees(copy);
+                              }}
+                              className="h-8 text-xs"
+                            />
+                            {transferees.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setTransferees(prev => prev.filter((_, i) => i !== idx))}
+                                className="h-8 w-8 p-0 text-rose-500 hover:bg-rose-50 shrink-0"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Special Registers Options */}
+                  <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-2.5 rounded-lg bg-amber-50/50 border border-amber-200 text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="font-bold text-amber-950 flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={hasLossRegister}
+                            onChange={(e) => setHasLossRegister(e.target.checked)}
+                            className="h-4 w-4 rounded text-amber-600"
+                          />
+                          <span>Loss of Shares Register Entry</span>
+                        </label>
+                      </div>
+                      {hasLossRegister && (
+                        <div>
+                          <label className="text-[11px] text-amber-900 block mb-1">Receipt Entry / Serial #:</label>
+                          <Input
+                            value={lossReceiptNo}
+                            onChange={(e) => setLossReceiptNo(e.target.value)}
+                            placeholder="e.g. LR-2026/089"
+                            className="h-8 text-xs bg-white font-mono font-bold"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-blue-50/50 border border-blue-200 text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="font-bold text-blue-950 flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={hasSplitRegister}
+                            onChange={(e) => setHasSplitRegister(e.target.checked)}
+                            className="h-4 w-4 rounded text-blue-600"
+                          />
+                          <span>Split of Certificates Register Entry</span>
+                        </label>
+                      </div>
+                      {hasSplitRegister && (
+                        <div>
+                          <label className="text-[11px] text-blue-900 block mb-1">Split Receipt Entry #:</label>
+                          <Input
+                            value={splitReceiptNo}
+                            onChange={(e) => setSplitReceiptNo(e.target.value)}
+                            placeholder="e.g. SR-2026/044"
+                            className="h-8 text-xs bg-white font-mono font-bold"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Covering Closing Instruction to Company Secretary:
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={approvalCoveringNotes}
+                      onChange={(e) => setApprovalCoveringNotes(e.target.value)}
+                      className="w-full p-2.5 text-xs rounded border border-slate-300 font-sans"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* --- CASE C: DELIVERY OF SHARES (Dispatch Mode & Tracking) --- */}
+          {letterStage === "delivery_shares" && (
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("deliveryDetails")}
+                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50/60 via-white to-slate-50 hover:bg-indigo-50/80 transition-colors text-left"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-indigo-700/10 text-indigo-700">
+                    <Truck className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                      3. Share Delivery &amp; Dispatch Mode (شیئر سرٹیفکیٹس کی ترسیل کی تفصیل)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-normal">
+                      Delivery mode (By Hand, TCS, Registered Post), Tracking Consignment #, Receipt counterfoil
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge className="bg-indigo-100 text-indigo-900 text-[10px] font-bold">
+                    {deliveryMode}
+                  </Badge>
+                  {openAccordion.deliveryDetails ? (
+                    <ChevronUp className="h-4 w-4 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-slate-500" />
+                  )}
+                </div>
+              </button>
+
+              {openAccordion.deliveryDetails && (
+                <div className="p-4 pt-3 border-t border-slate-100 space-y-3 bg-white text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Delivery / Dispatch Mode:</label>
+                      <select
+                        value={deliveryMode}
+                        onChange={(e) => setDeliveryMode(e.target.value)}
+                        className="w-full h-9 rounded border border-slate-300 px-2 font-bold text-slate-800 bg-white"
+                      >
+                        <option value="By Hand">By Hand (Deliver across counter with CNIC verification)</option>
+                        <option value="TCS Courier">TCS Courier Services</option>
+                        <option value="Registered Post">Registered Post A/D (Pakistan Post)</option>
+                        <option value="Leopard Courier">Leopard Courier Services</option>
+                        <option value="M&P Express">M&amp;P Express Logistics</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Consignment / Tracking Number:</label>
+                      <Input
+                        value={dispatchTrackingNo}
+                        onChange={(e) => setDispatchTrackingNo(e.target.value)}
+                        placeholder="e.g. TCS-789012345 or POD-1122"
+                        className="h-9 text-xs font-mono font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Acknowledgement Instructions Note:</label>
+                    <textarea
+                      rows={2}
+                      value={deliveryNotes}
+                      onChange={(e) => setDeliveryNotes(e.target.value)}
+                      className="w-full p-2.5 text-xs rounded border border-slate-300 font-sans"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* --- CASE D: NO FOLIO FOUND LETTER COMMENTS --- */}
+          {letterStage === "no_folio" && (
+            <div className="border border-amber-200 rounded-xl overflow-hidden shadow-xs bg-amber-50/20 p-4 space-y-2">
+              <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                Additional Comments / Advice for No Folio Response (اختیاری ریمارک):
+              </label>
+              <textarea
+                rows={3}
+                value={noFolioComments}
+                onChange={(e) => setNoFolioComments(e.target.value)}
+                placeholder="e.g. We have also searched computerized records against CNIC 42101-xxxxxxx-x and old manual registers, however no active holding was traced..."
+                className="w-full p-2.5 text-xs rounded border border-slate-300 font-sans bg-white"
+              />
+            </div>
+          )}
+
+          {/* ACCORDION 4: CUSTOM OBSERVATION & PLACEMENT (Only active on First Letter / General) */}
+          {letterStage === "first" && (
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("observations")}
+                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-50/50 via-white to-slate-50 hover:bg-blue-50/80 transition-colors text-left"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-blue-600/10 text-blue-700">
+                    <MessageSquarePlus className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                      4. Custom Observation &amp; Flexible Position (کسٹم ریمارکس اور جگہ کا انتخاب)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-normal">
+                      Add any custom observation line and choose its position (Top / Middle / Bottom)
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 text-xs font-bold">
+                    <input 
+                      type="checkbox"
+                      id="incObs"
+                      checked={includeScrutinyNote}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setIncludeScrutinyNote(e.target.checked);
+                      }}
+                      className="h-4 w-4 rounded text-[#0B2B5E]"
+                    />
+                    <label htmlFor="incObs" className="cursor-pointer text-slate-700">Enable</label>
+                  </div>
+                  {openAccordion.observations ? (
+                    <ChevronUp className="h-4 w-4 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-slate-500" />
+                  )}
+                </div>
+              </button>
+
+              {openAccordion.observations && includeScrutinyNote && (
+                <div className="p-4 pt-3 border-t border-slate-100 space-y-3 bg-white text-xs">
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Position in Letter (لیٹر میں ریمارکس کی پوزیشن منتخب کریں):
+                    </label>
+                    <select
+                      value={scrutinyPosition}
+                      onChange={(e: any) => setScrutinyPosition(e.target.value)}
+                      className="w-full h-9 text-xs font-bold rounded-lg border border-slate-300 bg-white px-2.5 text-[#0B2B5E]"
+                    >
+                      <option value="top">1. Top / Introductory (Above acknowledgment paragraph)</option>
+                      <option value="middle">2. Middle (Between acknowledgment and required checklist)</option>
+                      <option value="bottom">3. Bottom / Closing (Below required checklist before sign)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Observation Text (ریمارکس ٹائپ کریں یا نیچے سے سلیکٹ کریں):
+                    </label>
+                    <textarea 
+                      rows={3}
+                      value={scrutinyRemark}
+                      onChange={(e) => setScrutinyRemark(e.target.value)}
+                      placeholder="Type custom officer note or observation..."
+                      className="w-full p-2.5 text-xs rounded-lg border border-slate-300 font-sans"
+                    />
+                  </div>
+
+                  <div className="space-y-1 pt-1">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Quick Standard Presets:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setScrutinyRemark("Upon scrutiny of submitted documents, a variation in the deceased shareholder's name has been observed between CNIC and Share Register. This matter is being taken up with the issuer company for necessary verification and confirmation.");
+                        }}
+                        className="h-6 text-[10px] px-2 py-0 border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-[#0B2B5E]"
+                      >
+                        Name Discrepancy
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setScrutinyRemark("The submitted Succession Certificate does not clearly specify distinctive numbers for subject share certificates. An amended schedule or certified court order specifying distinctive share numbers is required to complete transmission.");
+                        }}
+                        className="h-6 text-[10px] px-2 py-0 border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-[#0B2B5E]"
+                      >
+                        Succession Script Discrepancy
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setScrutinyRemark("We have forwarded the case documents to the management of the issuer company for necessary approval and confirmation. Upon receipt of advice, further proceedings shall be initiated accordingly.");
+                        }}
+                        className="h-6 text-[10px] px-2 py-0 border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-[#0B2B5E]"
+                      >
+                        Company Advice
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setScrutinyRemark("Accumulated unpaid dividend warrants are currently withheld pending transmission and will be released in favor of legal heir(s) in accordance with the Succession Certificate.");
+                        }}
+                        className="h-6 text-[10px] px-2 py-0 border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-[#0B2B5E]"
+                      >
+                        Withheld Dividends
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
 
         {/* RIGHT COLUMN: Realistic Live Letter Preview */}
@@ -1975,7 +1907,12 @@ Encl.:  As stated above.`;
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700">
-                    {letterStage === "first" ? "Live Letter Preview (1st Letter)" : "Live Letter Preview (2nd Letter)"}
+                    Live Letter Preview ({
+                      letterStage === 'first' ? '1st Letter' :
+                      letterStage === 'no_folio' ? 'No Folio Found' :
+                      letterStage === 'physical_approval' ? 'Approval Covering' :
+                      'Delivery of Shares'
+                    })
                   </CardTitle>
                   <CardDescription className="text-[11px]">
                     Official CDCSR layout reflecting exact statutory requirements
@@ -2008,34 +1945,51 @@ Encl.:  As stated above.`;
 
               {/* Header Info */}
               <div className="flex justify-between items-start font-sans font-bold text-xs pb-1 border-b">
-                <span className="text-[#0B2B5E]">{letterStage === "second" ? `${refNo}-SEC` : refNo}</span>
+                <span className="text-[#0B2B5E]">{refNo}</span>
                 <span className="text-slate-600">{date}</span>
               </div>
 
-              {/* Addressee Info (NO CNIC - As requested) */}
-              <div className="font-sans space-y-0.5 text-xs">
-                <p className="font-bold text-slate-900">{legalHeir} {relation ? `(${relation})` : ''}</p>
-                <p className="text-slate-600 font-medium">F/H: {deceased} (Late)</p>
-                <p className="text-slate-700">{address}</p>
-                {contactNo && <p className="text-slate-600 text-[11px]">Contact: {contactNo}</p>}
-              </div>
+              {/* Addressee Info */}
+              {letterStage === "physical_approval" ? (
+                <div className="font-sans space-y-0.5 text-xs">
+                  <p className="font-bold text-slate-900">The Company Secretary</p>
+                  <p className="text-slate-700 font-bold text-[#0B2B5E]">{company}</p>
+                </div>
+              ) : (
+                <div className="font-sans space-y-0.5 text-xs">
+                  <p className="font-bold text-slate-900">{legalHeir} {cleanHeirNameOnly ? '' : (relation ? `(${relation})` : '')}</p>
+                  {!cleanHeirNameOnly && <p className="text-slate-600 font-medium">F/H: {deceased} (Late)</p>}
+                  <p className="text-slate-700">{address}</p>
+                  {contactNo && <p className="text-slate-600 text-[11px]">Contact: {contactNo}</p>}
+                </div>
+              )}
 
               <div className="font-sans text-xs pt-1">
-                <p className="font-semibold text-slate-700">Dear Concern,</p>
+                <p className="font-semibold text-slate-700">
+                  {letterStage === "physical_approval" ? "Dear Sir / Madam," : "Dear Concern,"}
+                </p>
               </div>
 
               {/* Subject */}
               <div className="font-sans text-xs space-y-0.5 border-l-2 border-l-[#F37021] pl-2.5 py-0.5 bg-orange-50/40">
                 <p className="font-bold text-[#0B2B5E]">{company}</p>
                 <p className="font-bold text-slate-900 underline">
-                  Transmission of Shares and Dividends – Late {deceased} – Folio # {mode === "single" ? folio : multiFolios.map(m => m.folio).filter(Boolean).join(", ")}
-                  {letterStage === "second" ? " (Scrutiny Observations & Rectification)" : ""}
+                  {letterStage === "first" && `Transmission of Shares and Dividends – Late ${deceased} – Folio # ${mode === "single" ? folio : multiFolios.map(m => m.folio).filter(Boolean).join(", ")}`}
+                  {letterStage === "no_folio" && `Transmission of Shares & Verification of Title – Late ${deceased} – Folio # ${folio}`}
+                  {letterStage === "physical_approval" && `TRANSMISSION OF SHARES IN RESPECT OF LATE ${deceased} - FOLIO # ${folio}`}
+                  {letterStage === "delivery_shares" && `Dispatch / Handover of Share Certificates – Folio # ${folio} (Transmission Completed)`}
                 </p>
               </div>
 
-              {/* STAGE 1: FIRST LETTER BODY */}
+              {/* TEMPLATE 1: FIRST LETTER PREVIEW */}
               {letterStage === "first" && (
                 <>
+                  {scrutinyPosition === "top" && includeScrutinyNote && scrutinyRemark.trim() && (
+                    <p className="my-2 p-2 rounded bg-blue-50/70 border border-blue-200 text-[#0B2B5E] font-sans">
+                      {scrutinyRemark}
+                    </p>
+                  )}
+
                   <p>
                     We refer to your letter regarding the captioned subject and acknowledge the receipt of:{" "}
                     <strong>{receivedDocs.length > 0 ? receivedDocs.join(", ") : "documents submitted"}</strong>.
@@ -2076,35 +2030,17 @@ Encl.:  As stated above.`;
                     </div>
                   )}
 
-                  {/* Position A: After Received Documents */}
-                  {includeScrutinyNote && scrutinyPosition === 'after_received' && scrutinyRemark.trim() && (
-                    <p className="my-2">{scrutinyRemark}</p>
-                  )}
-
-                  {/* Duplicate Formalities - Position: Before Required */}
-                  {hasLostShares && duplicatePosition === 'before_required' && (
-                    <div className="my-2 p-2.5 rounded bg-amber-50/60 border border-amber-200 text-slate-800 space-y-1">
-                      <p className="font-semibold text-amber-950">
-                        {duplicateIntro || `Kindly note that as intimated, the subject share certificate(s) (${lostSharesDetail}) are reported lost / misplaced. In order to process the issuance of duplicate share certificate(s) in favor of legal heir(s), following duplicate formalities are required:`}
-                      </p>
-                      <ul className="list-disc pl-5 space-y-0.5 text-[11px]">
-                        {duplicateDocs.map((doc, dIdx) => (
-                          <li key={dIdx}>{doc}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Position B: Before Required Formalities */}
-                  {includeScrutinyNote && scrutinyPosition === 'before_required' && scrutinyRemark.trim() && (
-                    <p className="my-2">{scrutinyRemark}</p>
+                  {scrutinyPosition === "middle" && includeScrutinyNote && scrutinyRemark.trim() && (
+                    <p className="my-2 p-2 rounded bg-blue-50/70 border border-blue-200 text-[#0B2B5E] font-sans">
+                      {scrutinyRemark}
+                    </p>
                   )}
 
                   <p className="font-semibold text-slate-900">
                     In order to enable us to process the transmission of the shares and dividends of deceased shareholder in favor of legal heir(s), following documents are required:
                   </p>
 
-                  {/* Numbered Required Docs in exact custom order */}
+                  {/* Numbered Required Docs */}
                   <ol className="list-decimal pl-5 space-y-2 text-slate-700">
                     {requiredDocs.map((item, idx) => {
                       const isSuccession = item.includes("Succession Certificate");
@@ -2132,80 +2068,125 @@ Encl.:  As stated above.`;
                     })}
                   </ol>
 
-                  {/* Duplicate Formalities - Position: After Required (Default/Middle) */}
-                  {hasLostShares && duplicatePosition === 'after_required' && (
-                    <div className="my-2 p-2.5 rounded bg-amber-50/60 border border-amber-200 text-slate-800 space-y-1">
-                      <p className="font-semibold text-amber-950">
-                        {duplicateIntro || `Kindly note that as intimated, the subject share certificate(s) (${lostSharesDetail}) are reported lost / misplaced. In order to process the issuance of duplicate share certificate(s) in favor of legal heir(s), following duplicate formalities are required:`}
-                      </p>
-                      <ul className="list-disc pl-5 space-y-0.5 text-[11px]">
-                        {duplicateDocs.map((doc, dIdx) => (
-                          <li key={dIdx}>{doc}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Position C: After Required Formalities (Recommended) */}
-                  {includeScrutinyNote && scrutinyPosition === 'after_required' && scrutinyRemark.trim() && (
-                    <p className="my-2">{scrutinyRemark}</p>
+                  {scrutinyPosition === "bottom" && includeScrutinyNote && scrutinyRemark.trim() && (
+                    <p className="my-2 p-2 rounded bg-blue-50/70 border border-blue-200 text-[#0B2B5E] font-sans">
+                      {scrutinyRemark}
+                    </p>
                   )}
 
                   <p className="text-[11px] text-slate-600 pt-1">
                     Please ensure that details such as company name, folio number and number of shares are clearly mentioned on the Succession Certificate. Should you have any query, feel free to coordinate with us.
                   </p>
-
-                  {/* Duplicate Formalities - Position: At End of Letter */}
-                  {hasLostShares && duplicatePosition === 'at_end' && (
-                    <div className="my-2 p-2.5 rounded bg-amber-50/60 border border-amber-200 text-slate-800 space-y-1">
-                      <p className="font-semibold text-amber-950">
-                        {duplicateIntro || `Kindly note that as intimated, the subject share certificate(s) (${lostSharesDetail}) are reported lost / misplaced. In order to process the issuance of duplicate share certificate(s) in favor of legal heir(s), following duplicate formalities are required:`}
-                      </p>
-                      <ul className="list-disc pl-5 space-y-0.5 text-[11px]">
-                        {duplicateDocs.map((doc, dIdx) => (
-                          <li key={dIdx}>{doc}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Position D: At End of Letter */}
-                  {includeScrutinyNote && scrutinyPosition === 'at_end' && scrutinyRemark.trim() && (
-                    <p className="my-2">{scrutinyRemark}</p>
-                  )}
                 </>
               )}
 
-              {/* STAGE 2: SECOND LETTER BODY (DEFICIENCY / OBJECTION) */}
-              {letterStage === "second" && (
+              {/* TEMPLATE 2: NO FOLIO FOUND PREVIEW */}
+              {letterStage === "no_folio" && (
                 <>
                   <p>
-                    We refer to the transmission dossier and documents submitted in our office regarding the transmission of shares of subject deceased shareholder in favor of legal heir(s).
+                    We refer to your query / communication regarding transmission of shares of the subject deceased shareholder.
+                  </p>
+
+                  <p>
+                    Please be advised that upon thorough scrutiny and search of the share register / computerized records of <strong>{company}</strong>, no shareholding or folio exists in the name of the deceased shareholder under the provided folio / particulars (<strong>{folio}</strong>).
+                  </p>
+
+                  {noFolioComments && (
+                    <p className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-950 font-sans">
+                      {noFolioComments}
+                    </p>
+                  )}
+
+                  <p className="font-semibold text-slate-900">
+                    In order to enable us to investigate further, please furnish:
+                  </p>
+                  <ol className="list-decimal pl-5 space-y-1.5 text-slate-700">
+                    <li>Legible copies of original share certificates / counterfoils (if available).</li>
+                    <li>Dividend counterfoils / warrants previously issued by the Company.</li>
+                    <li>Complete CNIC of the deceased shareholder along with previous aliases / residential addresses.</li>
+                  </ol>
+                </>
+              )}
+
+              {/* TEMPLATE 3: PHYSICAL APPROVAL COVERING PREVIEW */}
+              {letterStage === "physical_approval" && (
+                <>
+                  <p>
+                    We are enclosing herewith transmission case along with valid Succession Certificate / title documents in respect of late <strong>{deceased}</strong> holding <strong>{shares}</strong> shares under Folio # <strong>{folio}</strong>.
                   </p>
 
                   <p className="font-semibold text-slate-900">
-                    Upon preliminary scrutiny and legal examination of the submitted documents, following deficiencies / discrepancies have been observed:
+                    The shares are proposed to be transmitted in favor of the legal heir(s) / transferee(s) as detailed below:
                   </p>
 
-                  <ol className="list-decimal pl-5 space-y-2 text-slate-700">
-                    {activeDeficiencies.map((def, idx) => (
-                      <li key={idx} className="leading-snug font-medium text-slate-900">
-                        {def}
-                      </li>
-                    ))}
-                  </ol>
+                  <div className="border rounded overflow-hidden font-sans text-[11px] my-2">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-bold border-b">
+                        <tr>
+                          <th className="p-1.5">S #</th>
+                          <th className="p-1.5">Transferee / Legal Heir</th>
+                          <th className="p-1.5">CNIC</th>
+                          <th className="p-1.5">Shares</th>
+                          <th className="p-1.5">Proposed Folio</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transferees.map((t, i) => (
+                          <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
+                            <td className="p-1.5 font-bold text-slate-500">{i + 1}</td>
+                            <td className="p-1.5 font-bold text-slate-900">{t.name}</td>
+                            <td className="p-1.5 font-mono">{t.cnic || 'N/A'}</td>
+                            <td className="p-1.5 font-bold text-emerald-800">{t.shares}</td>
+                            <td className="p-1.5 font-mono">{t.folio || 'N/A'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
 
-                  {includeScrutinyNote && scrutinyRemark.trim() && (
-                    <p className="my-2">{scrutinyRemark}</p>
+                  {hasLossRegister && (
+                    <p className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-950 font-sans text-[11px]">
+                      <strong>Note on Loss Register:</strong> Loss of Shares Register entry receipt #{lossReceiptNo} has been duly recorded.
+                    </p>
                   )}
 
-                  <p className="text-[11px] text-slate-600 pt-1">
-                    You are requested to please rectify the above discrepancies and furnish the amended / required documents at your earliest to enable us to proceed with the transmission of shares.
+                  {hasSplitRegister && (
+                    <p className="p-2 rounded bg-blue-50 border border-blue-200 text-blue-950 font-sans text-[11px]">
+                      <strong>Note on Split Register:</strong> Split of Certificates Register entry receipt #{splitReceiptNo} has been processed.
+                    </p>
+                  )}
+
+                  <p className="pt-1">
+                    {approvalCoveringNotes || "You are kindly requested to please accord your formal approval / sign the attached Transmission Register and return the same to us along with blank share certificates to enable us to execute the transfer."}
                   </p>
                 </>
               )}
 
-              {/* Signatures (NO CDCSR printed below signatures as per official letterhead practice) */}
+              {/* TEMPLATE 4: DELIVERY OF SHARES PREVIEW */}
+              {letterStage === "delivery_shares" && (
+                <>
+                  <p>
+                    We are pleased to inform you that transmission of shares in respect of late <strong>{deceased}</strong> has been successfully completed in accordance with the Succession Certificate.
+                  </p>
+
+                  <p>
+                    Accordingly, please find enclosed herewith the fresh physical share certificate(s) totaling <strong>{shares}</strong> shares {scripts ? `(${scripts})` : ''} dispatched via <strong>{deliveryMode}</strong> {dispatchTrackingNo ? `(Consignment / Tracking #: ${dispatchTrackingNo})` : ''}.
+                  </p>
+
+                  <div className="p-2.5 rounded bg-indigo-50/70 border border-indigo-200 text-indigo-950 font-sans text-[11px]">
+                    <p className="font-bold">Dispatch Particulars:</p>
+                    <p>&bull; Mode of Delivery: {deliveryMode}</p>
+                    <p>&bull; Tracking / Consignment #: {dispatchTrackingNo || 'N/A'}</p>
+                    <p>&bull; Shares Handed Over: {shares} shares</p>
+                  </div>
+
+                  <p className="pt-1">
+                    {deliveryNotes || "Please acknowledge receipt of the share certificates by signing and returning the duplicate copy of this letter or counterfoil. In case of any query, please feel free to contact us."}
+                  </p>
+                </>
+              )}
+
+              {/* Signatures */}
               <div className="pt-4 font-sans space-y-1 border-t">
                 <p className="text-slate-600">Regards,</p>
                 <div className="flex justify-between items-end pt-4 pb-2 text-xs font-bold text-slate-700">

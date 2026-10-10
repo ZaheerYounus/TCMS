@@ -17,7 +17,7 @@ import { formatDateDDMMYYYY } from '@/lib/dateUtils';
 export async function POST(req: NextRequest) {
   try {
     const { 
-      letterStage = "first",   // 'first' | 'second' | 'no_folio' | 'cds_account'
+      letterStage = "first",   // 'first' | 'no_folio' | 'physical_approval' | 'delivery_shares' | 'cds_account'
       refNo = "CDCSR/LTC/GEN/01/26",
       date = new Date().toISOString(),
       legalHeir = "Legal Heir",
@@ -33,13 +33,24 @@ export async function POST(req: NextRequest) {
       receivedDocs = [],       // Documents already received from applicant
       requiredDocs = [],       // Documents still required from legal heirs
       scrutinyRemark = "",     // Natural plain text custom observation
-      scrutinyPosition = "after_required", // 'after_received' | 'before_required' | 'after_required' | 'at_end'
+      scrutinyPosition = "after_required", // 'top' | 'middle' | 'bottom' | 'after_received' | 'before_required' | 'after_required' | 'at_end'
       hasLostShares = false,   // Whether duplicate share formalities are required
       lostSharesDetail = "",   // e.g. "Cert # 10451 for 1,000 shares"
       duplicatePosition = "before_required", // 'before_required' | 'after_required' | 'at_end'
       duplicateDocs = [],      // Array of duplicate requirements
       duplicateIntro = "",     // Custom intro paragraph for duplicate shares
-      deficiencies = [],       // Array of specific objections / missing items for Second Letter
+      // Physical Approval & Transferees Flexibility
+      transferees = [],        // Array of { name, cnic, shares, folio, relation }
+      hasLossRegister = false,
+      lossReceiptNo = "",
+      hasSplitRegister = false,
+      splitReceiptNo = "",
+      approvalCoveringNotes = "",
+      // Delivery of shares
+      deliveryMode = "By Hand", // 'By Hand' | 'Registered Post' | 'Courier'
+      dispatchTrackingNo = "",
+      deliveryNotes = "",
+      deficiencies = [],
     } = await req.json();
 
     const companyName = Array.isArray(company) ? company.join(' / ') : String(company || 'Company');
@@ -524,113 +535,8 @@ export async function POST(req: NextRequest) {
       }),
     ];
 
-    // 3. NO FOLIO FOUND LETTER (Requirement 19)
+    // 3. NO FOLIO FOUND LETTER
     const noFolioChildren = [
-      ...headerRefAndDateParagraphs,
-      new Paragraph({
-        children: [
-          new TextRun({ text: cleanLegalHeir, bold: true, size: 22, font: "Calibri" }),
-        ],
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: "F/H: ", bold: true, size: 20, font: "Calibri" }),
-          new TextRun({ text: `${shareholder} (Late)`, size: 20, font: "Calibri" }),
-        ],
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: address, size: 20, font: "Calibri" }),
-        ],
-      }),
-      ...(contactNo ? [
-        new Paragraph({
-          children: [
-            new TextRun({ 
-              text: contactNo.startsWith('Contact') ? contactNo : `Contact: ${contactNo}`, 
-              size: 20, 
-              font: "Calibri" 
-            }),
-          ],
-        })
-      ] : []),
-      new Paragraph({
-        children: [
-          new TextRun({ text: "Dear Concern,", size: 22, font: "Calibri" }),
-        ],
-        spacing: { before: 180, after: 140 },
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: "Transmission of Shares – ", bold: true, underline: {}, size: 22, font: "Calibri" }),
-          new TextRun({ text: `Late ${shareholder}`, bold: true, underline: {}, size: 22, font: "Calibri" }),
-        ],
-        spacing: { after: 180 },
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ 
-            text: "We refer to your letter regarding the captioned subject and acknowledge the receipt of copy of death certificate & identification documents of subject deceased shareholder.", 
-            size: 21, 
-            font: "Calibri" 
-          }),
-        ],
-        spacing: { after: 140 },
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ 
-            text: "Please be advised that we have conducted a thorough search of our physical shareholder records based on the name and provided CNIC of the deceased. However, we have been unable to trace any shares held in the name of the deceased in our available records.", 
-            size: 21, 
-            font: "Calibri" 
-          }),
-        ],
-        spacing: { after: 140 },
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ 
-            text: "You are therefore requested to kindly provide any documentary evidence, such as copy of share certificate, dividend warrant counterfoil, or any correspondence with the company to enable us to check for any shares registered in the name of deceased shareholder and advise you the formalities for transmission of shares and dividends (if any).", 
-            size: 21, 
-            font: "Calibri" 
-          }),
-        ],
-        spacing: { after: 140 },
-      }),
-      ...(scrutinyRemark ? [
-        new Paragraph({
-          children: [
-            new TextRun({ text: scrutinyRemark.trim(), size: 21, font: "Calibri" })
-          ],
-          spacing: { before: 140, after: 140 }
-        })
-      ] : []),
-      new Paragraph({
-        children: [
-          new TextRun({ 
-            text: "Should you have any query, feel free to coordinate with us.", 
-            size: 20, 
-            font: "Calibri" 
-          }),
-        ],
-        spacing: { before: 140, after: 250 },
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: "Regards,", size: 21, font: "Calibri" }),
-        ],
-        spacing: { after: 400 },
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: "Authorized Signatory\t\t\t\t\t\tAuthorized Signatory", bold: true, size: 21, font: "Calibri" }),
-        ],
-        spacing: { after: 120 },
-      }),
-    ];
-
-    // 4. CDS ACCOUNT DIVIDEND LETTER (Requirement 20)
-    const cdsDividendChildren = [
       ...headerRefAndDateParagraphs,
       new Paragraph({
         children: [
@@ -672,16 +578,20 @@ export async function POST(req: NextRequest) {
       }),
       new Paragraph({
         children: [
-          new TextRun({ text: "Transmission of Dividends – ", bold: true, underline: {}, size: 22, font: "Calibri" }),
+          new TextRun({ text: "Transmission of Shares – ", bold: true, underline: {}, size: 22, font: "Calibri" }),
           new TextRun({ text: `Late ${shareholder}`, bold: true, underline: {}, size: 22, font: "Calibri" }),
-          new TextRun({ text: " – CDS A/C # 03277-6959", bold: true, underline: {}, size: 22, font: "Calibri" }),
+          ...(foliosStr && foliosStr !== 'N/A' ? [
+            new TextRun({ text: " – Folio # ", bold: true, underline: {}, size: 22, font: "Calibri" }),
+            new TextRun({ text: foliosStr, bold: true, underline: {}, size: 22, font: "Calibri" }),
+          ] : []),
         ],
         spacing: { after: 180 },
       }),
+      ...(scrutinyPosition === 'top' ? scrutinyParagraphs : []),
       new Paragraph({
         children: [
           new TextRun({ 
-            text: `We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents for each subject companies: Notarized copy of death certificate of deceased shareholder; Notarized copy of CNICs of the deceased shareholder & yourself; Shareholder Information Form filled and signed by yourself.`, 
+            text: "We refer to your letter regarding the captioned subject and acknowledge the receipt of copy of death certificate & identification documents of subject deceased shareholder.", 
             size: 21, 
             font: "Calibri" 
           }),
@@ -691,42 +601,29 @@ export async function POST(req: NextRequest) {
       new Paragraph({
         children: [
           new TextRun({ 
-            text: "In order to transmit unpaid dividends under the account mentioned above, we would request you to please arrange to furnish us following documents:", 
-            bold: true,
+            text: "Please be advised that we have conducted a thorough search of our physical shareholder records based on the name and provided CNIC of the deceased. However, we have been unable to trace any shares held in the name of the deceased in our available records.", 
             size: 21, 
             font: "Calibri" 
           }),
         ],
-        spacing: { after: 120 },
+        spacing: { after: 140 },
       }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: "1.  ", bold: true, size: 20, font: "Calibri" }),
-          new TextRun({ text: `Posted Account Report of subject CDS Account of the deceased shareholder with "Closed" status duly stamped by relevant participant;`, size: 20, font: "Calibri" }),
-        ],
-        spacing: { after: 80 },
-        indent: { left: 400 },
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: "2.  ", bold: true, size: 20, font: "Calibri" }),
-          new TextRun({ text: "Account Activity / Intra Account Movement Report under subject CDS Account showing transfer of shares of deceased shareholder to legal heir's CDS Account along with reason of transfer duly stamped by relevant participant;", size: 20, font: "Calibri" }),
-        ],
-        spacing: { after: 80 },
-        indent: { left: 400 },
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: "3.  ", bold: true, size: 20, font: "Calibri" }),
-          new TextRun({ text: "Closing Account Report of CDS account of the deceased shareholder duly stamped by relevant participant.", size: 20, font: "Calibri" }),
-        ],
-        spacing: { after: 120 },
-        indent: { left: 400 },
-      }),
+      ...(scrutinyPosition === 'middle' ? scrutinyParagraphs : []),
       new Paragraph({
         children: [
           new TextRun({ 
-            text: "Please note that separate set of documents (one for each company) is required. Once we receive the required documents in order, we shall proceed further accordingly. Should you have any query, feel free to coordinate with us.", 
+            text: "You are therefore requested to kindly provide any documentary evidence, such as copy of share certificate, dividend warrant counterfoil, or any correspondence with the company to enable us to check for any shares registered in the name of deceased shareholder and advise you the formalities for transmission of shares and dividends (if any).", 
+            size: 21, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 140 },
+      }),
+      ...((scrutinyPosition === 'bottom' || scrutinyPosition === 'after_required' || scrutinyPosition === 'at_end') ? scrutinyParagraphs : []),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "Should you have any query, feel free to coordinate with us.", 
             size: 20, 
             font: "Calibri" 
           }),
@@ -745,20 +642,296 @@ export async function POST(req: NextRequest) {
         ],
         spacing: { after: 120 },
       }),
+    ];
+
+    // 4. PHYSICAL APPROVAL COVERING LETTER (Sample format with flexible Transferees, Loss Register, Split Register)
+    const activeTransferees = Array.isArray(transferees) && transferees.length > 0 ? transferees : [
+      { name: cleanLegalHeir, cnic: "42101-XXXXXXXX-X", shares: noOfShares, folio: foliosStr, relation: "Son / Legal Heir" }
+    ];
+
+    const physicalApprovalChildren = [
+      ...headerRefAndDateParagraphs,
       new Paragraph({
         children: [
-          new TextRun({ text: "Encl.:  As stated above.", size: 19, italics: true, font: "Calibri" }),
+          new TextRun({ text: "The Company Secretary", bold: true, size: 22, font: "Calibri" }),
+        ],
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: companyName, bold: true, size: 22, font: "Calibri" }),
+        ],
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Karachi, Pakistan.", size: 20, font: "Calibri" }),
+        ],
+        spacing: { after: 160 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Dear Sir / Madam,", size: 22, font: "Calibri" }),
+        ],
+        spacing: { after: 140 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "APPROVAL OF TRANSMISSION OF SHARES – ", bold: true, underline: {}, size: 22, font: "Calibri" }),
+          new TextRun({ text: `LATE ${shareholder.toUpperCase()}`, bold: true, underline: {}, size: 22, font: "Calibri" }),
+          new TextRun({ text: ` – FOLIO # ${foliosStr}`, bold: true, underline: {}, size: 22, font: "Calibri" }),
+        ],
+        spacing: { after: 180 },
+      }),
+      ...(scrutinyPosition === 'top' ? scrutinyParagraphs : []),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: `We have received application along with requisite legal formalities for transmission of ${noOfShares} shares of ${companyName} standing in the name of subject deceased shareholder.`, 
+            size: 21, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 120 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: `All submitted documents, including Succession Certificate, Death Certificate, Transmission Deed / Shareholder Information Form, and CNICs have been examined and found in order. The subject shares are proposed to be transmitted in favor of following legal heir(s) / transferee(s):`, 
+            size: 21, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 120 },
+      }),
+      // Flexible Transferees Table
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "S #", bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Name of Transferee / Legal Heir", bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "CNIC #", bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Relationship", bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Proposed Folio", bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "# of Shares", bold: true, size: 20 })] })] }),
+            ]
+          }),
+          ...activeTransferees.map((t: any, idx: number) => new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(idx + 1), size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(t.name || ''), bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(t.cnic || '—'), size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(t.relation || 'Legal Heir'), size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(t.folio || 'NEW'), size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(t.shares || ''), size: 20 })] })] }),
+            ]
+          }))
+        ]
+      }),
+      // Loss & Split Registers flexibility
+      ...(hasLossRegister || hasSplitRegister ? [
+        new Paragraph({
+          children: [
+            new TextRun({ text: "Special Registers / Approvals Attached:", bold: true, size: 21, font: "Calibri" }),
+          ],
+          spacing: { before: 140, after: 60 },
+        }),
+        ...(hasLossRegister ? [
+          new Paragraph({
+            children: [
+              new TextRun({ text: "•  Loss of Shares Register: ", bold: true, size: 20, font: "Calibri" }),
+              new TextRun({ text: `Signed Loss Register attached. Receipt / Entry No: ${lossReceiptNo || 'N/A'}. Newspaper notices and indemnity verified.`, size: 20, font: "Calibri" }),
+            ],
+            spacing: { after: 50 },
+            indent: { left: 400 },
+          })
+        ] : []),
+        ...(hasSplitRegister ? [
+          new Paragraph({
+            children: [
+              new TextRun({ text: "•  Split of Certificates Register: ", bold: true, size: 20, font: "Calibri" }),
+              new TextRun({ text: `Signed Split Register attached. Receipt / Entry No: ${splitReceiptNo || 'N/A'} for issuance of split certificates.`, size: 20, font: "Calibri" }),
+            ],
+            spacing: { after: 50 },
+            indent: { left: 400 },
+          })
+        ] : []),
+      ] : []),
+      ...(scrutinyPosition === 'middle' ? scrutinyParagraphs : []),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: approvalCoveringNotes || "You are kindly requested to please accord your formal approval / sign the attached Transmission Register and return the same to us along with blank share certificates (if required) to enable us to execute the transfer.", 
+            size: 21, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { before: 120, after: 180 },
+      }),
+      ...((scrutinyPosition === 'bottom' || scrutinyPosition === 'after_required' || scrutinyPosition === 'at_end') ? scrutinyParagraphs : []),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Regards,", size: 21, font: "Calibri" }),
+        ],
+        spacing: { after: 400 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Authorized Signatory\t\t\t\t\t\tAuthorized Signatory", bold: true, size: 21, font: "Calibri" }),
+        ],
+        spacing: { after: 120 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Encl.: Transmission file dossier, Succession Certificate copy & Verification Summary.", size: 19, italics: true, font: "Calibri" }),
+        ],
+      }),
+    ];
+
+    // 5. DELIVERY OF SHARES LETTER (Physical dispatch or by-hand delivery to Legal Heir)
+    const deliverySharesChildren = [
+      ...headerRefAndDateParagraphs,
+      new Paragraph({
+        children: [
+          new TextRun({ text: cleanLegalHeir, bold: true, size: 22, font: "Calibri" }),
+        ],
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "F/H: ", bold: true, size: 20, font: "Calibri" }),
+          new TextRun({ text: `${shareholder} (Late)`, size: 20, font: "Calibri" }),
+        ],
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: address, size: 20, font: "Calibri" }),
+        ],
+      }),
+      ...(contactNo ? [
+        new Paragraph({
+          children: [
+            new TextRun({ 
+              text: contactNo.startsWith('Contact') ? contactNo : `Contact: ${contactNo}`, 
+              size: 20, 
+              font: "Calibri" 
+            }),
+          ],
+        })
+      ] : []),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Dear Shareholder / Legal Heir,", size: 22, font: "Calibri" }),
+        ],
+        spacing: { before: 180, after: 140 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: companyName, bold: true, size: 22, font: "Calibri" }),
+        ],
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "DELIVERY OF TRANSMITTED SHARE CERTIFICATE(S) – ", bold: true, underline: {}, size: 22, font: "Calibri" }),
+          new TextRun({ text: `FOLIO # ${foliosStr}`, bold: true, underline: {}, size: 22, font: "Calibri" }),
+        ],
+        spacing: { after: 180 },
+      }),
+      ...(scrutinyPosition === 'top' ? scrutinyParagraphs : []),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: `We are pleased to inform you that the transmission of ${noOfShares} shares of ${companyName} previously registered in the name of Late ${shareholder} has been completed and registered under Folio # ${foliosStr}.`, 
+            size: 21, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 120 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: `Enclosed please find the physical share certificate(s) as detailed below, dispatched / delivered via ${deliveryMode}${dispatchTrackingNo ? ` under Tracking # ${dispatchTrackingNo}` : ''}:`, 
+            size: 21, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 120 },
+      }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Company", bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Folio #", bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "# of Certificates", bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "# of Shares", bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Certificate # / Distinctive", bold: true, size: 20 })] })] }),
+            ]
+          }),
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: companyName, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: foliosStr, bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: shareCertificates, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: noOfShares, bold: true, size: 20 })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: scripts || 'Attached', size: 20 })] })] }),
+            ]
+          })
+        ]
+      }),
+      ...(scrutinyPosition === 'middle' ? scrutinyParagraphs : []),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: deliveryNotes || "Please acknowledge receipt of the share certificates by signing and returning the duplicate copy of this letter or counterfoil. In case of any query, please feel free to contact us.", 
+            size: 20, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { before: 140, after: 180 },
+      }),
+      ...((scrutinyPosition === 'bottom' || scrutinyPosition === 'after_required' || scrutinyPosition === 'at_end') ? scrutinyParagraphs : []),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Regards,", size: 21, font: "Calibri" }),
+        ],
+        spacing: { after: 400 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Authorized Signatory\t\t\t\t\t\tAuthorized Signatory", bold: true, size: 21, font: "Calibri" }),
+        ],
+        spacing: { after: 120 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Acknowledgement:", bold: true, size: 20, underline: {}, font: "Calibri" }),
+        ],
+        spacing: { before: 200, after: 80 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Received the above mentioned original share certificate(s) in good order.", size: 20, font: "Calibri" }),
+        ],
+        spacing: { after: 200 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Signature: ___________________________\t\tDate: ___________________________", size: 20, font: "Calibri" }),
         ],
       }),
     ];
 
     let selectedChildren = firstLetterChildren;
-    if (letterStage === "second") {
-      selectedChildren = secondLetterChildren;
-    } else if (letterStage === "no_folio") {
+    if (letterStage === "no_folio") {
       selectedChildren = noFolioChildren;
+    } else if (letterStage === "physical_approval") {
+      selectedChildren = physicalApprovalChildren;
+    } else if (letterStage === "delivery_shares") {
+      selectedChildren = deliverySharesChildren;
     } else if (letterStage === "cds_account") {
-      selectedChildren = cdsDividendChildren;
+      selectedChildren = firstLetterChildren;
     }
 
     const doc = new Document({
@@ -783,7 +956,7 @@ export async function POST(req: NextRequest) {
     return new NextResponse(uint8Array, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': `attachment; filename="CDCSR_Transmission_${letterStage === 'second' ? 'Second_Letter' : 'Letter'}_${companyName.split(' ')[0]}_Folio_${foliosStr.replace(/[^0-9]/g, '_')}.docx"`
+        'Content-Disposition': `attachment; filename="CDCSR_Transmission_${letterStage}_${companyName.split(' ')[0]}_Folio_${foliosStr.replace(/[^0-9]/g, '_')}.docx"`
       }
     });
 
