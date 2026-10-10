@@ -21,8 +21,15 @@ import {
   Building2,
   ArrowUpRight,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  MapPin,
+  CheckSquare,
+  AlertOctagon,
+  Calendar,
+  Clock
 } from "lucide-react";
+import { formatDateDDMMYYYY, calculateAgingDays } from "@/lib/dateUtils";
+import { getCompanyPolicy } from "@/lib/companyRules";
 import {
   Table,
   TableBody,
@@ -31,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const getStatusBadge = (status: string, isClosed?: boolean, workedThisMonth?: boolean) => {
   const s = String(status || '').toLowerCase();
@@ -111,7 +119,22 @@ function CasesContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState(initialStatus);
   const [selectedCompany, setSelectedCompany] = useState(initialCompany);
+  const [sortByAging, setSortByAging] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Document Receipt Modal State (Requirement 5)
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [selectedCaseForReceipt, setSelectedCaseForReceipt] = useState<any>(null);
+  const [receivedDocDate, setReceivedDocDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [selectedDocTypes, setSelectedDocTypes] = useState<string[]>([
+    "Notarized Death Certificate",
+    "Notarized CNIC Copies of Legal Heirs"
+  ]);
+  const [receiptNotes, setReceiptNotes] = useState("");
+  const [updatingReceipt, setUpdatingReceipt] = useState(false);
 
   const fetchCases = (pg: number, st: string, comp: string, q: string) => {
     startTransition(async () => {
@@ -284,12 +307,13 @@ function CasesContent() {
             <Table>
               <TableHeader className="bg-slate-50/90 text-xs border-b border-slate-200">
                 <TableRow>
-                  <TableHead className="w-[110px] font-bold text-slate-800">Case ID</TableHead>
-                  <TableHead className="w-[150px] font-black text-[#F37021]">Folio # (Click to Inspect)</TableHead>
-                  <TableHead className="min-w-[220px] font-bold text-slate-800">Client Company</TableHead>
-                  <TableHead className="min-w-[200px] font-bold text-slate-800">Deceased &amp; Legal Heir</TableHead>
-                  <TableHead className="w-[170px] font-bold text-slate-800">Current Status</TableHead>
-                  <TableHead className="text-right font-bold text-[#0B2B5E] w-[150px]">Actions</TableHead>
+                  <TableHead className="w-[100px] font-bold text-slate-800">Case ID</TableHead>
+                  <TableHead className="w-[130px] font-black text-[#F37021]">Folio #</TableHead>
+                  <TableHead className="min-w-[200px] font-bold text-slate-800">Company &amp; Policy</TableHead>
+                  <TableHead className="min-w-[180px] font-bold text-slate-800">Deceased &amp; Heir</TableHead>
+                  <TableHead className="w-[130px] font-bold text-slate-800">Location / Holder</TableHead>
+                  <TableHead className="w-[160px] font-bold text-slate-800">Status &amp; Formalities</TableHead>
+                  <TableHead className="text-right font-bold text-[#0B2B5E] w-[180px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="text-xs">
@@ -308,6 +332,9 @@ function CasesContent() {
                 ) : (
                   cases.map((c) => {
                     const primaryFolio = String(c.folio || '').split(',')[0].trim();
+                    const policy = getCompanyPolicy(c.company);
+                    const isWaitingHeirs = String(c.status || '').toLowerCase().includes('waiting') || String(c.status || '').toLowerCase().includes('awaiting');
+                    const agingDays = calculateAgingDays(c.formSentDate || c.reqRecDate);
 
                     return (
                       <TableRow 
@@ -325,18 +352,31 @@ function CasesContent() {
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Link 
                             href={`/inquiry?folio=${encodeURIComponent(primaryFolio)}&company=${encodeURIComponent(c.company || '')}`}
-                            className="inline-flex items-center gap-1.5 font-mono font-black text-sm text-[#F37021] bg-orange-50 group-hover:bg-[#F37021] group-hover:text-white px-2.5 py-1 rounded-md border border-orange-200 transition-all shadow-2xs"
+                            className="inline-flex items-center gap-1.5 font-mono font-black text-xs text-[#F37021] bg-orange-50 group-hover:bg-[#F37021] group-hover:text-white px-2 py-0.5 rounded-md border border-orange-200 transition-all shadow-2xs"
                             title="Click to inspect full 23-column audit trail in Case Inquiry"
                           >
                             <span>#{c.folio}</span>
-                            <ArrowUpRight className="h-3.5 w-3.5 opacity-70 group-hover:opacity-100" />
+                            <ArrowUpRight className="h-3 w-3 opacity-70 group-hover:opacity-100" />
                           </Link>
                         </TableCell>
 
+                        {/* Client Company with SIF/TD & Custody Tag */}
                         <TableCell className="font-semibold text-slate-800">
-                          <div className="flex items-center gap-2">
-                            <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                            <span className="truncate max-w-[240px]" title={c.company}>{c.company}</span>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                              <span className="truncate max-w-[180px] font-bold" title={c.company}>{c.company}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Badge className={`text-[9px] font-black px-1 py-0 ${policy.formType === 'TD' ? 'bg-purple-100 text-purple-900 border-purple-300' : 'bg-blue-100 text-blue-900 border-blue-300'}`}>
+                                {policy.formType}
+                              </Badge>
+                              {policy.custodyAvailable ? (
+                                <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0 rounded font-semibold">Custody With Us</span>
+                              ) : (
+                                <span className="text-[9px] bg-slate-100 text-slate-600 px-1 py-0 rounded">No Custody</span>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
 
@@ -347,31 +387,66 @@ function CasesContent() {
                           </div>
                         </TableCell>
 
-                        <TableCell className="whitespace-nowrap">
-                          {getStatusBadge(c.status, c.isClosed, c.workedThisMonth)}
+                        {/* Location / Physical Holder Tracker (Requirement 23) */}
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                            <span className="font-mono text-[11px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                              {c.location || (c.filingInfo && c.filingInfo.length > 0 ? c.filingInfo[0].fileNo : 'With ZA')}
+                            </span>
+                          </div>
+                        </TableCell>
+
+                        {/* Status, Aging, and Awaiting Legal Heirs Documents at a Glance (Requirements 3 & 26) */}
+                        <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="space-y-1">
+                            <div>{getStatusBadge(c.status, c.isClosed, c.workedThisMonth)}</div>
+                            {isWaitingHeirs && (
+                              <div className="text-[10px] text-amber-900 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 max-w-[160px] truncate" title="Awaiting: Notarized Death Cert, CNIC, Succession Certificate, SIF">
+                                Awaiting: Death Cert, Succession, SIF
+                              </div>
+                            )}
+                            {agingDays > 10 && !c.isClosed && (
+                              <div className="flex items-center gap-1 text-[9px] text-red-600 font-bold">
+                                <Clock className="h-2.5 w-2.5" />
+                                <span>{agingDays}d pending</span>
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
 
                         <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedCaseForReceipt(c);
+                                setReceiptModalOpen(true);
+                              }}
+                              className="h-7 px-2 text-[11px] font-bold border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                              title="Update Received Documents (Date & Types)"
+                            >
+                              <CheckSquare className="h-3 w-3 mr-1 text-emerald-600" />
+                              Recv Docs
+                            </Button>
                             <Link 
                               href={`/inquiry?folio=${encodeURIComponent(primaryFolio)}&company=${encodeURIComponent(c.company || '')}`}
                             >
                               <Button 
                                 size="sm" 
-                                className="bg-[#0B2B5E] hover:bg-[#153e7e] text-white font-bold text-xs h-7.5 px-3 shadow-2xs"
+                                className="bg-[#0B2B5E] hover:bg-[#153e7e] text-white font-bold text-xs h-7 px-2 shadow-2xs"
                                 title="Inspect Complete Audit Trail & Timeline"
                               >
-                                <Eye className="mr-1.5 h-3.5 w-3.5 text-[#F37021]" />
-                                Full Trail &rarr;
+                                <Eye className="h-3 w-3 text-[#F37021]" />
                               </Button>
                             </Link>
                             <Link 
                               href={`/letters?folio=${encodeURIComponent(primaryFolio)}&company=${encodeURIComponent(c.company || '')}&deceased=${encodeURIComponent(c.deceased || '')}&heir=${encodeURIComponent(c.legalHeir || '')}`}
-                              className="inline-flex items-center justify-center rounded-md text-xs font-bold h-7.5 px-2.5 bg-slate-100 hover:bg-orange-100 text-[#0B2B5E] hover:text-[#F37021] border border-slate-200 transition-colors"
+                              className="inline-flex items-center justify-center rounded-md text-xs font-bold h-7 px-2 bg-slate-100 hover:bg-orange-100 text-[#0B2B5E] hover:text-[#F37021] border border-slate-200 transition-colors"
                               title="Generate Transmission Letter for this case"
                             >
-                              <FileText className="h-3 w-3 mr-1 text-slate-500" />
-                              Letter
+                              <FileText className="h-3 w-3" />
                             </Link>
                           </div>
                         </TableCell>
@@ -413,6 +488,130 @@ function CasesContent() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Document Receipt Update Modal (Requirement 5) */}
+      <Dialog open={receiptModalOpen} onOpenChange={setReceiptModalOpen}>
+        <DialogContent className="max-w-lg border-t-4 border-t-emerald-600">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-[#0B2B5E] flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-emerald-600" />
+              Update Received Documents
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Record receipt date and check off document types received from legal heirs for Folio #{selectedCaseForReceipt?.folio}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+              <span className="text-slate-500 block text-[11px]">Case Particulars:</span>
+              <strong className="text-slate-900 block font-bold text-sm">
+                #{selectedCaseForReceipt?.folio} - {selectedCaseForReceipt?.company}
+              </strong>
+              <span className="text-slate-600 block mt-0.5">
+                Deceased: Late {selectedCaseForReceipt?.deceased} | Heir: {selectedCaseForReceipt?.legalHeir}
+              </span>
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Receipt Date (Standard DD/MM/YYYY) *</label>
+              <Input
+                type="date"
+                value={receivedDocDate}
+                onChange={(e) => setReceivedDocDate(e.target.value)}
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1.5">Document Types Received: *</label>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-200">
+                {[
+                  "Legible Notarized Death Certificate",
+                  "Notarized CNIC Copies of Legal Heirs",
+                  "Attested Succession Certificate / Court Order",
+                  "Shareholder Information Form (SIF) / Transmission Deed",
+                  "Shares Transfer Duty / Revenue Stamps",
+                  "Original Share Certificates",
+                  "Original Dividend Warrants (if any)",
+                  "24-Digit IBAN Bank Certificate",
+                  "Family Registration Certificate (FRC)",
+                ].map((docName) => {
+                  const isChecked = selectedDocTypes.includes(docName);
+                  return (
+                    <label key={docName} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer hover:text-slate-900">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          setSelectedDocTypes(prev => 
+                            prev.includes(docName) ? prev.filter(d => d !== docName) : [...prev, docName]
+                          );
+                        }}
+                        className="rounded border-slate-300 text-[#F37021] focus:ring-[#F37021]"
+                      />
+                      <span>{docName}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Notes / Discrepancies Observed:</label>
+              <Input
+                placeholder="e.g. Received via courier, verified against Member Register..."
+                value={receiptNotes}
+                onChange={(e) => setReceiptNotes(e.target.value)}
+                className="h-9 text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setReceiptModalOpen(false)}
+              className="text-xs h-9 font-bold"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={updatingReceipt}
+              onClick={async () => {
+                if (!selectedCaseForReceipt) return;
+                setUpdatingReceipt(true);
+                try {
+                  await fetch('/api/mis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      caseId: selectedCaseForReceipt.caseId,
+                      folio: selectedCaseForReceipt.folio,
+                      status: 'Pending',
+                      actionTitle: `Documents Received on ${formatDateDDMMYYYY(receivedDocDate)}`,
+                      discussionNote: `Received: ${selectedDocTypes.join(', ')}. ${receiptNotes}`,
+                      updates: {
+                        formRecDate: receivedDocDate,
+                        status: 'Pending'
+                      }
+                    })
+                  });
+                  setReceiptModalOpen(false);
+                  fetchCases(page, selectedStatus, selectedCompany, searchQuery);
+                } catch (e) {
+                  alert('Failed to update document receipt');
+                } finally {
+                  setUpdatingReceipt(false);
+                }
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 px-4"
+            >
+              {updatingReceipt ? "Saving..." : "Record Receipt & Update Status"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

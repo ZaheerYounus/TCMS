@@ -65,13 +65,19 @@ interface ScrutinyDocItem {
 function LetterGenerationContent() {
   const searchParams = useSearchParams();
 
-  // Stage Switcher: First Letter (Initial Request) vs Second Letter (Dossier Scrutiny & Objections)
-  const [letterStage, setLetterStage] = useState<"first" | "second">("first");
+  // Stage Switcher: First Letter, Second Letter, No Folio Found, CDS Account Dividend (Requirements 19, 20)
+  const [letterStage, setLetterStage] = useState<"first" | "second" | "no_folio" | "cds_account">("first");
   const [mode, setMode] = useState<"single" | "multi">("single");
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [syncToMis, setSyncToMis] = useState(true);
   const [searchingFolio, setSearchingFolio] = useState(false);
+  const [includeStandardCertLine, setIncludeStandardCertLine] = useState(true); // Requirement 13
+  const [cleanHeirNameOnly, setCleanHeirNameOnly] = useState(true); // Requirement 9
+  const [stampDutyProvince, setStampDutyProvince] = useState<"Sindh" | "Punjab" | "Federal Capital" | "KPK" | "Balochistan">("Sindh"); // Requirement 12
+  const [includeStampDutyTable, setIncludeStampDutyTable] = useState(false); // Requirement 18
+  const [cdsAccountNo, setCdsAccountNo] = useState("03277-6959");
+  const [noFolioComments, setNoFolioComments] = useState("");
 
   // File Upload & Smart Parsing State
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -93,15 +99,18 @@ function LetterGenerationContent() {
   const [certificates, setCertificates] = useState("=01=");
   const [scripts, setScripts] = useState("Cert # 10451 (Distinctive: 50001 - 51000)");
 
-  // Legal Heir Details (NO CNIC displayed in letter addressee block as per CDCSR standard)
+  // Legal Heir Details
   const [legalHeir, setLegalHeir] = useState("Syed Sajjad Imam Jafri");
   const [relation, setRelation] = useState("Legal Heir / Son");
   const [address, setAddress] = useState("D-231, Street 24, South Navy Housing scheme, Clifton, Karachi.");
   const [contactNo, setContactNo] = useState("0333-3535404");
 
-  // Reference & Date
+  // Reference & Date (Requirement 4: Standard DD/MM/YYYY)
   const [refNo, setRefNo] = useState("CDCSR/LTC/OGDC/1207/26");
-  const [date, setDate] = useState(() => new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }));
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  });
 
   // Multi Folio Rows
   const [multiFolios, setMultiFolios] = useState<MultiFolioItem[]>([
@@ -574,7 +583,7 @@ function LetterGenerationContent() {
         letterStage,
         refNo: letterStage === "second" ? `${refNo}-SEC` : refNo,
         date,
-        legalHeir: relation ? `${legalHeir} (${relation})` : legalHeir,
+        legalHeir: cleanHeirNameOnly ? legalHeir : (relation ? `${legalHeir} (${relation})` : legalHeir),
         shareholder: deceased,
         address,
         contactNo: contactNo ? `Contact: ${contactNo}` : "",
@@ -593,7 +602,12 @@ function LetterGenerationContent() {
         duplicatePosition,
         duplicateDocs,
         duplicateIntro,
-        deficiencies: activeDeficiencies
+        deficiencies: activeDeficiencies,
+        includeStandardCertLine,
+        includeStampDutyTable,
+        stampDutyProvince,
+        cdsAccountNo,
+        noFolioComments
       };
 
       const res = await fetch("/api/generate-letter", {
@@ -761,7 +775,7 @@ Encl.:  As stated above.`;
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              First Letter (Formalities Request)
+              First Letter
             </button>
             <button
               type="button"
@@ -772,7 +786,29 @@ Encl.:  As stated above.`;
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Second Letter (Dossier Scrutiny / Deficiency)
+              Second Letter (Scrutiny)
+            </button>
+            <button
+              type="button"
+              onClick={() => setLetterStage("no_folio")}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                letterStage === "no_folio" 
+                  ? "bg-amber-600 text-white shadow-sm" 
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              No Folio Found
+            </button>
+            <button
+              type="button"
+              onClick={() => setLetterStage("cds_account")}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                letterStage === "cds_account" 
+                  ? "bg-purple-700 text-white shadow-sm" 
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              CDS Dividend Letter
             </button>
           </div>
 

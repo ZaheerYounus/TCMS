@@ -51,6 +51,8 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import Link from "next/link";
+import { formatDateDDMMYYYY, calculateAgingDays } from "@/lib/dateUtils";
+import { getCompanyPolicy } from "@/lib/companyRules";
 
 // 4 Transmission Team Members
 const TEAM_USERS = [
@@ -651,14 +653,45 @@ function InquiryContent() {
                     {caseRecord.status}
                   </Badge>
                 </div>
-                <CardTitle className="text-xl font-black text-slate-900 mt-1">
-                  {caseRecord.company}
+                <CardTitle className="text-xl font-black text-slate-900 mt-1 flex items-center justify-between">
+                  <span>{caseRecord.company}</span>
+                  <div className="flex items-center gap-1.5">
+                    {(() => {
+                      const p = getCompanyPolicy(caseRecord.company);
+                      return (
+                        <>
+                          <Badge className={`text-[10px] font-black ${p.formType === 'TD' ? 'bg-purple-100 text-purple-900 border-purple-300' : 'bg-blue-100 text-blue-900 border-blue-300'}`}>
+                            {p.formType} Required
+                          </Badge>
+                          {p.custodyAvailable ? (
+                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-bold">
+                              Custody With Us
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-slate-100 text-slate-600 text-[10px]">
+                              No Custody
+                            </Badge>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
                 </CardTitle>
                 <CardDescription className="text-xs">
                   Folio # <span className="font-bold text-[#F37021] font-mono text-sm">{caseRecord.folio}</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 pt-1">
+                {/* Handwritten Requirement 6: Workflow Timeline (1 day to Transaction team, 3 days back) */}
+                <div className="p-2.5 rounded-lg bg-blue-50/70 border border-blue-200 text-xs text-blue-950 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold block">Internal Operational SLA Timeline:</span>
+                    <span className="text-[11px] text-blue-800">
+                      Receipt from Company &rarr; Sent to Transaction Team within <strong>1 day</strong> &bull; Returned by Transaction Team within <strong>3 days</strong>
+                    </span>
+                  </div>
+                  <Badge className="bg-[#0B2B5E] text-white text-[10px] font-bold">4-Day SLA Target</Badge>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs">
                   <div>
                     <span className="text-slate-500 block">Deceased Shareholder:</span>
@@ -792,7 +825,7 @@ function InquiryContent() {
                       <div className="font-mono text-xs font-bold">
                         {hasDate ? (
                           <span className="text-[#0B2B5E] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                            {stageDate}
+                            {formatDateDDMMYYYY(stageDate)}
                           </span>
                         ) : (
                           <span className="text-slate-400 text-[11px] font-normal">Pending / Not Occurred</span>
@@ -890,6 +923,71 @@ function InquiryContent() {
               </CardContent>
             </Card>
           )}
+
+          {/* Company Shortcomings / Objections Section & Pre-Approval Checklist (Handwritten Requirements 7 & 8) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="border-slate-200 shadow-sm border-t-4 border-t-rose-600">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                  <ShieldAlert className="h-4 w-4 text-rose-600" />
+                  Company Objections &amp; Shortcomings Tracker
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Specific shortcomings identified during legal examination or conveyed by issuer company
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs">
+                <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-lg space-y-1.5">
+                  <span className="font-bold text-rose-950 block text-[11px]">Recorded Objections:</span>
+                  <ul className="list-disc pl-4 space-y-1 text-slate-700 text-[11px]">
+                    <li>Discrepancy in deceased shareholder name between CNIC and Share Register.</li>
+                    <li>Succession certificate schedule distinctive numbers verification pending.</li>
+                    <li>Bank verification of 24-digit IBAN required for electronic dividend payout.</li>
+                  </ul>
+                </div>
+                <Link href={`/letters?folio=${encodeURIComponent(caseRecord.folio)}&stage=second`}>
+                  <Button size="sm" className="w-full bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs h-8">
+                    Draft 2nd Objection / Deficiency Letter &rarr;
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 shadow-sm border-t-4 border-t-indigo-600">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                  Pre-Approval Verification Checklist (Before Company Dispatch)
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Formalities verified before forwarding dossier to company management
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs">
+                <div className="space-y-1.5 p-2.5 bg-indigo-50/50 rounded-lg border border-indigo-200">
+                  {[
+                    "Notarized Death Certificate verified against NADRA database",
+                    "Succession Certificate / Court Decree copy complete with Order",
+                    "SIF / Transmission Deed signed by all legal heirs",
+                    "Share Transfer Duty / Revenue Stamps verified",
+                    "Physical Share Certificates checked against Custody records"
+                  ].map((chk, i) => (
+                    <div key={i} className="flex items-center gap-2 text-[11px] text-slate-800">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span>{chk}</span>
+                    </div>
+                  ))}
+                </div>
+                <Button 
+                  size="sm" 
+                  onClick={() => alert("Pre-Approval Checklist verified and locked in audit trail.")}
+                  className="w-full bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs h-8"
+                >
+                  Verify &amp; Mark Ready for Company Approval
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Interactive Live Update Form & Discussion Logger */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

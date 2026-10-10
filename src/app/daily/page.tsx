@@ -38,6 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { formatDateDDMMYYYY } from "@/lib/dateUtils";
 
 const OFFICERS = [
   { id: "ZA", name: "Zaheer Ahmed", role: "Project Lead" },
@@ -372,7 +373,10 @@ export default function DailyRegisterPage() {
 
       {/* KPI Cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-slate-200 border-l-4 border-l-[#F37021] shadow-sm bg-white">
+        <Card 
+          onClick={() => { setTypeFilter("INWARD"); fetchRegister(dateFilter, "INWARD", searchQuery, customDate); }}
+          className={`border-slate-200 border-l-4 border-l-[#F37021] shadow-sm bg-white cursor-pointer hover:shadow-md transition-all ${typeFilter === 'INWARD' ? 'ring-2 ring-[#F37021]' : ''}`}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-3 bg-orange-50 text-[#F37021] rounded-xl shrink-0">
               <Inbox className="h-6 w-6" />
@@ -380,12 +384,15 @@ export default function DailyRegisterPage() {
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Received Today (Inward)</p>
               <h3 className="text-2xl font-black text-slate-900 mt-0.5">{summary.receivedToday} Letters</h3>
-              <p className="text-[11px] text-slate-500">Transmission requests filed</p>
+              <p className="text-[10px] text-orange-600 font-bold mt-0.5">Click to view document types &rarr;</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 border-l-4 border-l-blue-600 shadow-sm bg-white">
+        <Card 
+          onClick={() => { setTypeFilter("OUTWARD"); fetchRegister(dateFilter, "OUTWARD", searchQuery, customDate); }}
+          className={`border-slate-200 border-l-4 border-l-blue-600 shadow-sm bg-white cursor-pointer hover:shadow-md transition-all ${typeFilter === 'OUTWARD' ? 'ring-2 ring-blue-600' : ''}`}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-3 bg-blue-50 text-blue-700 rounded-xl shrink-0">
               <Send className="h-6 w-6" />
@@ -393,7 +400,7 @@ export default function DailyRegisterPage() {
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Dispatched Today (Outward)</p>
               <h3 className="text-2xl font-black text-slate-900 mt-0.5">{summary.dispatchedToday} Letters</h3>
-              <p className="text-[11px] text-slate-500">Formalities letters delivered</p>
+              <p className="text-[10px] text-blue-700 font-bold mt-0.5">Click to view dispatched letters &rarr;</p>
             </div>
           </CardContent>
         </Card>
@@ -586,7 +593,7 @@ export default function DailyRegisterPage() {
                     return (
                       <TableRow key={r.id || i} className="hover:bg-slate-50/80">
                         <TableCell className="font-mono text-slate-600 whitespace-nowrap">
-                          <span className="font-bold text-slate-800 block">{r.date}</span>
+                          <span className="font-bold text-slate-800 block">{formatDateDDMMYYYY(r.date)}</span>
                           <span className="text-[10px] text-slate-400">{r.time || '10:00 AM'}</span>
                         </TableCell>
                         <TableCell>

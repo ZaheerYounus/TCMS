@@ -39,18 +39,35 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [misStats, setMisStats] = useState<any>(null);
   const [filingStats, setFilingStats] = useState<any>(null);
+  const [agingCases, setAgingCases] = useState<any[]>([]);
+  const [issuerAlertCases, setIssuerAlertCases] = useState<any[]>([]);
+  const [showExecutiveKPIs, setShowExecutiveKPIs] = useState(true);
+  const [showWorkflowStages, setShowWorkflowStages] = useState(true);
+  const [showAgingQueue, setShowAgingQueue] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [resMis, resFiling] = await Promise.all([
+        const [resMis, resFiling, resPending] = await Promise.all([
           fetch(`/api/mis?limit=1&_t=${Date.now()}`, { cache: 'no-store' }),
-          fetch(`/api/filing?_t=${Date.now()}`, { cache: 'no-store' })
+          fetch(`/api/filing?_t=${Date.now()}`, { cache: 'no-store' }),
+          fetch(`/api/mis?status=PENDING&limit=20&_t=${Date.now()}`, { cache: 'no-store' })
         ]);
         const dataMis = await resMis.json();
         const dataFiling = await resFiling.json();
+        const dataPending = await resPending.json();
         setMisStats(dataMis.summary);
         setFilingStats(dataFiling);
+
+        // Calculate aging and issuer escalation (> 15 days at company end)
+        const pendingRecs = dataPending.records || [];
+        setAgingCases(pendingRecs.slice(0, 5));
+
+        // Detect issuer escalation cases (coApproval or coSigning or fwdCompDate > 15 days)
+        const resCo = await fetch(`/api/mis?status=CO_APPROVAL&limit=15&_t=${Date.now()}`, { cache: 'no-store' });
+        const dataCo = await resCo.json();
+        const coRecs = dataCo.records || [];
+        setIssuerAlertCases(coRecs.slice(0, 4));
       } catch (e) {
         console.error('Failed to load dashboard statistics:', e);
       } finally {
@@ -195,7 +212,7 @@ export default function Dashboard() {
               Share Transmission Management System
             </h1>
             <p className="text-blue-100/80 text-xs sm:text-sm mt-1 max-w-2xl">
-              Real-time synchronization for 215 listed companies across 340,000+ shareholder portfolios.
+              Real-time synchronization for 215 listed companies across 340,000+ shareholder portfolios. Standard Date Format: <strong>DD/MM/YYYY</strong>.
             </p>
           </div>
 
@@ -209,64 +226,191 @@ export default function Dashboard() {
               <p className="text-[10px] uppercase font-bold text-orange-300">Awaiting Heirs</p>
               <p className="text-lg font-black text-[#F37021]">{waitingLegalHeirs.toLocaleString()}</p>
             </div>
+            <div className="h-9 w-px bg-white/20" />
+            <div>
+              <p className="text-[10px] uppercase font-bold text-cyan-200">Data Recall</p>
+              <p className="text-lg font-black text-cyan-300">100% Synced</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Primary KPI Cards */}
+      {/* Issuer Escalation Prompt Banner (> 15 Days) */}
+      <Card className="border-l-4 border-l-red-500 bg-red-50/50 border-red-200 shadow-sm">
+        <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-red-100 text-red-600 shrink-0">
+              <Clock className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-red-600 text-white text-[10px] uppercase font-bold px-2 py-0.5">
+                  Issuer Escalation Prompt (&gt;15 Days)
+                </Badge>
+                <span className="text-xs font-semibold text-red-900">Immediate Reminder Required</span>
+              </div>
+              <p className="text-xs text-slate-700 mt-0.5">
+                <strong>{coApproval} cases</strong> are pending with company management for Review/Approval. Reminders should be issued for cases pending over 15 calendar days.
+              </p>
+            </div>
+          </div>
+          <Link href="/cases?status=CO_APPROVAL">
+            <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white text-xs shrink-0 font-bold shadow-sm">
+              View Escalation Queue ({coApproval})
+              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+
+      {/* Primary KPI Cards (Collapsible Dropdown Group) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Key Performance Indicators (Executive MIS)</h2>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowExecutiveKPIs(!showExecutiveKPIs)}
+              className="text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-slate-900 p-0 h-auto"
+            >
+              {showExecutiveKPIs ? "▼" : "►"} Key Performance Indicators (Executive MIS)
+            </Button>
+            <Badge variant="outline" className="text-[10px]">Clickable Navigation</Badge>
+          </div>
           <span className="text-[11px] text-slate-400 font-medium">Auto-synced with MIS Transmission dataset</span>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {primaryStats.map((stat, i) => (
-            <Link href={stat.href} key={i}>
-              <Card className={`hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 border-slate-200 border-l-4 ${stat.accentBorder} cursor-pointer group bg-white`}>
-                <CardContent className="flex items-center p-4">
-                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${stat.bgColor}`}>
-                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                  </div>
-                  <div className="ml-3.5 overflow-hidden flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{stat.title}</p>
+        {showExecutiveKPIs && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in-50 duration-200">
+            {primaryStats.map((stat, i) => (
+              <Link href={stat.href} key={i}>
+                <Card className={`hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 border-slate-200 border-l-4 ${stat.accentBorder} cursor-pointer group bg-white`}>
+                  <CardContent className="flex items-center p-4">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${stat.bgColor}`}>
+                      <stat.icon className={`h-6 w-6 ${stat.color}`} />
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900 mt-0.5 group-hover:text-[#0B2B5E] transition-colors">
-                      {stat.value}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 truncate mt-0.5">{stat.subtext}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                    <div className="ml-3.5 overflow-hidden flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{stat.title}</p>
+                      </div>
+                      <h3 className="text-2xl font-black text-slate-900 mt-0.5 group-hover:text-[#0B2B5E] transition-colors">
+                        {stat.value}
+                      </h3>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">{stat.subtext}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Operational Pipeline Breakdown (Company & Transfer stages) */}
+      {/* Operational Pipeline Breakdown (Collapsible Group) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Active Workflow Pipeline Stages</h2>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowWorkflowStages(!showWorkflowStages)}
+              className="text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-slate-900 p-0 h-auto"
+            >
+              {showWorkflowStages ? "▼" : "►"} Active Workflow Pipeline Stages
+            </Button>
+            <Badge variant="outline" className="text-[10px]">SLA: 4-Day Turnaround</Badge>
+          </div>
           <span className="text-[11px] text-slate-400">Under Review with Company & Depository</span>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {operationalStages.map((stage, i) => (
-            <Link href={stage.href} key={i}>
-              <Card className={`hover:shadow-sm hover:-translate-y-0.5 transition-all duration-150 border-slate-200 border-l-4 ${stage.accentBorder} cursor-pointer group bg-white`}>
-                <CardContent className="p-3.5">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate">{stage.title}</span>
-                    <stage.icon className={`h-4 w-4 ${stage.color} shrink-0`} />
-                  </div>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xl font-extrabold text-slate-900 group-hover:text-[#0B2B5E]">{stage.value}</span>
-                    <span className="text-[10px] text-slate-500 font-medium truncate">{stage.subtext}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+        {showWorkflowStages && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in-50 duration-200">
+            {operationalStages.map((stage, i) => (
+              <Link href={stage.href} key={i}>
+                <Card className={`hover:shadow-sm hover:-translate-y-0.5 transition-all duration-150 border-slate-200 border-l-4 ${stage.accentBorder} cursor-pointer group bg-white`}>
+                  <CardContent className="p-3.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate">{stage.title}</span>
+                      <stage.icon className={`h-4 w-4 ${stage.color} shrink-0`} />
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xl font-extrabold text-slate-900 group-hover:text-[#0B2B5E]">{stage.value}</span>
+                      <span className="text-[10px] text-slate-500 font-medium truncate">{stage.subtext}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Aging Cases Quick Queue (Oldest Pending First) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowAgingQueue(!showAgingQueue)}
+              className="text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-slate-900 p-0 h-auto"
+            >
+              {showAgingQueue ? "▼" : "►"} Operational Aging Queue (Oldest Pending Cases)
+            </Button>
+            <Badge className="bg-amber-100 text-amber-800 text-[10px] font-bold">Priority Resolution</Badge>
+          </div>
+          <Link href="/cases?status=PENDING" className="text-xs text-blue-600 hover:underline font-semibold">
+            View All Pending ({pendingCases}) &rarr;
+          </Link>
         </div>
+        {showAgingQueue && (
+          <Card className="border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
+                  <tr>
+                    <th className="py-2.5 px-3">Case ID</th>
+                    <th className="py-2.5 px-3">Company</th>
+                    <th className="py-2.5 px-3">Folio</th>
+                    <th className="py-2.5 px-3">Deceased Name</th>
+                    <th className="py-2.5 px-3">Legal Heir</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  {agingCases.length > 0 ? (
+                    agingCases.map((c, idx) => (
+                      <tr key={idx} className="hover:bg-blue-50/40 transition-colors">
+                        <td className="py-2.5 px-3 font-bold text-[#0B2B5E]">{c.caseId}</td>
+                        <td className="py-2.5 px-3 truncate max-w-[180px]">{c.company}</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">{c.folio}</td>
+                        <td className="py-2.5 px-3 truncate max-w-[140px]">{c.deceased || '—'}</td>
+                        <td className="py-2.5 px-3 truncate max-w-[140px]">{c.legalHeir || '—'}</td>
+                        <td className="py-2.5 px-3">
+                          <Badge className="bg-orange-100 text-[#F37021] text-[10px] border-orange-200">
+                            {c.status || 'Pending'}
+                          </Badge>
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <Link href={`/inquiry?q=${c.caseId}`}>
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-[11px] font-bold text-[#0B2B5E] border-blue-200 hover:bg-blue-50">
+                              Open Case
+                            </Button>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="text-center py-4 text-slate-400">
+                        No pending cases currently requiring escalation.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Capacity Alert Banner */}

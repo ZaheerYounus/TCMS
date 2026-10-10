@@ -1,6 +1,6 @@
 {
-  "totalCases": 13257,
-  "pending": 303,
+  "totalCases": 13259,
+  "pending": 305,
   "waitingLegalHeirs": 6327,
   "coSigning": 26,
   "coApproval": 95,
@@ -8,7 +8,7 @@
   "coDividend": 259,
   "totalClosed": 2277,
   "partiallyClosed": 905,
-  "workedThisMonth": 97,
+  "workedThisMonth": 98,
   "companyMisSummary": [
     {
       "company": "General / Unknown Portfolios",
@@ -1295,6 +1295,18 @@
       "workedThisMonth": 0
     },
     {
+      "company": "PAKISTAN CABLES LIMITED",
+      "total": 6,
+      "closed": 2,
+      "pending": 1,
+      "waiting": 2,
+      "coApproval": 0,
+      "coSigning": 0,
+      "inTransfer": 0,
+      "partiallyClosed": 0,
+      "workedThisMonth": 1
+    },
+    {
       "company": "Popular Islamic Modaraba",
       "total": 6,
       "closed": 0,
@@ -1352,18 +1364,6 @@
       "coSigning": 0,
       "inTransfer": 0,
       "partiallyClosed": 1,
-      "workedThisMonth": 0
-    },
-    {
-      "company": "PAKISTAN CABLES LIMITED",
-      "total": 5,
-      "closed": 2,
-      "pending": 0,
-      "waiting": 2,
-      "coApproval": 0,
-      "coSigning": 0,
-      "inTransfer": 0,
-      "partiallyClosed": 0,
       "workedThisMonth": 0
     },
     {
@@ -1653,6 +1653,18 @@
       "inTransfer": 0,
       "partiallyClosed": 0,
       "workedThisMonth": 2
+    },
+    {
+      "company": "Al Shaheer Corporation Limited",
+      "total": 2,
+      "closed": 0,
+      "pending": 1,
+      "waiting": 0,
+      "coApproval": 1,
+      "coSigning": 0,
+      "inTransfer": 0,
+      "partiallyClosed": 0,
+      "workedThisMonth": 0
     },
     {
       "company": "Magnum Ice Cream Company Limited",
@@ -2069,18 +2081,6 @@
       "pending": 0,
       "waiting": 1,
       "coApproval": 0,
-      "coSigning": 0,
-      "inTransfer": 0,
-      "partiallyClosed": 0,
-      "workedThisMonth": 0
-    },
-    {
-      "company": "Al Shaheer Corporation Limited",
-      "total": 1,
-      "closed": 0,
-      "pending": 0,
-      "waiting": 0,
-      "coApproval": 1,
       "coSigning": 0,
       "inTransfer": 0,
       "partiallyClosed": 0,

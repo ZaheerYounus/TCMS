@@ -12,12 +12,14 @@ import {
   BorderStyle 
 } from 'docx';
 
+import { formatDateDDMMYYYY } from '@/lib/dateUtils';
+
 export async function POST(req: NextRequest) {
   try {
     const { 
-      letterStage = "first",   // 'first' | 'second'
+      letterStage = "first",   // 'first' | 'second' | 'no_folio' | 'cds_account'
       refNo = "CDCSR/LTC/GEN/01/26",
-      date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      date = new Date().toISOString(),
       legalHeir = "Legal Heir",
       shareholder = "Subject Deceased Shareholder",
       address = "Karachi, Pakistan",
@@ -96,21 +98,34 @@ export async function POST(req: NextRequest) {
       }))
     ] : [];
 
-    // 1. FIRST LETTER: Standard Transmission Response & Requisition Letter
-    const firstLetterChildren = [
-      // 1. Ref & Date on same line with tab stops
+    const cleanLegalHeir = String(legalHeir || 'Legal Heir').replace(/\s*\([^)]*\)\s*$/, '').trim();
+
+    const formattedDate = formatDateDDMMYYYY(date);
+
+    // 1. Ref & Date below reference section (Requirement 7)
+    const headerRefAndDateParagraphs = [
       new Paragraph({
         children: [
           new TextRun({ text: refNo, bold: true, size: 22, font: "Calibri" }),
-          new TextRun({ text: `\t\t\t\t\t\t${date}`, bold: true, size: 22, font: "Calibri" }),
         ],
-        spacing: { after: 200 },
+        spacing: { after: 40 },
       }),
-
-      // 2. Addressee Info (NO CNIC here as per official CDCSR letterhead practice)
       new Paragraph({
         children: [
-          new TextRun({ text: legalHeir, bold: true, size: 22, font: "Calibri" }),
+          new TextRun({ text: formattedDate, bold: true, size: 21, font: "Calibri" }),
+        ],
+        spacing: { after: 180 },
+      }),
+    ];
+
+    // 1. FIRST LETTER: Standard Transmission Response & Requisition Letter
+    const firstLetterChildren = [
+      ...headerRefAndDateParagraphs,
+
+      // 2. Addressee Info (NO CNIC here as per official CDCSR letterhead practice, Requirement 9: Clean Heir Name)
+      new Paragraph({
+        children: [
+          new TextRun({ text: cleanLegalHeir, bold: true, size: 22, font: "Calibri" }),
         ],
       }),
       new Paragraph({
@@ -241,6 +256,19 @@ export async function POST(req: NextRequest) {
         })
       ]),
 
+      // Requirement 13: Standard wording
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "Share certificates shall be sent upon our further instructions.", 
+            bold: true,
+            size: 20, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 120 },
+      }),
+
       // Position A: After Received Documents
       ...(scrutinyPosition === 'after_received' ? scrutinyParagraphs : []),
 
@@ -366,17 +394,11 @@ export async function POST(req: NextRequest) {
 
     // 2. SECOND LETTER: Scrutiny Objection & Deficiency Rectification Letter
     const secondLetterChildren = [
-      new Paragraph({
-        children: [
-          new TextRun({ text: refNo, bold: true, size: 22, font: "Calibri" }),
-          new TextRun({ text: `\t\t\t\t\t\t${date}`, bold: true, size: 22, font: "Calibri" }),
-        ],
-        spacing: { after: 200 },
-      }),
+      ...headerRefAndDateParagraphs,
 
       new Paragraph({
         children: [
-          new TextRun({ text: legalHeir, bold: true, size: 22, font: "Calibri" }),
+          new TextRun({ text: cleanLegalHeir, bold: true, size: 22, font: "Calibri" }),
         ],
       }),
       new Paragraph({
@@ -502,6 +524,243 @@ export async function POST(req: NextRequest) {
       }),
     ];
 
+    // 3. NO FOLIO FOUND LETTER (Requirement 19)
+    const noFolioChildren = [
+      ...headerRefAndDateParagraphs,
+      new Paragraph({
+        children: [
+          new TextRun({ text: cleanLegalHeir, bold: true, size: 22, font: "Calibri" }),
+        ],
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "F/H: ", bold: true, size: 20, font: "Calibri" }),
+          new TextRun({ text: `${shareholder} (Late)`, size: 20, font: "Calibri" }),
+        ],
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: address, size: 20, font: "Calibri" }),
+        ],
+      }),
+      ...(contactNo ? [
+        new Paragraph({
+          children: [
+            new TextRun({ 
+              text: contactNo.startsWith('Contact') ? contactNo : `Contact: ${contactNo}`, 
+              size: 20, 
+              font: "Calibri" 
+            }),
+          ],
+        })
+      ] : []),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Dear Concern,", size: 22, font: "Calibri" }),
+        ],
+        spacing: { before: 180, after: 140 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Transmission of Shares – ", bold: true, underline: {}, size: 22, font: "Calibri" }),
+          new TextRun({ text: `Late ${shareholder}`, bold: true, underline: {}, size: 22, font: "Calibri" }),
+        ],
+        spacing: { after: 180 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "We refer to your letter regarding the captioned subject and acknowledge the receipt of copy of death certificate & identification documents of subject deceased shareholder.", 
+            size: 21, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 140 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "Please be advised that we have conducted a thorough search of our physical shareholder records based on the name and provided CNIC of the deceased. However, we have been unable to trace any shares held in the name of the deceased in our available records.", 
+            size: 21, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 140 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "You are therefore requested to kindly provide any documentary evidence, such as copy of share certificate, dividend warrant counterfoil, or any correspondence with the company to enable us to check for any shares registered in the name of deceased shareholder and advise you the formalities for transmission of shares and dividends (if any).", 
+            size: 21, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 140 },
+      }),
+      ...(scrutinyRemark ? [
+        new Paragraph({
+          children: [
+            new TextRun({ text: scrutinyRemark.trim(), size: 21, font: "Calibri" })
+          ],
+          spacing: { before: 140, after: 140 }
+        })
+      ] : []),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "Should you have any query, feel free to coordinate with us.", 
+            size: 20, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { before: 140, after: 250 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Regards,", size: 21, font: "Calibri" }),
+        ],
+        spacing: { after: 400 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Authorized Signatory\t\t\t\t\t\tAuthorized Signatory", bold: true, size: 21, font: "Calibri" }),
+        ],
+        spacing: { after: 120 },
+      }),
+    ];
+
+    // 4. CDS ACCOUNT DIVIDEND LETTER (Requirement 20)
+    const cdsDividendChildren = [
+      ...headerRefAndDateParagraphs,
+      new Paragraph({
+        children: [
+          new TextRun({ text: cleanLegalHeir, bold: true, size: 22, font: "Calibri" }),
+        ],
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "F/H: ", bold: true, size: 20, font: "Calibri" }),
+          new TextRun({ text: `${shareholder} (Late)`, size: 20, font: "Calibri" }),
+        ],
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: address, size: 20, font: "Calibri" }),
+        ],
+      }),
+      ...(contactNo ? [
+        new Paragraph({
+          children: [
+            new TextRun({ 
+              text: contactNo.startsWith('Contact') ? contactNo : `Contact: ${contactNo}`, 
+              size: 20, 
+              font: "Calibri" 
+            }),
+          ],
+        })
+      ] : []),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Dear Concern,", size: 22, font: "Calibri" }),
+        ],
+        spacing: { before: 180, after: 140 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: companyName, bold: true, size: 22, font: "Calibri" }),
+        ],
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Transmission of Dividends – ", bold: true, underline: {}, size: 22, font: "Calibri" }),
+          new TextRun({ text: `Late ${shareholder}`, bold: true, underline: {}, size: 22, font: "Calibri" }),
+          new TextRun({ text: " – CDS A/C # 03277-6959", bold: true, underline: {}, size: 22, font: "Calibri" }),
+        ],
+        spacing: { after: 180 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: `We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents for each subject companies: Notarized copy of death certificate of deceased shareholder; Notarized copy of CNICs of the deceased shareholder & yourself; Shareholder Information Form filled and signed by yourself.`, 
+            size: 21, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 140 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "In order to transmit unpaid dividends under the account mentioned above, we would request you to please arrange to furnish us following documents:", 
+            bold: true,
+            size: 21, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 120 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "1.  ", bold: true, size: 20, font: "Calibri" }),
+          new TextRun({ text: `Posted Account Report of subject CDS Account of the deceased shareholder with "Closed" status duly stamped by relevant participant;`, size: 20, font: "Calibri" }),
+        ],
+        spacing: { after: 80 },
+        indent: { left: 400 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "2.  ", bold: true, size: 20, font: "Calibri" }),
+          new TextRun({ text: "Account Activity / Intra Account Movement Report under subject CDS Account showing transfer of shares of deceased shareholder to legal heir's CDS Account along with reason of transfer duly stamped by relevant participant;", size: 20, font: "Calibri" }),
+        ],
+        spacing: { after: 80 },
+        indent: { left: 400 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "3.  ", bold: true, size: 20, font: "Calibri" }),
+          new TextRun({ text: "Closing Account Report of CDS account of the deceased shareholder duly stamped by relevant participant.", size: 20, font: "Calibri" }),
+        ],
+        spacing: { after: 120 },
+        indent: { left: 400 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "Please note that separate set of documents (one for each company) is required. Once we receive the required documents in order, we shall proceed further accordingly. Should you have any query, feel free to coordinate with us.", 
+            size: 20, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { before: 140, after: 250 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Regards,", size: 21, font: "Calibri" }),
+        ],
+        spacing: { after: 400 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Authorized Signatory\t\t\t\t\t\tAuthorized Signatory", bold: true, size: 21, font: "Calibri" }),
+        ],
+        spacing: { after: 120 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Encl.:  As stated above.", size: 19, italics: true, font: "Calibri" }),
+        ],
+      }),
+    ];
+
+    let selectedChildren = firstLetterChildren;
+    if (letterStage === "second") {
+      selectedChildren = secondLetterChildren;
+    } else if (letterStage === "no_folio") {
+      selectedChildren = noFolioChildren;
+    } else if (letterStage === "cds_account") {
+      selectedChildren = cdsDividendChildren;
+    }
+
     const doc = new Document({
       sections: [{
         properties: {
@@ -514,7 +773,7 @@ export async function POST(req: NextRequest) {
             }
           }
         },
-        children: letterStage === "second" ? secondLetterChildren : firstLetterChildren
+        children: selectedChildren
       }],
     });
 
