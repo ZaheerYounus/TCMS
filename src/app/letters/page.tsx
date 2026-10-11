@@ -43,7 +43,13 @@ import {
   ChevronUp,
   Send,
   CheckSquare,
-  Truck
+  Truck,
+  Eye,
+  EyeOff,
+  ZoomIn,
+  ZoomOut,
+  Minimize2,
+  Maximize2
 } from "lucide-react";
 import companiesList from "@/data/companiesList.json";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -758,23 +764,23 @@ Encl.:  As stated above.`;
 
 The Company Secretary
 ${company}
-${approvalCompanyAddress || ''}
 
-${approvalSalutation || 'Dear Sir / Madam,'}
+Dear Sir / Madam,
 
-${company} (${approvalSymbol || 'SYM'}) Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}
+${company} Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}
 
-We refer to your office letter ref: ${approvalOfficeRef || 'nil'} dated ${approvalOfficeDate || 'nil'} regarding approval of transmission of shares in favor of legal heirs of above deceased shareholder. In this regard we are pleased to enclose herewith =${approvalCertificatesCount || certificates || '01'}= share certificates for =${shares || '0'}= shares along with their relevant Loss & Transfer registers and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
+We refer to the transmission case in respect of the above deceased shareholder. In this regard we are pleased to enclose herewith ${certificates} share certificates for ${shares} shares along with their relevant Loss & Transfer registers and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
 
-No. of transfer receipt(s) : ${approvalTransferReceiptsCount || transferReceiptList.length || '01'}
-${transferReceiptList.map(r => `Transfer receipt(s) # : ${r.receiptNo} (in the name of ${r.name})`).join('\n')}
-Transfer register no. of page(s) : ${approvalTransferRegisterPages || '02'} (02 Copies)
-Loss receipt(s) # : ${approvalLossReceiptNo || 'nil'}
-Loss register no. of page(s) : ${approvalLossRegisterPages || 'nil'} (02 Copies)
+The details of transfers being sent to you are given below:
 
-In view of above you are requested to kindly return the enclosed following documents duly approved / signed by the Directors / Authorized Signatories of the Company at your earliest:
+No. of transfer receipt(s) : ${String(transferReceipts.length).padStart(2, '0')}
+${transferReceipts.map((r: { receiptNo: string; name: string }) => `Transfer receipt(s) # : ${r.receiptNo} (in the name of ${r.name})`).join('\n')}
+Transfer register no. of page(s) : ${transferRegisterPages}
+${hasLossRegister ? `Loss receipt(s) # : ${lossReceiptNo || '295'}\nLoss register no. of page(s) : ${lossRegisterPages}\n` : ''}
+Following actions are requested for approval of above transmission of shares:
 
-${approvalSignDuplicates ? `1. Authorized Signatory's signatures on the face of =${approvalCertificatesCount || '01'}= duplicate shares certificates (if applicable).\n` : ''}2. Authorized Signatory's signatures on the Memorandum of Transfers (on the back of each share certificate).
+1. Authorized Signatory's signatures on the face of duplicate shares certificates (if applicable).
+2. Authorized Signatory's signatures on the Memorandum of Transfers (on the back of each share certificate).
 3. Authorized Signatory's signature on Loss & Transfer register.
 
 After approval of transfer / transmission of shares as requested above, kindly arrange to return transfer registers along with share certificates / documents related to this transmission case.
@@ -802,7 +808,7 @@ We refer to transmission of shares of the captioned deceased shareholder.
 
 Please find enclosed herewith following dividend cheque(s) / instrument(s) in respect of deceased shareholder:
 
-${chequeList.map((c, i) => `${i + 1}. Beneficiary: ${c.beneficiary} | Instrument #: ${c.instrumentNo} | Amount (PKR): ${c.amount}`).join('\n')}
+${cheques.map((c: { beneficiary: string; instrumentNo: string; amount: string }, i: number) => `${i + 1}. Beneficiary: ${c.beneficiary} | Instrument #: ${c.instrumentNo} | Amount (PKR): ${c.amount}`).join('\n')}
 
 Please acknowledge receipt of the cheque(s) / instrument(s).
 

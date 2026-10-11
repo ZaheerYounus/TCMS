@@ -55,6 +55,8 @@ export async function POST(req: NextRequest) {
       dispatchTrackingNo = "",
       deliveryNotes = "",
       deficiencies = [],
+      cleanHeirNameOnly = true,
+      includeStandardCertLine = false,
     } = await req.json();
 
     const companyName = Array.isArray(company) ? company.join(' / ') : String(company || 'Company');
@@ -1075,13 +1077,6 @@ export async function POST(req: NextRequest) {
       selectedChildren = deliverySharesExactChildren;
     } else if (letterStage === "delivery_cheques") {
       selectedChildren = deliveryChequesChildren;
-    }
-    if (letterStage === "no_folio") {
-      selectedChildren = noFolioChildren;
-    } else if (letterStage === "physical_approval") {
-      selectedChildren = physicalApprovalChildren;
-    } else if (letterStage === "delivery_shares") {
-      selectedChildren = deliverySharesChildren;
     } else if (letterStage === "cds_account") {
       selectedChildren = firstLetterChildren;
     }
