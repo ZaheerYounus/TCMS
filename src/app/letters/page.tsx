@@ -76,6 +76,8 @@ function LetterGenerationContent() {
   const [openAccordion, setOpenAccordion] = useState<Record<string, boolean>>({
     quickUpload: true,
     basicDetails: true,
+    documentsReceived: true,
+    documentsRequired: true,
     documentsChecklist: true,
     observations: true,
     transferees: true,
@@ -229,9 +231,7 @@ function LetterGenerationContent() {
     "Transmission deed (attached) duly filled and signed by all the legal heir(s) along with witness CNIC",
     "Shares Transfer stamps of Rs. 25/- (@0.25% of face value of shares)",
     "Original dividend warrants (if any) issued in the name of subject deceased shareholder",
-    "Succession Certificate (NADRA Digital or Civil Court Attested Copy along with Court Order)",
-    "Bank Account verification (24-digit IBAN certificate) in name of legal heir",
-    "Specimen Signature Card duly verified by legal heir's bank manager",
+    "Notarized Copy of Succession Certificate Issued by NADRA or Court attested copy of Succession Certificate along with it's petition and Court Order",
     "Family Registration Certificate (FRC) issued by NADRA"
   ];
 
@@ -1413,49 +1413,70 @@ Encl.:  As stated above.`;
 
           {/* TEMPLATE-SPECIFIC ACCORDIONS */}
 
-          {/* --- CASE A: FIRST LETTER (Checklists: Received vs Required) --- */}
+          {/* --- CASE A: FIRST LETTER (Separate Accordions for Received and Required) --- */}
           {letterStage === "first" && (
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
-              <button
-                type="button"
-                onClick={() => toggleAccordion("documentsChecklist")}
-                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50/60 via-white to-blue-50/40 hover:bg-emerald-50/80 transition-colors text-left"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-emerald-600/10 text-emerald-700">
-                    <CheckSquare className="h-4 w-4" />
+            <>
+              {/* ACCORDION 3A: DOCUMENTS RECEIVED (View/Hide Separately) */}
+              <div className="border border-emerald-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+                <button
+                  type="button"
+                  onClick={() => toggleAccordion("documentsReceived")}
+                  className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50/70 via-white to-slate-50 hover:bg-emerald-50/90 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-lg bg-emerald-600/10 text-emerald-700">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                          3A. Documents Received
+                        </h3>
+                        <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold">
+                          {receivedDocs.length} of {receivedDocOptions.length} Acknowledged
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-normal">
+                        Select documents received from legal heir(s) to acknowledge in the opening paragraph of letter
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                      3. Documents Received &amp; Required Checklist
-                    </h3>
-                    <p className="text-[11px] text-slate-500 font-normal">
-                      Acknowledge received documents and specify statutory requirements demanded from heirs
-                    </p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[11px] text-emerald-700 font-medium hidden sm:inline">
+                      {openAccordion.documentsReceived ? "Collapse" : "Expand"}
+                    </span>
+                    {openAccordion.documentsReceived ? (
+                      <ChevronUp className="h-4 w-4 text-slate-500" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-slate-500" />
+                    )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge className="bg-emerald-100 text-emerald-800 text-[10px]">
-                    {receivedDocs.length} Recv / {requiredDocs.length} Req
-                  </Badge>
-                  {openAccordion.documentsChecklist ? (
-                    <ChevronUp className="h-4 w-4 text-slate-500" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-500" />
-                  )}
-                </div>
-              </button>
+                </button>
 
-              {openAccordion.documentsChecklist && (
-                <div className="p-4 pt-3 border-t border-slate-100 space-y-4 bg-white">
-                  {/* Step 1: Documents Received */}
-                  <div className="space-y-2">
+                {openAccordion.documentsReceived && (
+                  <div className="p-4 pt-3 border-t border-emerald-100 space-y-3 bg-white">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                        Step 1: Documents Received (Acknowledged in Letter)
+                        Documents Received from Heir / Applicant
                       </span>
-                      <span className="text-[11px] text-slate-400">{receivedDocs.length} selected</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setReceivedDocs([...receivedDocOptions])}
+                          className="text-[11px] text-emerald-700 hover:underline font-semibold"
+                        >
+                          Select All
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setReceivedDocs([])}
+                          className="text-[11px] text-slate-500 hover:underline"
+                        >
+                          Clear All
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -1465,15 +1486,17 @@ Encl.:  As stated above.`;
                           <div 
                             key={i} 
                             onClick={() => toggleReceivedDoc(doc)}
-                            className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${
-                              isChecked ? 'bg-emerald-50/80 border-emerald-300 font-medium text-emerald-950' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                              isChecked 
+                                ? 'bg-emerald-50/90 border-emerald-400 font-medium text-emerald-950 shadow-xs' 
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
                             }`}
                           >
                             <input 
                               type="checkbox" 
                               checked={isChecked} 
                               onChange={() => {}} 
-                              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" 
+                              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 shrink-0" 
                             />
                             <span className="leading-snug text-[11px]">{doc}</span>
                           </div>
@@ -1481,33 +1504,88 @@ Encl.:  As stated above.`;
                       })}
                     </div>
 
-                    <div className="flex gap-2 pt-1">
+                    <div className="flex gap-2 pt-1 border-t border-slate-100">
                       <Input 
                         placeholder="Add custom received document..." 
                         value={customReceivedInput}
                         onChange={(e) => setCustomReceivedInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && addCustomReceivedDoc()}
-                        className="text-xs h-8"
+                        className="text-xs h-8.5"
                       />
                       <Button 
                         type="button" 
                         size="sm" 
                         onClick={addCustomReceivedDoc}
-                        className="h-8 text-xs bg-emerald-700 hover:bg-emerald-800 text-white shrink-0"
+                        className="h-8.5 text-xs bg-emerald-700 hover:bg-emerald-800 text-white shrink-0 font-bold"
                       >
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Add
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Received Doc
                       </Button>
                     </div>
                   </div>
+                )}
+              </div>
 
-                  {/* Step 2: Documents Required */}
-                  <div className="space-y-2 pt-3 border-t border-slate-100">
+              {/* ACCORDION 3B: DOCUMENTS REQUIRED (View/Hide Separately) */}
+              <div className="border border-blue-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+                <button
+                  type="button"
+                  onClick={() => toggleAccordion("documentsRequired")}
+                  className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-50/70 via-white to-slate-50 hover:bg-blue-50/90 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-lg bg-[#0B2B5E]/10 text-[#0B2B5E]">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                          3B. Documents Required
+                        </h3>
+                        <Badge className="bg-blue-100 text-[#0B2B5E] text-[10px] font-semibold">
+                          {requiredDocs.length} Requirements Demanded
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-normal">
+                        Statutory documents required from legal heirs to complete transmission
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[11px] text-[#0B2B5E] font-medium hidden sm:inline">
+                      {openAccordion.documentsRequired ? "Collapse" : "Expand"}
+                    </span>
+                    {openAccordion.documentsRequired ? (
+                      <ChevronUp className="h-4 w-4 text-slate-500" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-slate-500" />
+                    )}
+                  </div>
+                </button>
+
+                {openAccordion.documentsRequired && (
+                  <div className="p-4 pt-3 border-t border-blue-100 space-y-4 bg-white">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[#0B2B5E] flex items-center gap-1.5">
                         <ShieldCheck className="h-3.5 w-3.5 text-[#F37021]" />
-                        Step 2: Documents Required (Requisite Documents List)
+                        Requisite Documents Checklist
                       </span>
-                      <span className="text-[11px] text-slate-400">{requiredDocs.length} items</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRequiredDocs([...requiredDocOptions])}
+                          className="text-[11px] text-[#0B2B5E] hover:underline font-semibold"
+                        >
+                          Select All
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setRequiredDocs([])}
+                          className="text-[11px] text-slate-500 hover:underline"
+                        >
+                          Clear All
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5 text-xs">
@@ -1518,26 +1596,25 @@ Encl.:  As stated above.`;
                           <div 
                             key={i} 
                             onClick={() => toggleRequiredDoc(doc)}
-                            className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${
+                            className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
                               isChecked 
                                 ? isSuccession 
-                                  ? 'bg-amber-50/80 border-amber-300 font-bold text-amber-950' 
-                                  : 'bg-blue-50/80 border-blue-300 font-medium text-[#0B2B5E]' 
-                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                  ? 'bg-amber-50/90 border-amber-400 font-bold text-amber-950 shadow-xs' 
+                                  : 'bg-blue-50/90 border-blue-400 font-medium text-[#0B2B5E] shadow-xs' 
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
                             }`}
                           >
                             <input 
                               type="checkbox" 
                               checked={isChecked} 
                               onChange={() => {}} 
-                              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-[#0B2B5E] focus:ring-[#0B2B5E]" 
+                              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#0B2B5E] focus:ring-[#0B2B5E] shrink-0" 
                             />
                             <div className="leading-snug flex-1 text-[11px]">
                               {isSuccession ? (
                                 <div className="flex items-center gap-1.5">
-                                  <Scale className="h-3.5 w-3.5 text-[#F37021]" />
+                                  <Scale className="h-3.5 w-3.5 text-[#F37021] shrink-0" />
                                   <span className="text-[#0B2B5E] font-bold">{doc}</span>
-                                  <Badge className="bg-amber-200 text-amber-900 text-[9px] px-1 py-0 ml-1">Key Legal Req</Badge>
                                 </div>
                               ) : (
                                 <span>{doc}</span>
@@ -1548,27 +1625,27 @@ Encl.:  As stated above.`;
                       })}
                     </div>
 
-                    <div className="flex gap-2 pt-1">
+                    <div className="flex gap-2 pt-1 border-t border-slate-100">
                       <Input 
                         placeholder="Add custom required document (e.g. Attested copy of Nikahnama)..." 
                         value={customRequiredInput}
                         onChange={(e) => setCustomRequiredInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && addCustomRequiredDoc()}
-                        className="text-xs h-8"
+                        className="text-xs h-8.5"
                       />
                       <Button 
                         type="button" 
                         size="sm" 
                         onClick={addCustomRequiredDoc}
-                        className="h-8 text-xs bg-[#0B2B5E] hover:bg-[#103a7a] text-white shrink-0 font-bold"
+                        className="h-8.5 text-xs bg-[#0B2B5E] hover:bg-[#103a7a] text-white shrink-0 font-bold"
                       >
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Requirement
                       </Button>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </>
           )}
 
           {/* --- CASE B: PHYSICAL APPROVAL (Transferees Distribution & Special Registers) --- */}
