@@ -131,6 +131,8 @@ function LetterGenerationContent() {
   const [includeStampDutyTable, setIncludeStampDutyTable] = useState(false); // Requirement 18
   const [cdsAccountNo, setCdsAccountNo] = useState("03277-6959");
   const [noFolioComments, setNoFolioComments] = useState("");
+  const [previewLayout, setPreviewLayout] = useState<"normal" | "wide" | "hidden">("normal");
+  const [previewZoom, setPreviewZoom] = useState<number>(100);
 
   // File Upload & Smart Parsing State
   const [uploadingFile, setUploadingFile] = useState(false);
