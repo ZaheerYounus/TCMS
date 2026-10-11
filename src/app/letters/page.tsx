@@ -128,39 +128,7 @@ function LetterGenerationContent() {
   const [stampDutyProvince, setStampDutyProvince] = useState<"Sindh" | "Punjab" | "Federal Capital" | "KPK" | "Balochistan">("Sindh"); // Requirement 12
   const [includeStampDutyTable, setIncludeStampDutyTable] = useState(false); // Requirement 18
   const [cdsAccountNo, setCdsAccountNo] = useState("03277-6959");
-  // Provincial Stamp Duty Calculator State
-  const [faceValuePerShare, setFaceValuePerShare] = useState<number>(10);
-  const [stampRatePercent, setStampRatePercent] = useState<number>(0.25);
-  const [autoAddStampToLetter, setAutoAddStampToLetter] = useState(true);
-
-  // Calculate stamp duty: (Total Shares * Face Value) * Rate %
-  const calculateStampDutyAmount = () => {
-    const rawShares = parseInt(shares.replace(/[^0-9]/g, ''), 10) || 1000;
-    const totalFaceValue = rawShares * (faceValuePerShare || 10);
-    const duty = Math.ceil(totalFaceValue * ((stampRatePercent || 0.25) / 100));
-    return {
-      dutyAmount: duty,
-      totalFaceValue,
-      rateStr: `@${stampRatePercent}% of face value of shares`,
-      dutyText: `Shares Transfer stamps of Rs. ${duty}/- (@${stampRatePercent}% of face value of shares - ${stampDutyProvince} Province)`
-    };
-  };
-
-  const handleApplyStampDutyToLetter = (prov: string, rate: number) => {
-    setStampDutyProvince(prov as any);
-    setStampRatePercent(rate);
-    const rawShares = parseInt(shares.replace(/[^0-9]/g, ''), 10) || 1000;
-    const duty = Math.ceil((rawShares * faceValuePerShare) * (rate / 100));
-    const newStampLine = `Shares Transfer stamps of Rs. ${duty}/- (@${rate}% of face value of shares - ${prov} Province)`;
-
-    setRequiredDocs(prev => {
-      const filtered = prev.filter(d => !d.toLowerCase().includes('shares transfer stamps'));
-      return [...filtered, newStampLine];
-    });
-  };
   const [noFolioComments, setNoFolioComments] = useState("");
-  // Flexible Live Preview Controls: 'normal' (split 7/5), 'wide' (split 5/7), 'hidden' (12/0), 'full' (fullscreen/modal)
-  const [previewLayout, setPreviewLayout] = useState<"normal" | "wide" | "hidden">("normal");
 
   // File Upload & Smart Parsing State
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -205,17 +173,19 @@ function LetterGenerationContent() {
 
   // Documents Received (Step 1)
   const [receivedDocs, setReceivedDocs] = useState<string[]>([
-    "Copy of CNIC of deceased shareholder & yourself"
+    "Copy of CNIC of subject deceased shareholder and yourself",
+    "Written transmission request application"
   ]);
 
   const receivedDocOptions = [
+    "Copy of CNIC of subject deceased shareholder and yourself",
+    "Written transmission request application",
     "Copy of death certificate of subject deceased shareholder",
-    "Copy of CNIC of deceased shareholder",
-    "Copy of CNIC of yourself",
-    "Copy of CNIC of deceased shareholder & yourself",
     "Copy of Family Registration Certificate (FRC)",
-    "Copy of Succession Certificate",
-    "Original Share Certificates"
+    "Original physical share certificate(s)",
+    "Succession Certificate / Letter of Administration",
+    "Attested Affidavit / Indemnity Bond",
+    "Account maintenance certificate / IBAN details"
   ];
 
   // Intelligent Transmission Gap Analysis State
@@ -249,7 +219,7 @@ function LetterGenerationContent() {
     "Shareholder Information Form (attached) duly filled and signed by all legal heir(s) separately",
     "Shares Transfer stamps of Rs. 25/- (@0.25% of face value of shares)",
     "Original dividend warrants (if any) issued in the name of subject deceased shareholder",
-    "Notarized Copy of Succession Certificate Issued by NADRA or Court attested copy of Succession Certificate along with it's petition and Court Order"
+    "Succession Certificate (NADRA Digital or Civil Court Attested Copy along with Court Order)"
   ]);
 
   const requiredDocOptions = [
@@ -259,12 +229,10 @@ function LetterGenerationContent() {
     "Transmission deed (attached) duly filled and signed by all the legal heir(s) along with witness CNIC",
     "Shares Transfer stamps of Rs. 25/- (@0.25% of face value of shares)",
     "Original dividend warrants (if any) issued in the name of subject deceased shareholder",
-    "Notarized Copy of Succession Certificate Issued by NADRA or Court attested copy of Succession Certificate along with it's petition and Court Order",
-    "Family Registration Certificate (FRC) issued by NADRA",
-    "Draft Letter of Indemnity on non-judicial stamp paper of prescribed value (Rs. 500/-) duly attested by Oath Commissioner / Notary Public along with two solvent sureties",
-    "Specimen of newspaper publication notice of loss of shares published in one English and one Urdu daily national newspaper (approved specimen attached)",
-    "Original full-page newspaper cuttings of both publications after expiry of 7-day notice period",
-    "Duplicate share certificate issuance fee of Rs. 200/- per certificate"
+    "Succession Certificate (NADRA Digital or Civil Court Attested Copy along with Court Order)",
+    "Bank Account verification (24-digit IBAN certificate) in name of legal heir",
+    "Specimen Signature Card duly verified by legal heir's bank manager",
+    "Family Registration Certificate (FRC) issued by NADRA"
   ];
 
   // Custom additions
@@ -907,14 +875,15 @@ Encl.:  As stated above.`;
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="bg-[#F37021] text-white text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
-              <span className="bg-[#F37021] text-white text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">Transmission System</span>
+                Official Correspondence Tool
               </span>
+              <span className="text-xs text-orange-200">CDC Share Registrar Services Limited</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Transmission Letter Generator
             </h1>
             <p className="text-blue-100/80 text-xs sm:text-sm mt-0.5">
-            <p className="text-blue-100/80 text-xs sm:text-sm mt-0.5">Generate transmission correspondence and statutory requisitions with live preview and Word export.</p>
+              Refined draft templates matching CDCSR letterhead format with smart upload, lost share formalities, and second letter scrutiny.
             </p>
           </div>
 
@@ -987,24 +956,36 @@ Encl.:  As stated above.`;
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <input 
-            type="checkbox" 
-            id="syncMis" 
-            checked={syncToMis} 
-            onChange={(e) => setSyncToMis(e.target.checked)} 
-            className="h-4 w-4 rounded border-slate-300 text-[#F37021] focus:ring-[#F37021]"
-          />
-          <label htmlFor="syncMis" className="text-xs text-slate-700 font-medium cursor-pointer">
-            Auto-sync dispatch in MIS correspondence
-          </label>
+        <div className="flex items-center gap-3">
+          {previewLayout === "hidden" && (
+            <button
+              type="button"
+              onClick={() => setPreviewLayout("normal")}
+              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-xs"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Show Live Preview
+            </button>
+          )}
+          <div className="flex items-center gap-2">
+            <input 
+              type="checkbox" 
+              id="syncMis" 
+              checked={syncToMis} 
+              onChange={(e) => setSyncToMis(e.target.checked)} 
+              className="h-4 w-4 rounded border-slate-300 text-[#F37021] focus:ring-[#F37021]"
+            />
+            <label htmlFor="syncMis" className="text-xs text-slate-700 font-medium cursor-pointer">
+              Auto-sync dispatch in MIS correspondence
+            </label>
+          </div>
         </div>
       </div>
 
       {/* 2-Column Working Layout: Left Form Inputs | Right Live Preview */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Configuration Form with Clean Accordion Style */}
-        <div className="lg:col-span-7 space-y-4 no-print">
+        <div className={`space-y-4 no-print transition-all duration-300 ${previewLayout === "hidden" ? "lg:col-span-12" : previewLayout === "wide" ? "lg:col-span-5" : "lg:col-span-7"}`}>
 
           {/* ACCORDION 1: SMART UPLOAD & AUTO-EXTRACTION (Optional for convenience) */}
           <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
@@ -1378,7 +1359,7 @@ Encl.:  As stated above.`;
 
                 {/* Legal Heir Details (Name, Contact/Mobile, Mailing Address) */}
                 <div className="pt-2 border-t border-slate-100 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="text-xs font-bold text-slate-700 block mb-1">
                         Legal Heir Name <span className="text-rose-500">*</span>
@@ -1388,6 +1369,17 @@ Encl.:  As stated above.`;
                         onChange={(e) => setLegalHeir(e.target.value)}
                         placeholder="e.g. Syed Sajjad Imam Jafri" 
                         className="text-xs h-9 font-bold text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">
+                        Capacity / Relationship (Optional)
+                      </label>
+                      <Input 
+                        value={relation} 
+                        onChange={(e) => setRelation(e.target.value)}
+                        placeholder="e.g. Legal Heir / Son / Widow" 
+                        className="text-xs h-9"
                       />
                     </div>
                     <div>
@@ -1545,7 +1537,7 @@ Encl.:  As stated above.`;
                                 <div className="flex items-center gap-1.5">
                                   <Scale className="h-3.5 w-3.5 text-[#F37021]" />
                                   <span className="text-[#0B2B5E] font-bold">{doc}</span>
-                                  
+                                  <Badge className="bg-amber-200 text-amber-900 text-[9px] px-1 py-0 ml-1">Key Legal Req</Badge>
                                 </div>
                               ) : (
                                 <span>{doc}</span>
@@ -2090,48 +2082,109 @@ Encl.:  As stated above.`;
 
         </div>
 
-        {/* RIGHT COLUMN: Realistic Live Letter Preview */}
-        <div className="lg:col-span-5 sticky top-4">
-          <Card className="border-slate-300 shadow-md bg-white">
-            <CardHeader className="p-4 border-b bg-slate-50 rounded-t-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700">
-                    Live Letter Preview ({
-                      letterStage === 'first' ? '1st Letter' :
-                      letterStage === 'no_folio' ? 'No Folio Found' :
-                      letterStage === 'physical_approval' ? 'Approval Covering' :
-                      'Delivery of Shares'
-                    })
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">
-                    Official CDCSR layout reflecting exact statutory requirements
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleCopyText} 
-                    className="h-8 text-xs text-slate-700"
-                  >
-                    {copied ? <Check className="mr-1 h-3 w-3 text-emerald-600" /> : <Copy className="mr-1 h-3 w-3" />}
-                    {copied ? "Copied" : "Copy"}
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    onClick={handleGenerateWord}
-                    disabled={downloading}
-                    className="h-8 text-xs bg-[#F37021] hover:bg-[#D85B10] text-white font-bold shadow-sm"
-                  >
-                    <Download className="mr-1 h-3.5 w-3.5" />
-                    Word
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
+        {/* RIGHT COLUMN: Flexible Live Letter Preview */}
+        {previewLayout !== "hidden" && (
+          <div className={`sticky top-4 transition-all duration-300 ${previewLayout === "wide" ? "lg:col-span-7" : "lg:col-span-5"}`}>
+            <Card className="border-slate-300 shadow-md bg-white">
+              <CardHeader className="p-3.5 border-b bg-slate-50 rounded-t-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div>
+                    <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <FileSignature className="h-3.5 w-3.5 text-[#F37021]" />
+                      Live Letter Preview ({
+                        letterStage === 'first' ? '1st Letter' :
+                        letterStage === 'no_folio' ? 'No Folio Found' :
+                        letterStage === 'physical_approval' ? 'Approval Covering' :
+                        'Delivery of Shares'
+                      })
+                    </CardTitle>
+                    <CardDescription className="text-[10px] text-slate-500">
+                      Standard transmission draft reflecting exact statutory requirements
+                    </CardDescription>
+                  </div>
 
-            <CardContent className="p-5 font-serif text-[12px] leading-relaxed text-slate-800 space-y-3.5 max-h-[750px] overflow-y-auto select-text bg-[#fcfcfc]">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Zoom in/out */}
+                    <div className="flex items-center bg-white border border-slate-200 rounded p-0.5 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewZoom(prev => Math.max(80, prev - 10))}
+                        title="Zoom out"
+                        className="p-1 text-slate-600 hover:text-slate-900 rounded hover:bg-slate-100"
+                      >
+                        <ZoomOut className="h-3 w-3" />
+                      </button>
+                      <span className="text-[10px] font-mono font-semibold px-1 text-slate-700 min-w-[32px] text-center">
+                        {previewZoom}%
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewZoom(prev => Math.min(140, prev + 10))}
+                        title="Zoom in"
+                        className="p-1 text-slate-600 hover:text-slate-900 rounded hover:bg-slate-100"
+                      >
+                        <ZoomIn className="h-3 w-3" />
+                      </button>
+                    </div>
+
+                    {/* Width Toggle: Normal vs Wide */}
+                    <button
+                      type="button"
+                      onClick={() => setPreviewLayout(prev => prev === "wide" ? "normal" : "wide")}
+                      title={previewLayout === "wide" ? "Default width" : "Enlarge preview"}
+                      className={`p-1.5 text-xs font-semibold rounded border flex items-center gap-1 transition-all ${
+                        previewLayout === "wide"
+                          ? "bg-[#0B2B5E] text-white border-[#0B2B5E]"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      {previewLayout === "wide" ? (
+                        <>
+                          <Minimize2 className="h-3 w-3" />
+                          <span className="text-[10px] hidden sm:inline">Normal</span>
+                        </>
+                      ) : (
+                        <>
+                          <Maximize2 className="h-3 w-3" />
+                          <span className="text-[10px] hidden sm:inline">Enlarge</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Hide Preview Button */}
+                    <button
+                      type="button"
+                      onClick={() => setPreviewLayout("hidden")}
+                      title="Hide preview for full-width editor"
+                      className="p-1.5 text-xs font-semibold rounded border bg-white text-slate-700 border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all flex items-center gap-1"
+                    >
+                      <EyeOff className="h-3 w-3" />
+                      <span className="text-[10px] hidden sm:inline">Hide</span>
+                    </button>
+
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleCopyText} 
+                      className="h-7 text-xs px-2 text-slate-700"
+                    >
+                      {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                      <span className="text-[10px] ml-1">{copied ? "Copied" : "Copy"}</span>
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={handleGenerateWord}
+                      disabled={downloading}
+                      className="h-7 text-xs px-2 bg-[#F37021] hover:bg-[#D85B10] text-white font-bold shadow-xs"
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      <span className="text-[10px]">Word</span>
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="p-5 font-serif text-[12px] leading-relaxed text-slate-800 space-y-3.5 max-h-[750px] overflow-y-auto select-text bg-[#fcfcfc]" style={{ fontSize: `${(12 * previewZoom) / 100}px` }}>
 
               {/* Header Info */}
               <div className="flex justify-between items-start font-sans font-bold text-xs pb-1 border-b">
@@ -2425,6 +2478,7 @@ Encl.:  As stated above.`;
             </CardContent>
           </Card>
         </div>
+        )}
       </div>
 
 
