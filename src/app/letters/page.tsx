@@ -128,7 +128,39 @@ function LetterGenerationContent() {
   const [stampDutyProvince, setStampDutyProvince] = useState<"Sindh" | "Punjab" | "Federal Capital" | "KPK" | "Balochistan">("Sindh"); // Requirement 12
   const [includeStampDutyTable, setIncludeStampDutyTable] = useState(false); // Requirement 18
   const [cdsAccountNo, setCdsAccountNo] = useState("03277-6959");
+  // Provincial Stamp Duty Calculator State
+  const [faceValuePerShare, setFaceValuePerShare] = useState<number>(10);
+  const [stampRatePercent, setStampRatePercent] = useState<number>(0.25);
+  const [autoAddStampToLetter, setAutoAddStampToLetter] = useState(true);
+
+  // Calculate stamp duty: (Total Shares * Face Value) * Rate %
+  const calculateStampDutyAmount = () => {
+    const rawShares = parseInt(shares.replace(/[^0-9]/g, ''), 10) || 1000;
+    const totalFaceValue = rawShares * (faceValuePerShare || 10);
+    const duty = Math.ceil(totalFaceValue * ((stampRatePercent || 0.25) / 100));
+    return {
+      dutyAmount: duty,
+      totalFaceValue,
+      rateStr: `@${stampRatePercent}% of face value of shares`,
+      dutyText: `Shares Transfer stamps of Rs. ${duty}/- (@${stampRatePercent}% of face value of shares - ${stampDutyProvince} Province)`
+    };
+  };
+
+  const handleApplyStampDutyToLetter = (prov: string, rate: number) => {
+    setStampDutyProvince(prov as any);
+    setStampRatePercent(rate);
+    const rawShares = parseInt(shares.replace(/[^0-9]/g, ''), 10) || 1000;
+    const duty = Math.ceil((rawShares * faceValuePerShare) * (rate / 100));
+    const newStampLine = `Shares Transfer stamps of Rs. ${duty}/- (@${rate}% of face value of shares - ${prov} Province)`;
+
+    setRequiredDocs(prev => {
+      const filtered = prev.filter(d => !d.toLowerCase().includes('shares transfer stamps'));
+      return [...filtered, newStampLine];
+    });
+  };
   const [noFolioComments, setNoFolioComments] = useState("");
+  // Flexible Live Preview Controls: 'normal' (split 7/5), 'wide' (split 5/7), 'hidden' (12/0), 'full' (fullscreen/modal)
+  const [previewLayout, setPreviewLayout] = useState<"normal" | "wide" | "hidden">("normal");
 
   // File Upload & Smart Parsing State
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -173,19 +205,17 @@ function LetterGenerationContent() {
 
   // Documents Received (Step 1)
   const [receivedDocs, setReceivedDocs] = useState<string[]>([
-    "Copy of CNIC of subject deceased shareholder and yourself",
-    "Written transmission request application"
+    "Copy of CNIC of deceased shareholder & yourself"
   ]);
 
   const receivedDocOptions = [
-    "Copy of CNIC of subject deceased shareholder and yourself",
-    "Written transmission request application",
     "Copy of death certificate of subject deceased shareholder",
+    "Copy of CNIC of deceased shareholder",
+    "Copy of CNIC of yourself",
+    "Copy of CNIC of deceased shareholder & yourself",
     "Copy of Family Registration Certificate (FRC)",
-    "Original physical share certificate(s)",
-    "Succession Certificate / Letter of Administration",
-    "Attested Affidavit / Indemnity Bond",
-    "Account maintenance certificate / IBAN details"
+    "Copy of Succession Certificate",
+    "Original Share Certificates"
   ];
 
   // Intelligent Transmission Gap Analysis State
@@ -219,7 +249,7 @@ function LetterGenerationContent() {
     "Shareholder Information Form (attached) duly filled and signed by all legal heir(s) separately",
     "Shares Transfer stamps of Rs. 25/- (@0.25% of face value of shares)",
     "Original dividend warrants (if any) issued in the name of subject deceased shareholder",
-    "Succession Certificate (NADRA Digital or Civil Court Attested Copy along with Court Order)"
+    "Notarized Copy of Succession Certificate Issued by NADRA or Court attested copy of Succession Certificate along with it's petition and Court Order"
   ]);
 
   const requiredDocOptions = [
@@ -229,10 +259,12 @@ function LetterGenerationContent() {
     "Transmission deed (attached) duly filled and signed by all the legal heir(s) along with witness CNIC",
     "Shares Transfer stamps of Rs. 25/- (@0.25% of face value of shares)",
     "Original dividend warrants (if any) issued in the name of subject deceased shareholder",
-    "Succession Certificate (NADRA Digital or Civil Court Attested Copy along with Court Order)",
-    "Bank Account verification (24-digit IBAN certificate) in name of legal heir",
-    "Specimen Signature Card duly verified by legal heir's bank manager",
-    "Family Registration Certificate (FRC) issued by NADRA"
+    "Notarized Copy of Succession Certificate Issued by NADRA or Court attested copy of Succession Certificate along with it's petition and Court Order",
+    "Family Registration Certificate (FRC) issued by NADRA",
+    "Draft Letter of Indemnity on non-judicial stamp paper of prescribed value (Rs. 500/-) duly attested by Oath Commissioner / Notary Public along with two solvent sureties",
+    "Specimen of newspaper publication notice of loss of shares published in one English and one Urdu daily national newspaper (approved specimen attached)",
+    "Original full-page newspaper cuttings of both publications after expiry of 7-day notice period",
+    "Duplicate share certificate issuance fee of Rs. 200/- per certificate"
   ];
 
   // Custom additions
@@ -875,15 +907,14 @@ Encl.:  As stated above.`;
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="bg-[#F37021] text-white text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
-                Official Correspondence Tool
+              <span className="bg-[#F37021] text-white text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">Transmission System</span>
               </span>
-              <span className="text-xs text-orange-200">CDC Share Registrar Services Limited</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Transmission Letter Generator
             </h1>
             <p className="text-blue-100/80 text-xs sm:text-sm mt-0.5">
-              Refined draft templates matching CDCSR letterhead format with smart upload, lost share formalities, and second letter scrutiny.
+            <p className="text-blue-100/80 text-xs sm:text-sm mt-0.5">Generate transmission correspondence and statutory requisitions with live preview and Word export.</p>
             </p>
           </div>
 
@@ -1347,7 +1378,7 @@ Encl.:  As stated above.`;
 
                 {/* Legal Heir Details (Name, Contact/Mobile, Mailing Address) */}
                 <div className="pt-2 border-t border-slate-100 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-bold text-slate-700 block mb-1">
                         Legal Heir Name <span className="text-rose-500">*</span>
@@ -1357,17 +1388,6 @@ Encl.:  As stated above.`;
                         onChange={(e) => setLegalHeir(e.target.value)}
                         placeholder="e.g. Syed Sajjad Imam Jafri" 
                         className="text-xs h-9 font-bold text-slate-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">
-                        Capacity / Relationship (Optional)
-                      </label>
-                      <Input 
-                        value={relation} 
-                        onChange={(e) => setRelation(e.target.value)}
-                        placeholder="e.g. Legal Heir / Son / Widow" 
-                        className="text-xs h-9"
                       />
                     </div>
                     <div>
@@ -1525,7 +1545,7 @@ Encl.:  As stated above.`;
                                 <div className="flex items-center gap-1.5">
                                   <Scale className="h-3.5 w-3.5 text-[#F37021]" />
                                   <span className="text-[#0B2B5E] font-bold">{doc}</span>
-                                  <Badge className="bg-amber-200 text-amber-900 text-[9px] px-1 py-0 ml-1">Key Legal Req</Badge>
+                                  
                                 </div>
                               ) : (
                                 <span>{doc}</span>

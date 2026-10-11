@@ -323,7 +323,7 @@ export async function POST(req: NextRequest) {
             new Paragraph({
               children: [
                 new TextRun({ 
-                  text: "•  Notarized copy of Succession Certificate along with Family Registration Certificate (if issued by NADRA);", 
+                  text: "•  Notarized Copy of Succession Certificate Issued by NADRA;", 
                   size: 20, 
                   font: "Calibri" 
                 }),
@@ -341,7 +341,7 @@ export async function POST(req: NextRequest) {
             new Paragraph({
               children: [
                 new TextRun({ 
-                  text: "•  Court attested copy of Succession Certificate along with its Application & Court Order (if issued by Honorable Court).", 
+                  text: "•  Court attested copy of Succession Certificate along with it's petition and Court Order.", 
                   size: 20, 
                   font: "Calibri" 
                 }),

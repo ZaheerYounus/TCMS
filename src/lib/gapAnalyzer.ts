@@ -26,7 +26,7 @@ export const CANONICAL_TRANSMISSION_DOCS: TransmissionDocRequirement[] = [
   {
     id: "succession",
     title: "Succession Certificate / Court Decree",
-    formalText: "Succession Certificate (NADRA Digital or Civil Court Attested Copy along with Court Order)",
+    formalText: "Notarized Copy of Succession Certificate Issued by NADRA or Court attested copy of Succession Certificate along with it's petition and Court Order",
     category: "mandatory_legal",
     critical: true,
     notes: "Mandatory for transferring legal title of shares and unpaid dividends.",
