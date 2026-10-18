@@ -445,6 +445,13 @@ function LetterGenerationContent() {
       if (!res.ok) throw new Error(data.error || "Failed to parse letter file");
 
       const p = data.parsed;
+      if (p.mode === "multi" && p.multiFolios && p.multiFolios.length > 1) {
+        setMode("multi");
+        setMultiFolios(p.multiFolios);
+      } else if (p.mode === "single") {
+        setMode("single");
+      }
+
       if (p.folio) setFolio(p.folio);
       if (p.company) setCompany(p.company);
       if (p.compSymbol) setCompSymbol(p.compSymbol);
@@ -474,8 +481,9 @@ function LetterGenerationContent() {
         setLetterStage(gap.suggestedStage);
       }
 
+      const modeDesc = p.mode === "multi" && p.multiFolios ? `Multi-Folio list (${p.multiFolios.length} folios)` : `Folio: ${p.folio || 'N/A'}`;
       setUploadSuccessMsg(
-        `Automated Gap Analysis complete! Detected Folio: ${p.folio || 'N/A'}, Company: ${p.compSymbol || 'N/A'}. Received ${gap.receivedCount} of ${gap.totalRequirementsCount} statutory documents (${gap.completionPercentage}% complete). Response letter auto-prepared with the ${gap.missingDocs.length} remaining requirements!`
+        `Document analyzed! Auto-detected ${modeDesc}, Company: ${p.compSymbol || p.company || 'N/A'}, Deceased: ${p.deceased || 'N/A'}, Legal Heir: ${p.legalHeir || 'N/A'}, Mobile: ${p.contactNo || 'N/A'}. Letter is auto-ready!`
       );
     } catch (err: any) {
       console.error("Upload parse error:", err);
@@ -875,41 +883,39 @@ Encl.:  As stated above.`;
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
-      {/* Top Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0B2B5E] via-[#103a7a] to-[#1A365D] text-white p-5 sm:p-6 shadow-lg border border-blue-900/40 no-print">
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#F37021] via-orange-400 to-[#F37021]" />
-        
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
+      {/* Clean Compact Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs no-print">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-lg bg-[#0B2B5E] text-white shadow-xs">
+            <FileSignature className="h-5 w-5 text-[#F37021]" />
+          </div>
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="bg-[#F37021] text-white text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
-                Official Correspondence Tool
+            <h1 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              Letter Generation
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-[#D85B10] border border-orange-200">
+                Auto-Fill &amp; OCR Ready
               </span>
-              <span className="text-xs text-orange-200">CDC Share Registrar Services Limited</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Transmission Letter Generator
             </h1>
-            <p className="text-blue-100/80 text-xs sm:text-sm mt-0.5">
-              Refined draft templates matching CDCSR letterhead format with smart upload, lost share formalities, and second letter scrutiny.
+            <p className="text-xs text-slate-500">
+              Upload documents to auto-detect details and generate official transmission letters
             </p>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleGenerateWord}
-              disabled={downloading}
-              className="bg-[#F37021] hover:bg-[#D85B10] text-white font-bold text-xs shadow-md h-9 px-4"
-            >
-              <Download className="mr-1.5 h-4 w-4" />
-              {downloading ? "Generating Word..." : `Download Word (${
-                letterStage === 'first' ? '1st Letter' :
-                letterStage === 'no_folio' ? 'No Folio Found' :
-                letterStage === 'physical_approval' ? 'Approval Covering' :
-                'Delivery of Shares'
-              })`}
-            </Button>
-          </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button
+            onClick={handleGenerateWord}
+            disabled={downloading}
+            className="bg-[#F37021] hover:bg-[#D85B10] text-white font-bold text-xs shadow-xs h-9 px-4 w-full sm:w-auto"
+          >
+            <Download className="mr-1.5 h-4 w-4" />
+            {downloading ? "Generating..." : `Download Word (${
+              letterStage === 'first' ? '1st Letter' :
+              letterStage === 'no_folio' ? 'No Folio Found' :
+              letterStage === 'physical_approval' ? 'Approval Covering' :
+              'Delivery of Shares'
+            })`}
+          </Button>
         </div>
       </div>
 
@@ -1041,18 +1047,21 @@ Encl.:  As stated above.`;
                   className="hidden" 
                 />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="p-4 border-2 border-dashed border-orange-200 rounded-xl bg-orange-50/30 hover:bg-orange-50/60 transition-all text-center">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 mb-2">
+                    <FileUp className="h-5 w-5 text-[#F37021]" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-800">Drop incoming request letter or scan here</h4>
+                  <p className="text-[11px] text-slate-500 mb-3">Supports PDF, Word (.docx/.doc), Scanned Photos/Images (JPG, PNG)</p>
                   <Button
                     type="button"
-                    variant="outline"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadingFile}
-                    className="h-10 border-dashed border-2 border-[#F37021]/60 hover:border-[#F37021] hover:bg-orange-50/60 text-[#D85B10] font-bold text-xs"
+                    className="h-8 bg-[#0B2B5E] hover:bg-[#103a7a] text-white font-bold text-xs px-4 shadow-2xs"
                   >
-                    <FileUp className="mr-2 h-4 w-4 text-[#F37021]" />
-                    {uploadingFile ? "Analyzing Document..." : "Upload Letter / Application Document (PDF, Word, JPG, PNG)"}
+                    <UploadCloud className="mr-1.5 h-3.5 w-3.5 text-orange-400" />
+                    {uploadingFile ? "Performing OCR & Extracting Details..." : "Select Document to Upload & Auto-Fill"}
                   </Button>
-
                 </div>
 
                 {uploadSuccessMsg && (
