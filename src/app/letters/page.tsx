@@ -59,6 +59,8 @@ import {
   DocumentGapAnalysis, 
   TransmissionDocRequirement 
 } from "@/lib/gapAnalyzer";
+import { parseLetterText, ParsedLetterResult } from "@/lib/letterParser";
+import { runBrowserOCR } from "@/lib/clientOcr";
 
 interface MultiFolioItem {
   folio: string;
@@ -142,6 +144,7 @@ function LetterGenerationContent() {
 
   // File Upload & Smart Parsing State
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState("");
   const [uploadSuccessMsg, setUploadSuccessMsg] = useState("");
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pastedText, setPastedText] = useState("");
@@ -429,34 +432,14 @@ function LetterGenerationContent() {
     setReceivedDocs(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Smart File Upload Handler
+  // Smart File Upload Handler with client-side OCR for 100% reliability
   const handleFileUpload = async (file: File) => {
     if (!file) return;
     setUploadingFile(true);
     setUploadSuccessMsg("");
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/parse-letter", {
-        method: "POST",
-        body: formData,
-      });
+    setUploadProgressText("Analyzing uploaded document...");
 
-      let data: any = null;
-      const responseText = await res.text();
-      try {
-        data = JSON.parse(responseText);
-      } catch (jsonErr) {
-        throw new Error(
-          res.status === 504 
-            ? "Server timed out while analyzing the image. Please use a lighter/compressed image, PDF, or click 'Paste Letter Text'."
-            : `Server returned an invalid response (Status: ${res.status}). Please try again or paste the letter text directly.`
-        );
-      }
-
-      if (!res.ok || !data) throw new Error(data?.error || `Failed to parse letter file (status ${res.status})`);
-
-      const p = data.parsed;
+    const applyParsedData = (p: ParsedLetterResult) => {
       if (p.mode === "multi" && p.multiFolios && p.multiFolios.length > 1) {
         setMode("multi");
         setMultiFolios(p.multiFolios);
@@ -489,19 +472,62 @@ function LetterGenerationContent() {
       if (gap.hasLostShares) {
         setHasLostShares(true);
       }
-      if (gap.suggestedStage) {
-        setLetterStage(gap.suggestedStage);
+      if (gap.suggestedStage && gap.suggestedStage === "first") {
+        setLetterStage("first");
       }
 
-      const modeDesc = p.mode === "multi" && p.multiFolios ? `Multi-Folio list (${p.multiFolios.length} folios)` : `Folio: ${p.folio || 'N/A'}`;
+      const modeDesc = p.mode === "multi" && p.multiFolios ? `Multi-Folio (${p.multiFolios.length} folios)` : `Folio: ${p.folio || 'N/A'}`;
       setUploadSuccessMsg(
-        `Document analyzed! Auto-detected ${modeDesc}, Company: ${p.compSymbol || p.company || 'N/A'}, Deceased: ${p.deceased || 'N/A'}, Legal Heir: ${p.legalHeir || 'N/A'}, Mobile: ${p.contactNo || 'N/A'}. Letter is auto-ready!`
+        `Details auto-extracted! ${modeDesc} | Company: ${p.compSymbol || p.company || 'N/A'} | Deceased: ${p.deceased || 'N/A'} | Legal Heir: ${p.legalHeir || 'N/A'} | Mobile: ${p.contactNo || 'N/A'}`
       );
+    };
+
+    try {
+      const isImg = file.type.startsWith("image/") || file.name.match(/\.(jpg|jpeg|png|webp|bmp)$/i);
+
+      if (isImg) {
+        // Run OCR directly in the browser: zero server timeouts, zero 504 errors!
+        const ocrText = await runBrowserOCR(file, (pct, status) => {
+          setUploadProgressText(status);
+        });
+
+        if (ocrText && ocrText.trim().length > 0) {
+          const parsed = parseLetterText(ocrText);
+          applyParsedData(parsed);
+          return;
+        }
+      }
+
+      // If document is Word/PDF or image fallback: call API route
+      setUploadProgressText("Extracting document content...");
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/parse-letter", {
+        method: "POST",
+        body: formData,
+      });
+
+      let data: any = null;
+      const responseText = await res.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonErr) {
+        throw new Error(
+          res.status === 504 
+            ? "Server timed out. Please click 'Paste Letter Text' to immediately extract details."
+            : `Server returned status ${res.status}. Please try again.`
+        );
+      }
+
+      if (!res.ok || !data) throw new Error(data?.error || "Failed to parse document");
+      applyParsedData(data.parsed);
+
     } catch (err: any) {
       console.error("Upload parse error:", err);
-      alert(err.message || "Failed to analyze letter file. Please check file format.");
+      alert(err.message || "Failed to analyze document. You can also click 'Paste Letter Text' to paste directly.");
     } finally {
       setUploadingFile(false);
+      setUploadProgressText("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -546,8 +572,8 @@ function LetterGenerationContent() {
       if (gap.hasLostShares) {
         setHasLostShares(true);
       }
-      if (gap.suggestedStage) {
-        setLetterStage(gap.suggestedStage);
+      if (gap.suggestedStage && gap.suggestedStage === "first") {
+        setLetterStage("first");
       }
 
       setUploadSuccessMsg(
@@ -1073,7 +1099,7 @@ Encl.:  As stated above.`;
                       className="h-8 bg-[#0B2B5E] hover:bg-[#103a7a] text-white font-bold text-xs px-4 shadow-2xs"
                     >
                       <UploadCloud className="mr-1.5 h-3.5 w-3.5 text-orange-400" />
-                      {uploadingFile ? "Performing OCR & Extracting Details..." : "Select Document to Upload & Auto-Fill"}
+                      {uploadingFile ? (uploadProgressText || "Performing OCR & Extracting Details...") : "Select Document to Upload & Auto-Fill"}
                     </Button>
                     <Button
                       type="button"

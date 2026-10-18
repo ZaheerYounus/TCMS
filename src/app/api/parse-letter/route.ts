@@ -1,11 +1,152 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractTextFromBuffer, parseLetterText } from '@/lib/letterParser';
+import { parseLetterText } from '@/lib/letterParser';
 import Tesseract from 'tesseract.js';
 import sharp from 'sharp';
+import zlib from 'zlib';
 
 // Configure Next.js Route Segment Options for maximum allowable serverless duration
 export const maxDuration = 60; // Max allowed execution seconds
 export const dynamic = 'force-dynamic';
+
+/**
+ * Extract PDF text from streams and text objects
+ */
+function extractPDFText(buffer: Buffer): string {
+  let fullText = '';
+  const str = buffer.toString('binary');
+
+  function parsePdfOperators(content: string): string {
+    let out = '';
+    const tjRegex = /\(([^)]*)\)\s*Tj/g;
+    let m;
+    while ((m = tjRegex.exec(content)) !== null) {
+      out += m[1] + ' ';
+    }
+    const arrayRegex = /\[(.*?)\]\s*TJ/g;
+    while ((m = arrayRegex.exec(content)) !== null) {
+      const inner = m[1];
+      const innerMatches = inner.match(/\(([^)]*)\)/g);
+      if (innerMatches) {
+        out += innerMatches.map(s => s.slice(1, -1)).join('') + ' ';
+      }
+    }
+    return out;
+  }
+
+  const streamRegex = /stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g;
+  let match;
+  while ((match = streamRegex.exec(str)) !== null) {
+    const rawData = Buffer.from(match[1], 'binary');
+    let decompressed: Buffer | null = null;
+    try {
+      decompressed = zlib.inflateSync(rawData);
+    } catch (e) {
+      try {
+        decompressed = zlib.inflateRawSync(rawData);
+      } catch (e2) {}
+    }
+
+    if (decompressed) {
+      const text = parsePdfOperators(decompressed.toString('utf8'));
+      if (text) fullText += '\n' + text;
+    }
+  }
+
+  const uncompressed = parsePdfOperators(str);
+  if (uncompressed) {
+    fullText += '\n' + uncompressed;
+  }
+
+  if (fullText.trim().length < 30) {
+    const rawMatches = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\xFF]/g, ' ')
+      .match(/[A-Za-z0-9][A-Za-z0-9 ,.\-\/()#:&@\n\r]{6,}/g);
+    if (rawMatches) {
+      fullText = rawMatches.join('\n');
+    }
+  }
+
+  return fullText.replace(/\\(\d{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)))
+    .replace(/\r/g, '\n')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Extract raw text from docx, doc, pdf, or plain buffer
+ */
+function extractTextFromBuffer(buffer: Buffer, filename: string = ""): string {
+  const lowerName = filename.toLowerCase();
+
+  // 1. PDF detection
+  if (lowerName.endsWith('.pdf') || (buffer.length > 4 && buffer.toString('utf8', 0, 4) === '%PDF')) {
+    try {
+      const pdfText = extractPDFText(buffer);
+      if (pdfText && pdfText.length > 10) {
+        return pdfText;
+      }
+    } catch (err) {
+      console.warn('PDF extraction failed:', err);
+    }
+  }
+
+  // 2. DOCX format
+  if (lowerName.endsWith('.docx') || (buffer.length > 4 && buffer[0] === 0x50 && buffer[1] === 0x4B)) {
+    try {
+      let idx = 0;
+      while (idx < buffer.length - 30) {
+        if (buffer.readUInt32LE(idx) === 0x04034b50) {
+          const compMethod = buffer.readUInt16LE(idx + 8);
+          const compSize = buffer.readUInt32LE(idx + 18);
+          const fnLen = buffer.readUInt16LE(idx + 26);
+          const extraLen = buffer.readUInt16LE(idx + 28);
+          const fn = buffer.toString('utf8', idx + 30, idx + 30 + fnLen);
+          const dataStart = idx + 30 + fnLen + extraLen;
+
+          if (fn === 'word/document.xml') {
+            const data = buffer.subarray(dataStart, dataStart + compSize);
+            let xml = '';
+            if (compMethod === 8) {
+              xml = zlib.inflateRawSync(data).toString('utf8');
+            } else if (compMethod === 0) {
+              xml = data.toString('utf8');
+            } else {
+              try {
+                xml = zlib.inflateSync(data).toString('utf8');
+              } catch (e) {
+                xml = data.toString('utf8');
+              }
+            }
+
+            return xml
+              .replace(/<w:p[^>]*>/gi, '\n')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/&amp;/g, '&')
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&quot;/g, '"')
+              .replace(/\s+/g, ' ')
+              .trim();
+          }
+          idx = dataStart + compSize;
+        } else {
+          idx++;
+        }
+      }
+    } catch (err) {
+      console.warn('Docx fast extract failed, falling back to string scan:', err);
+    }
+  }
+
+  // 3. DOC (OLE2 binary) or binary fallback
+  const str = buffer.toString('binary');
+  const cleanRuns = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ');
+  const matches = cleanRuns.match(/[A-Za-z0-9][A-Za-z0-9 ,.\-\/()#:&@\n\r]{6,}/g);
+  if (matches && matches.length > 0) {
+    return matches.join('\n').replace(/ {2,}/g, ' ').trim();
+  }
+
+  return buffer.toString('utf8');
+}
 
 async function performHighAccuracyOCR(buffer: Buffer): Promise<string> {
   // Guard with an 8-second timeout so Vercel free tier (10s max) never times out into a 504 gateway error!
