@@ -325,7 +325,8 @@ export function parseLetterText(text: string): ParsedLetterResult {
     if (!result.folio) {
       const folioMatch = normalized.match(/(?:folio(?:\s*(?:#|no|number|num))?[:\s]*)([A-Za-z0-9\/-]{2,15})/i) ||
                          normalized.match(/CDCSR\/LTC\/[A-Z0-9]+\/([0-9A-Za-z]+)\//i) ||
-                         normalized.match(/\bFolio\s+([0-9A-Za-z\/-]{2,12})\b/i);
+                         normalized.match(/\bFolio\s+([0-9A-Za-z\/-]{2,12})\b/i) ||
+                         normalized.match(/(?:folio|olio|lio|folo)[^0-9a-zA-Z]{0,6}(?:#|no|number|4)?[:\s]*([0-9]{3,8})/i);
       if (folioMatch && folioMatch[1]) {
         const rawF = folioMatch[1].trim();
         if (!['number', 'details', 'particulars', 'no', 'num', 'above', 'as'].includes(rawF.toLowerCase())) {
@@ -414,6 +415,7 @@ export function parseLetterText(text: string): ParsedLetterResult {
   const heirMatches = [
     normalized.match(/Applicant\s*Details[\s\S]*?Name[:\s]*([^\n\r]+)/i),
     normalized.match(/Name\s*of\s*Legal\s*Heir[:\s]*([^\n\r]+)/i),
+    normalized.match(/([A-Z][a-z]+(?:\s+[a-z]+)?)\s*\((?:son|daughter|wife|widow|legal heir|brother|sister|share\s*holder)[^)\]]*[)\]]/im),
     normalized.match(/^([A-Za-z\s.]+)\s*\((?:son|daughter|wife|widow|legal heir|brother|sister)[^)]*\)/im),
     normalized.match(/(?:Legal\s*Heir|Applicant|Name\s*of\s*Legal\s*Heir|To)[:\s]*([A-Za-z\s.()\/]{3,45})(?=[\r\n,]|F\/H|Address)/i),
     normalized.match(/\b((?:Mr\.|Mrs\.|Ms\.|Mst\.|Dr\.|Syed|Syeda)\s+[A-Z][a-zA-Z\s.]{3,35})\b/i)

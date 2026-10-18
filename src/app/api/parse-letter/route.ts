@@ -1,6 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractTextFromBuffer, parseLetterText } from '@/lib/letterParser';
 import Tesseract from 'tesseract.js';
+import sharp from 'sharp';
+
+async function performHighAccuracyOCR(buffer: Buffer): Promise<string> {
+  let combinedText = "";
+
+  // 1. First attempt: Sharp grayscale, 2x upscale, sharpen & normalize
+  try {
+    const preprocessed = await sharp(buffer)
+      .resize({ width: 2000, withoutEnlargement: false })
+      .grayscale()
+      .normalize()
+      .sharpen({ sigma: 1.2 })
+      .toBuffer();
+
+    const worker = await Tesseract.createWorker('eng');
+    await worker.setParameters({
+      tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+    });
+    const res = await worker.recognize(preprocessed);
+    combinedText = res?.data?.text || "";
+    await worker.terminate();
+  } catch (err) {
+    console.warn("First OCR attempt failed:", err);
+  }
+
+  // 2. Fallback attempt if text is sparse: direct recognize on raw buffer
+  if (!combinedText || combinedText.trim().length < 50) {
+    try {
+      const rawRes = await Tesseract.recognize(buffer, 'eng');
+      const rawText = rawRes?.data?.text || "";
+      if (rawText.trim().length > combinedText.trim().length) {
+        combinedText = rawText;
+      } else {
+        combinedText += "\n" + rawText;
+      }
+    } catch (e) {
+      console.warn("Raw OCR fallback failed:", e);
+    }
+  }
+
+  return combinedText;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,17 +65,10 @@ export async function POST(req: NextRequest) {
       // 1. Direct OCR for Image uploads (JPG, PNG, WEBP, JPEG, etc.)
       const isImage = fileNameLower.match(/\.(jpg|jpeg|png|webp|bmp|tif|tiff)$/) || file.type.startsWith('image/');
       if (isImage) {
-        try {
-          const ocrResult = await Tesseract.recognize(buffer, 'eng', {
-            logger: () => {}
-          });
-          extractedText = ocrResult?.data?.text || "";
-        } catch (ocrErr) {
-          console.warn("OCR recognition error on image:", ocrErr);
-        }
+        extractedText = await performHighAccuracyOCR(buffer);
       }
 
-      // 2. Buffer extraction for PDF, DOCX, DOC, TXT (or fallback if OCR produced minimal text)
+      // 2. Buffer extraction for PDF, DOCX, DOC, TXT (or fallback)
       if (!extractedText || extractedText.trim().length < 15) {
         const bufferText = extractTextFromBuffer(buffer, file.name);
         if (bufferText && bufferText.trim().length > extractedText.trim().length) {
@@ -59,12 +94,7 @@ export async function POST(req: NextRequest) {
       const filename = body.filename || 'letter.docx';
       const isImg = filename.match(/\.(jpg|jpeg|png|webp|bmp)$/i);
       if (isImg) {
-        try {
-          const ocrRes = await Tesseract.recognize(buffer, 'eng');
-          text = ocrRes?.data?.text || "";
-        } catch (e) {
-          console.warn("OCR failed on base64:", e);
-        }
+        text = await performHighAccuracyOCR(buffer);
       }
       if (!text || text.trim().length < 15) {
         text = extractTextFromBuffer(buffer, filename);
