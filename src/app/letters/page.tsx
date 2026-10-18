@@ -441,8 +441,20 @@ function LetterGenerationContent() {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to parse letter file");
+
+      let data: any = null;
+      const responseText = await res.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonErr) {
+        throw new Error(
+          res.status === 504 
+            ? "Server timed out while analyzing the image. Please use a lighter/compressed image, PDF, or click 'Paste Letter Text'."
+            : `Server returned an invalid response (Status: ${res.status}). Please try again or paste the letter text directly.`
+        );
+      }
+
+      if (!res.ok || !data) throw new Error(data?.error || `Failed to parse letter file (status ${res.status})`);
 
       const p = data.parsed;
       if (p.mode === "multi" && p.multiFolios && p.multiFolios.length > 1) {
@@ -1053,15 +1065,27 @@ Encl.:  As stated above.`;
                   </div>
                   <h4 className="text-xs font-bold text-slate-800">Drop incoming request letter or scan here</h4>
                   <p className="text-[11px] text-slate-500 mb-3">Supports PDF, Word (.docx/.doc), Scanned Photos/Images (JPG, PNG)</p>
-                  <Button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingFile}
-                    className="h-8 bg-[#0B2B5E] hover:bg-[#103a7a] text-white font-bold text-xs px-4 shadow-2xs"
-                  >
-                    <UploadCloud className="mr-1.5 h-3.5 w-3.5 text-orange-400" />
-                    {uploadingFile ? "Performing OCR & Extracting Details..." : "Select Document to Upload & Auto-Fill"}
-                  </Button>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingFile}
+                      className="h-8 bg-[#0B2B5E] hover:bg-[#103a7a] text-white font-bold text-xs px-4 shadow-2xs"
+                    >
+                      <UploadCloud className="mr-1.5 h-3.5 w-3.5 text-orange-400" />
+                      {uploadingFile ? "Performing OCR & Extracting Details..." : "Select Document to Upload & Auto-Fill"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setPasteModalOpen(true)}
+                      disabled={uploadingFile}
+                      className="h-8 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs px-3 shadow-2xs"
+                    >
+                      <ClipboardPaste className="mr-1.5 h-3.5 w-3.5 text-[#F37021]" />
+                      Paste Letter Text
+                    </Button>
+                  </div>
                 </div>
 
                 {uploadSuccessMsg && (

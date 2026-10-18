@@ -3,45 +3,44 @@ import { extractTextFromBuffer, parseLetterText } from '@/lib/letterParser';
 import Tesseract from 'tesseract.js';
 import sharp from 'sharp';
 
+// Configure Next.js Route Segment Options for maximum allowable serverless duration
+export const maxDuration = 60; // Max allowed execution seconds
+export const dynamic = 'force-dynamic';
+
 async function performHighAccuracyOCR(buffer: Buffer): Promise<string> {
-  let combinedText = "";
+  // Guard with an 8-second timeout so Vercel free tier (10s max) never times out into a 504 gateway error!
+  const timeoutPromise = new Promise<string>((resolve) => {
+    setTimeout(() => {
+      console.warn("OCR timeout reached (8s limit for serverless), returning fallback");
+      resolve("");
+    }, 8000);
+  });
 
-  // 1. First attempt: Sharp grayscale, 2x upscale, sharpen & normalize
-  try {
-    const preprocessed = await sharp(buffer)
-      .resize({ width: 2000, withoutEnlargement: false })
-      .grayscale()
-      .normalize()
-      .sharpen({ sigma: 1.2 })
-      .toBuffer();
-
-    const worker = await Tesseract.createWorker('eng');
-    await worker.setParameters({
-      tessedit_pageseg_mode: Tesseract.PSM.AUTO,
-    });
-    const res = await worker.recognize(preprocessed);
-    combinedText = res?.data?.text || "";
-    await worker.terminate();
-  } catch (err) {
-    console.warn("First OCR attempt failed:", err);
-  }
-
-  // 2. Fallback attempt if text is sparse: direct recognize on raw buffer
-  if (!combinedText || combinedText.trim().length < 50) {
+  const ocrPromise = (async () => {
     try {
-      const rawRes = await Tesseract.recognize(buffer, 'eng');
-      const rawText = rawRes?.data?.text || "";
-      if (rawText.trim().length > combinedText.trim().length) {
-        combinedText = rawText;
-      } else {
-        combinedText += "\n" + rawText;
-      }
-    } catch (e) {
-      console.warn("Raw OCR fallback failed:", e);
-    }
-  }
+      // Fast pre-processing: resize to reasonable 1400px width (much faster to process in WebAssembly than 2200px)
+      const preprocessed = await sharp(buffer)
+        .resize({ width: 1400, withoutEnlargement: true })
+        .grayscale()
+        .normalize()
+        .toBuffer();
 
-  return combinedText;
+      const worker = await Tesseract.createWorker('eng');
+      await worker.setParameters({
+        tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+      });
+
+      const res = await worker.recognize(preprocessed);
+      const text = res?.data?.text || "";
+      await worker.terminate();
+      return text;
+    } catch (err) {
+      console.warn("OCR execution error:", err);
+      return "";
+    }
+  })();
+
+  return Promise.race([ocrPromise, timeoutPromise]);
 }
 
 export async function POST(req: NextRequest) {
@@ -68,7 +67,7 @@ export async function POST(req: NextRequest) {
         extractedText = await performHighAccuracyOCR(buffer);
       }
 
-      // 2. Buffer extraction for PDF, DOCX, DOC, TXT (or fallback)
+      // 2. Buffer extraction for PDF, DOCX, DOC, TXT (or fallback if OCR produced minimal text)
       if (!extractedText || extractedText.trim().length < 15) {
         const bufferText = extractTextFromBuffer(buffer, file.name);
         if (bufferText && bufferText.trim().length > extractedText.trim().length) {
@@ -102,7 +101,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (!text || text.trim().length === 0) {
-      return NextResponse.json({ error: 'Text content or file could not be read' }, { status: 400 });
+      // Return safe structured response even if document text was blank
+      const fallbackParsed = parseLetterText("");
+      return NextResponse.json({
+        success: true,
+        parsed: fallbackParsed,
+        textPreview: ""
+      });
     }
 
     const parsed = parseLetterText(text);
