@@ -527,30 +527,40 @@ function LetterGenerationContent() {
       const isImg = file.type.startsWith("image/") || file.name.match(/\.(jpg|jpeg|png|webp|bmp)$/i);
       let parsedResult: any = null;
 
-      // Priority 1: Gemini Vision AI (Human-like Multimodal Comprehension)
-      if (geminiApiKey) {
-        setUploadProgressPercent(35);
-        setUploadProgressText("Analyzing document with Gemini Vision AI (Human-like reasoning)...");
-        const formData = new FormData();
-        formData.append("file", file);
+      // Priority 1: Multimodal AI Vision & Server Analysis (Human-like reasoning)
+      setUploadProgressPercent(35);
+      setUploadProgressText("Analyzing document with Multimodal Gemini AI Vision (Human-like reasoning)...");
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const headers: Record<string, string> = {};
+        if (geminiApiKey) {
+          headers["x-gemini-key"] = geminiApiKey;
+        }
         const res = await fetch("/api/parse-letter", {
           method: "POST",
-          headers: { "x-gemini-key": geminiApiKey },
+          headers,
           body: formData,
         });
-        const data = await res.json();
-        if (res.ok && data?.parsed) {
-          parsedResult = data.parsed;
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.parsed) {
+            parsedResult = data.parsed;
+          }
         }
+      } catch (serverErr) {
+        console.warn("Server parse request failed, attempting browser fallback:", serverErr);
       }
 
-      // Priority 2: In-browser OCR fallback for standard printed images
+      // Priority 2: In-browser OCR fallback for standard printed images if server is unreachable
       if (!parsedResult && isImg) {
-        setUploadProgressPercent(30);
-        setUploadProgressText("Running high-accuracy OCR on letter image...");
+        setUploadProgressPercent(50);
+        setUploadProgressText("Running high-accuracy OCR fallback on letter image...");
         try {
           const ocrText = await runBrowserOCR(file, (pct, status) => {
-            const mappedPct = Math.min(85, Math.max(30, pct));
+            const mappedPct = Math.min(85, Math.max(50, pct));
             setUploadProgressPercent(mappedPct);
             setUploadProgressText(status);
           });
@@ -561,30 +571,8 @@ function LetterGenerationContent() {
             parsedResult = parseLetterText(ocrText);
           }
         } catch (ocrErr) {
-          console.warn("Client OCR bypassed, falling back to server:", ocrErr);
+          console.warn("Client OCR bypassed:", ocrErr);
         }
-      }
-
-      // Priority 3: Server-side document extraction (PDF, Word, or server OCR)
-      if (!parsedResult) {
-        setUploadProgressPercent(45);
-        setUploadProgressText("Reading document text and structure (45%)...");
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch("/api/parse-letter", {
-          method: "POST",
-          headers: geminiApiKey ? { "x-gemini-key": geminiApiKey } : {},
-          body: formData,
-        });
-
-        setUploadProgressPercent(80);
-        setUploadProgressText("Cross-referencing database & extracting particulars (80%)...");
-
-        const data = await res.json();
-        if (!res.ok || !data) {
-          throw new Error(data?.error || "Failed to parse document");
-        }
-        parsedResult = data.parsed;
       }
 
       if (parsedResult) {

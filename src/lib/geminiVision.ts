@@ -65,44 +65,62 @@ Return ONLY valid JSON with this exact schema (no markdown, no backticks, just r
   "receivedDocs": string[]
 }`;
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: systemPrompt },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Data
+  const candidateModels = [
+    'models/gemini-3-flash-preview',
+    'models/gemini-3.8-flash',
+    'models/gemini-flash-latest',
+    'models/gemini-2.5-flash'
+  ];
+
+  let candidateText = '';
+  for (const model of candidateModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${key}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: systemPrompt },
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: base64Data
+                  }
                 }
-              }
-            ]
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            response_mime_type: 'application/json'
           }
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          response_mime_type: 'application/json'
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          candidateText = text;
+          break;
         }
-      })
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.warn('Gemini API call failed with status', res.status, errText);
-      return { success: false, error: errText, source: 'ocr_fallback' };
+      } else {
+        const errText = await res.text();
+        console.warn(`Gemini model ${model} failed:`, res.status, errText);
+      }
+    } catch (modelErr) {
+      console.warn(`Gemini model ${model} request error:`, modelErr);
     }
+  }
 
-    const data = await res.json();
-    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!candidateText) {
-      return { success: false, error: 'Empty response from Gemini', source: 'ocr_fallback' };
-    }
+  if (!candidateText) {
+    return { success: false, error: 'All Gemini vision endpoints failed', source: 'ocr_fallback' };
+  }
 
+  try {
     const cleanJson = candidateText.replace(/^```json/i, '').replace(/^```/i, '').replace(/```$/, '').trim();
     const parsedObj = JSON.parse(cleanJson);
 

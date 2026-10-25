@@ -250,12 +250,21 @@ export async function POST(req: NextRequest) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
       const fileNameLower = file.name.toLowerCase();
-      const isImage = fileNameLower.match(/\.(jpg|jpeg|png|webp|bmp|tif|tiff)$/) || file.type.startsWith('image/');
+      const isImage = !!(fileNameLower.match(/\.(jpg|jpeg|png|webp|bmp|tif|tiff)$/) || file.type?.startsWith('image/'));
+      const isPdf = fileNameLower.endsWith('.pdf') || file.type === 'application/pdf';
 
-      // Priority 1: If Gemini API key is configured and file is an image, run AI Vision!
-      if (geminiKey && isImage) {
+      // Priority 1: If Gemini API key is configured and file is an image or PDF, run AI Vision!
+      if (geminiKey && (isImage || isPdf)) {
         try {
-          const aiRes = await analyzeDocumentWithGemini(buffer, file.type || 'image/jpeg', geminiKey);
+          let mimeType = 'image/jpeg';
+          if (isPdf) {
+            mimeType = 'application/pdf';
+          } else if (fileNameLower.endsWith('.png') || file.type === 'image/png') {
+            mimeType = 'image/png';
+          } else if (fileNameLower.endsWith('.webp') || file.type === 'image/webp') {
+            mimeType = 'image/webp';
+          }
+          const aiRes = await analyzeDocumentWithGemini(buffer, mimeType, geminiKey);
           if (aiRes.success && aiRes.parsed) {
             let parsed = aiRes.parsed;
             parsed = enrichWithMISDatabase(parsed);
