@@ -478,18 +478,18 @@ function LetterGenerationContent() {
       if (p.mode === "multi" && p.multiFolios && p.multiFolios.length > 1) {
         setMode("multi");
         setMultiFolios(p.multiFolios);
-      } else if (p.mode === "single") {
+      } else {
         setMode("single");
       }
 
-      if (p.folio) setFolio(p.folio);
-      if (p.company) setCompany(p.company);
+      setFolio(p.folio || "");
+      setCompany(p.company || "");
       if (p.compSymbol) setCompSymbol(p.compSymbol);
-      if (p.deceased) setDeceased(p.deceased);
-      if (p.legalHeir) setLegalHeir(p.legalHeir);
-      if (p.relation) setRelation(p.relation);
-      if (p.address) setAddress(p.address);
-      if (p.contactNo) setContactNo(p.contactNo);
+      setDeceased(p.deceased || "");
+      setLegalHeir(p.legalHeir || "");
+      setRelation(p.relation || "Legal Heir");
+      setAddress(p.address || ""); // If no address in document, reset to empty so user sees it is blank
+      setContactNo(p.contactNo || "");
       if (p.shares) setShares(p.shares);
       if (p.certificates) setCertificates(p.certificates);
       if (p.scripts) setScripts(p.scripts);
