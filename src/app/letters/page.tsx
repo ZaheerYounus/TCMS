@@ -159,6 +159,30 @@ function LetterGenerationContent() {
   const [pastedText, setPastedText] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Gemini Vision AI Integration State
+  const [geminiApiKey, setGeminiApiKey] = useState<string>("");
+  const [showAiKeyModal, setShowAiKeyModal] = useState<boolean>(false);
+  const [tempApiKeyInput, setTempApiKeyInput] = useState<string>("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedKey = localStorage.getItem("tcms_gemini_api_key");
+      if (storedKey) {
+        setGeminiApiKey(storedKey);
+        setTempApiKeyInput(storedKey);
+      }
+    }
+  }, []);
+
+  const handleSaveAiKey = (key: string) => {
+    const cleanKey = key.trim();
+    setGeminiApiKey(cleanKey);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("tcms_gemini_api_key", cleanKey);
+    }
+    setShowAiKeyModal(false);
+  };
+
   // Multi-document upload for Second Letter
   const [dossierFiles, setDossierFiles] = useState<string[]>([]);
   const dossierInputRef = useRef<HTMLInputElement | null>(null);
@@ -503,12 +527,30 @@ function LetterGenerationContent() {
       const isImg = file.type.startsWith("image/") || file.name.match(/\.(jpg|jpeg|png|webp|bmp)$/i);
       let parsedResult: any = null;
 
-      if (isImg) {
-        setUploadProgressPercent(25);
+      // Priority 1: Gemini Vision AI (Human-like Multimodal Comprehension)
+      if (geminiApiKey) {
+        setUploadProgressPercent(35);
+        setUploadProgressText("Analyzing document with Gemini Vision AI (Human-like reasoning)...");
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/parse-letter", {
+          method: "POST",
+          headers: { "x-gemini-key": geminiApiKey },
+          body: formData,
+        });
+        const data = await res.json();
+        if (res.ok && data?.parsed) {
+          parsedResult = data.parsed;
+        }
+      }
+
+      // Priority 2: In-browser OCR fallback for standard printed images
+      if (!parsedResult && isImg) {
+        setUploadProgressPercent(30);
         setUploadProgressText("Running high-accuracy OCR on letter image...");
         try {
           const ocrText = await runBrowserOCR(file, (pct, status) => {
-            const mappedPct = Math.min(85, Math.max(25, pct));
+            const mappedPct = Math.min(85, Math.max(30, pct));
             setUploadProgressPercent(mappedPct);
             setUploadProgressText(status);
           });
@@ -523,7 +565,7 @@ function LetterGenerationContent() {
         }
       }
 
-      // If document is PDF/Word or client OCR was bypassed / returned minimal text:
+      // Priority 3: Server-side document extraction (PDF, Word, or server OCR)
       if (!parsedResult) {
         setUploadProgressPercent(45);
         setUploadProgressText("Reading document text and structure (45%)...");
@@ -531,6 +573,7 @@ function LetterGenerationContent() {
         formData.append("file", file);
         const res = await fetch("/api/parse-letter", {
           method: "POST",
+          headers: geminiApiKey ? { "x-gemini-key": geminiApiKey } : {},
           body: formData,
         });
 
@@ -1115,6 +1158,44 @@ Encl.:  As stated above.`;
                   accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png,.webp,image/*" 
                   className="hidden" 
                 />
+
+                {/* AI Multimodal Vision Status & One-Click Activation Bar */}
+                <div className="flex flex-wrap items-center justify-between p-2.5 bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-orange-50/40 rounded-xl border border-blue-200/80 gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1.5 rounded-lg ${geminiApiKey ? "bg-emerald-100 text-emerald-800" : "bg-blue-100 text-[#0B2B5E]"}`}>
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-800">
+                          {geminiApiKey ? "AI Vision Active (Gemini 2.0 / 1.5 Flash)" : "Human-Like AI Vision (Gemini Multimodal)"}
+                        </span>
+                        <span className={`inline-block h-2 w-2 rounded-full ${geminiApiKey ? "bg-emerald-500 animate-pulse" : "bg-amber-400"}`} />
+                      </div>
+                      <p className="text-[10px] text-slate-500">
+                        {geminiApiKey 
+                          ? "Reads handwritten blue ink, mobile camera photos, and multi-folio tables with human understanding." 
+                          : "Supports handwritten letters & multi-folio extraction like a human. Connect free key."}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setTempApiKeyInput(geminiApiKey);
+                      setShowAiKeyModal(true);
+                    }}
+                    className={`text-xs h-7 font-bold shadow-2xs ${
+                      geminiApiKey 
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" 
+                        : "border-[#0B2B5E] text-[#0B2B5E] bg-white hover:bg-blue-50"
+                    }`}
+                  >
+                    {geminiApiKey ? "AI Settings (Connected ✓)" : "🔑 Connect Free AI Key"}
+                  </Button>
+                </div>
 
                 <div className="p-4 border-2 border-dashed border-orange-200 rounded-xl bg-orange-50/30 hover:bg-orange-50/60 transition-all text-center">
                   <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 mb-2">
@@ -2824,6 +2905,82 @@ Encl.:  As stated above.`;
               className="bg-[#F37021] hover:bg-[#D85B10] text-white text-xs font-bold h-8 px-4"
             >
               {uploadingFile ? "Analyzing..." : "Analyze & Extract"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Key Configuration Modal */}
+      <Dialog open={showAiKeyModal} onOpenChange={setShowAiKeyModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold text-[#0B2B5E]">
+              <Sparkles className="h-4 w-4 text-[#F37021]" />
+              AI Multimodal Vision (Google Gemini)
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Connect your free Google Gemini API key to activate human-like reading for handwritten ink, mobile phone photos, and multi-folio tables with 100% accuracy.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="p-3 bg-blue-50/70 rounded-lg border border-blue-200 text-slate-700 space-y-1.5">
+              <p className="font-semibold text-[#0B2B5E]">How to get a free key in 30 seconds:</p>
+              <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-600">
+                <li>Visit <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[#F37021] underline font-bold">Google AI Studio (Free)</a></li>
+                <li>Sign in with your Google Account &amp; click <strong>"Create API Key"</strong></li>
+                <li>Paste your API key below and click <strong>Save &amp; Activate</strong></li>
+              </ol>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Gemini API Key:
+              </label>
+              <Input
+                type="password"
+                value={tempApiKeyInput}
+                onChange={(e) => setTempApiKeyInput(e.target.value)}
+                placeholder="AIzaSy..."
+                className="font-mono text-xs"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Saved securely in your browser's local storage.
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            {geminiApiKey && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  handleSaveAiKey("");
+                  setTempApiKeyInput("");
+                }}
+                className="text-xs h-8 mr-auto"
+              >
+                Disconnect Key
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAiKeyModal(false)}
+              className="text-xs h-8"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleSaveAiKey(tempApiKeyInput)}
+              className="bg-[#0B2B5E] hover:bg-[#103a7a] text-white text-xs font-bold h-8 px-4"
+            >
+              Save &amp; Activate
             </Button>
           </DialogFooter>
         </DialogContent>

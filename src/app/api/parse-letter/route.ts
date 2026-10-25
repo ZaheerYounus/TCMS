@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseLetterText } from '@/lib/letterParser';
+import { analyzeDocumentWithGemini } from '@/lib/geminiVision';
 import Tesseract from 'tesseract.js';
 import sharp from 'sharp';
 import zlib from 'zlib';
@@ -236,6 +237,7 @@ async function performHighAccuracyOCR(buffer: Buffer): Promise<string> {
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get('content-type') || '';
+    const geminiKey = req.headers.get('x-gemini-key') || process.env.GEMINI_API_KEY || '';
 
     // A. Handle multipart/form-data file upload
     if (contentType.includes('multipart/form-data')) {
@@ -248,11 +250,31 @@ export async function POST(req: NextRequest) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
       const fileNameLower = file.name.toLowerCase();
+      const isImage = fileNameLower.match(/\.(jpg|jpeg|png|webp|bmp|tif|tiff)$/) || file.type.startsWith('image/');
+
+      // Priority 1: If Gemini API key is configured and file is an image, run AI Vision!
+      if (geminiKey && isImage) {
+        try {
+          const aiRes = await analyzeDocumentWithGemini(buffer, file.type || 'image/jpeg', geminiKey);
+          if (aiRes.success && aiRes.parsed) {
+            let parsed = aiRes.parsed;
+            parsed = enrichWithMISDatabase(parsed);
+            return NextResponse.json({
+              success: true,
+              filename: file.name,
+              parsed,
+              source: 'gemini_vision',
+              textPreview: parsed.rawTextPreview || ''
+            });
+          }
+        } catch (aiErr) {
+          console.warn("Gemini vision fallback to local OCR:", aiErr);
+        }
+      }
 
       let extractedText = "";
 
       // 1. Direct OCR for Image uploads (JPG, PNG, WEBP, JPEG, etc.)
-      const isImage = fileNameLower.match(/\.(jpg|jpeg|png|webp|bmp|tif|tiff)$/) || file.type.startsWith('image/');
       if (isImage) {
         extractedText = await performHighAccuracyOCR(buffer);
       }
@@ -272,6 +294,7 @@ export async function POST(req: NextRequest) {
         success: true,
         filename: file.name,
         parsed,
+        source: 'ocr_heuristic',
         textPreview: extractedText.slice(0, 600)
       });
     }
@@ -283,6 +306,24 @@ export async function POST(req: NextRequest) {
       const buffer = Buffer.from(body.base64, 'base64');
       const filename = body.filename || 'letter.docx';
       const isImg = filename.match(/\.(jpg|jpeg|png|webp|bmp)$/i);
+      if (geminiKey && isImg) {
+        try {
+          const aiRes = await analyzeDocumentWithGemini(buffer, 'image/jpeg', geminiKey);
+          if (aiRes.success && aiRes.parsed) {
+            let parsed = aiRes.parsed;
+            parsed = enrichWithMISDatabase(parsed);
+            return NextResponse.json({
+              success: true,
+              filename,
+              parsed,
+              source: 'gemini_vision',
+              textPreview: parsed.rawTextPreview || ''
+            });
+          }
+        } catch (e) {
+          console.warn("Base64 Gemini vision fallback:", e);
+        }
+      }
       if (isImg) {
         text = await performHighAccuracyOCR(buffer);
       }
