@@ -144,8 +144,17 @@ function LetterGenerationContent() {
 
   // File Upload & Smart Parsing State
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadProgressPercent, setUploadProgressPercent] = useState<number>(0);
   const [uploadProgressText, setUploadProgressText] = useState("");
   const [uploadSuccessMsg, setUploadSuccessMsg] = useState("");
+  const [extractedDataSummary, setExtractedDataSummary] = useState<{
+    folio?: string;
+    company?: string;
+    deceased?: string;
+    legalHeir?: string;
+    contactNo?: string;
+    address?: string;
+  } | null>(null);
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pastedText, setPastedText] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -432,12 +441,14 @@ function LetterGenerationContent() {
     setReceivedDocs(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Smart File Upload Handler with client-side OCR for 100% reliability
+  // Smart File Upload Handler with real-time percentage progress and human-like auto-reflection
   const handleFileUpload = async (file: File) => {
     if (!file) return;
     setUploadingFile(true);
+    setUploadProgressPercent(15);
+    setUploadProgressText("Reading file and preparing analysis...");
     setUploadSuccessMsg("");
-    setUploadProgressText("Analyzing uploaded document...");
+    setExtractedDataSummary(null);
 
     const applyParsedData = (p: ParsedLetterResult) => {
       if (p.mode === "multi" && p.multiFolios && p.multiFolios.length > 1) {
@@ -476,58 +487,78 @@ function LetterGenerationContent() {
         setLetterStage("first");
       }
 
-      const modeDesc = p.mode === "multi" && p.multiFolios ? `Multi-Folio (${p.multiFolios.length} folios)` : `Folio: ${p.folio || 'N/A'}`;
-      setUploadSuccessMsg(
-        `Details auto-extracted! ${modeDesc} | Company: ${p.compSymbol || p.company || 'N/A'} | Deceased: ${p.deceased || 'N/A'} | Legal Heir: ${p.legalHeir || 'N/A'} | Mobile: ${p.contactNo || 'N/A'}`
-      );
+      setExtractedDataSummary({
+        folio: p.folio || "",
+        company: p.company || p.compSymbol || "",
+        deceased: p.deceased || "",
+        legalHeir: p.legalHeir || "",
+        contactNo: p.contactNo || "",
+        address: p.address || ""
+      });
+
+      setUploadSuccessMsg("Letter analyzed! 100% Completed — all data reflected into letter.");
     };
 
     try {
       const isImg = file.type.startsWith("image/") || file.name.match(/\.(jpg|jpeg|png|webp|bmp)$/i);
+      let parsedResult: any = null;
 
       if (isImg) {
-        // Run OCR directly in the browser: zero server timeouts, zero 504 errors!
-        const ocrText = await runBrowserOCR(file, (pct, status) => {
-          setUploadProgressText(status);
-        });
+        setUploadProgressPercent(25);
+        setUploadProgressText("Running high-accuracy OCR on letter image...");
+        try {
+          const ocrText = await runBrowserOCR(file, (pct, status) => {
+            const mappedPct = Math.min(85, Math.max(25, pct));
+            setUploadProgressPercent(mappedPct);
+            setUploadProgressText(status);
+          });
 
-        if (ocrText && ocrText.trim().length > 0) {
-          const parsed = parseLetterText(ocrText);
-          applyParsedData(parsed);
-          return;
+          if (ocrText && ocrText.trim().length > 20) {
+            setUploadProgressPercent(90);
+            setUploadProgressText("Extracting Folio, Deceased, Heir & Company details (90%)...");
+            parsedResult = parseLetterText(ocrText);
+          }
+        } catch (ocrErr) {
+          console.warn("Client OCR bypassed, falling back to server:", ocrErr);
         }
       }
 
-      // If document is Word/PDF or image fallback: call API route
-      setUploadProgressText("Extracting document content...");
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/parse-letter", {
-        method: "POST",
-        body: formData,
-      });
+      // If document is PDF/Word or client OCR was bypassed / returned minimal text:
+      if (!parsedResult) {
+        setUploadProgressPercent(45);
+        setUploadProgressText("Reading document text and structure (45%)...");
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/parse-letter", {
+          method: "POST",
+          body: formData,
+        });
 
-      let data: any = null;
-      const responseText = await res.text();
-      try {
-        data = JSON.parse(responseText);
-      } catch (jsonErr) {
-        throw new Error(
-          res.status === 504 
-            ? "Server timed out. Please click 'Paste Letter Text' to immediately extract details."
-            : `Server returned status ${res.status}. Please try again.`
-        );
+        setUploadProgressPercent(80);
+        setUploadProgressText("Cross-referencing database & extracting particulars (80%)...");
+
+        const data = await res.json();
+        if (!res.ok || !data) {
+          throw new Error(data?.error || "Failed to parse document");
+        }
+        parsedResult = data.parsed;
       }
 
-      if (!res.ok || !data) throw new Error(data?.error || "Failed to parse document");
-      applyParsedData(data.parsed);
+      if (parsedResult) {
+        setUploadProgressPercent(100);
+        setUploadProgressText("100% Complete! Auto-reflecting all details into letter...");
+        applyParsedData(parsedResult);
+      } else {
+        throw new Error("Could not extract text from document");
+      }
 
     } catch (err: any) {
       console.error("Upload parse error:", err);
-      alert(err.message || "Failed to analyze document. You can also click 'Paste Letter Text' to paste directly.");
+      alert(err.message || "Failed to analyze document. You can also paste letter text directly.");
     } finally {
-      setUploadingFile(false);
-      setUploadProgressText("");
+      setTimeout(() => {
+        setUploadingFile(false);
+      }, 700);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -1091,6 +1122,29 @@ Encl.:  As stated above.`;
                   </div>
                   <h4 className="text-xs font-bold text-slate-800">Drop incoming request letter or scan here</h4>
                   <p className="text-[11px] text-slate-500 mb-3">Supports PDF, Word (.docx/.doc), Scanned Photos/Images (JPG, PNG)</p>
+                  
+                  {/* Real-time Percentage Progress Bar */}
+                  {uploadingFile && (
+                    <div className="mb-3 max-w-md mx-auto p-3 bg-white rounded-lg border border-orange-200 shadow-xs space-y-2 text-left">
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span className="text-[#0B2B5E] flex items-center gap-1.5">
+                          <span className="inline-block h-2 w-2 rounded-full bg-orange-500 animate-ping" />
+                          {uploadProgressText || "Analyzing letter..."}
+                        </span>
+                        <span className="text-[#F37021] font-mono text-xs">{uploadProgressPercent}%</span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                        <div 
+                          className="bg-gradient-to-r from-orange-500 via-amber-500 to-[#0B2B5E] h-2.5 rounded-full transition-all duration-300" 
+                          style={{ width: `${Math.max(5, uploadProgressPercent)}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-500 text-center font-medium">
+                        Human-like OCR thinking: Reading Folio, Company, Deceased, Legal Heir, Contact &amp; Address...
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     <Button
                       type="button"
@@ -1099,7 +1153,7 @@ Encl.:  As stated above.`;
                       className="h-8 bg-[#0B2B5E] hover:bg-[#103a7a] text-white font-bold text-xs px-4 shadow-2xs"
                     >
                       <UploadCloud className="mr-1.5 h-3.5 w-3.5 text-orange-400" />
-                      {uploadingFile ? (uploadProgressText || "Performing OCR & Extracting Details...") : "Select Document to Upload & Auto-Fill"}
+                      {uploadingFile ? `Analyzing Letter (${uploadProgressPercent}%)...` : "Select Letter / Scan to Auto-Fill"}
                     </Button>
                     <Button
                       type="button"
@@ -1114,7 +1168,68 @@ Encl.:  As stated above.`;
                   </div>
                 </div>
 
-                {uploadSuccessMsg && (
+                {/* 100% Completed Auto-Reflection Summary Card (The 6 Main Required Items) */}
+                {extractedDataSummary && (
+                  <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-50 via-white to-teal-50 border border-emerald-300 shadow-xs space-y-2.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-emerald-200">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[11px] font-bold">✓</span>
+                        <div>
+                          <h4 className="text-xs font-bold text-emerald-950">
+                            100% Completed! Data Auto-Reflected into Letter
+                          </h4>
+                          <span className="text-[10px] text-emerald-700">
+                            سارا ڈیٹا خودکار طریقے سے لیٹر اور نیچے فیلڈز میں منتقل ہو چکا ہے۔ (No button needed)
+                          </span>
+                        </div>
+                      </div>
+                      <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
+                        100% Ready
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">1. Folio Number</span>
+                        <span className="font-bold font-mono text-[#0B2B5E] text-xs">
+                          {extractedDataSummary.folio || "N/A"}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">2. Company Name</span>
+                        <span className="font-bold text-slate-800 text-xs line-clamp-1">
+                          {extractedDataSummary.company || "N/A"}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">3. Deceased Name</span>
+                        <span className="font-bold text-rose-700 text-xs line-clamp-1">
+                          {extractedDataSummary.deceased || "N/A"}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">4. Legal Heir Name</span>
+                        <span className="font-bold text-emerald-800 text-xs line-clamp-1">
+                          {extractedDataSummary.legalHeir || "N/A"}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">5. Mobile / Contact</span>
+                        <span className="font-bold font-mono text-slate-800 text-xs">
+                          {extractedDataSummary.contactNo || "N/A"}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">6. Address</span>
+                        <span className="font-medium text-slate-700 text-[11px] line-clamp-1">
+                          {extractedDataSummary.address || "N/A"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {uploadSuccessMsg && !extractedDataSummary && (
                   <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 flex items-start gap-2 text-xs text-emerald-900">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                     <div className="flex-1">
@@ -1191,19 +1306,6 @@ Encl.:  As stated above.`;
                       Multiple Folios
                     </button>
                   </div>
-                  {mode === "single" && (
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleLookupFolio}
-                      disabled={searchingFolio}
-                      className="text-xs h-7 border-[#F37021] text-[#F37021] hover:bg-orange-50 font-bold"
-                    >
-                      <Search className="mr-1 h-3 w-3" />
-                      {searchingFolio ? "Searching..." : "Auto-Fetch Folio"}
-                    </Button>
-                  )}
                 </div>
 
                 {/* Company Name with Full Selectable List / Autocomplete Dropdown */}

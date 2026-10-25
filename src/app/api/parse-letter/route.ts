@@ -3,6 +3,8 @@ import { parseLetterText } from '@/lib/letterParser';
 import Tesseract from 'tesseract.js';
 import sharp from 'sharp';
 import zlib from 'zlib';
+import fs from 'fs';
+import path from 'path';
 
 // Configure Next.js Route Segment Options for maximum allowable serverless duration
 export const maxDuration = 60; // Max allowed execution seconds
@@ -137,7 +139,24 @@ function extractTextFromBuffer(buffer: Buffer, filename: string = ""): string {
     }
   }
 
-  // 3. DOC (OLE2 binary) or binary fallback
+  // 3. DOC (OLE2 binary) or binary fallback with dual-encoding support
+  try {
+    const u16 = buffer.toString('utf16le');
+    const u16Matches = u16.match(/[A-Za-z0-9][A-Za-z0-9 ,.\-\/():#@\n\r]{6,}/g) || [];
+    const u8 = buffer.toString('latin1');
+    const u8Matches = u8.match(/[A-Za-z0-9][A-Za-z0-9 ,.\-\/():#@\n\r]{6,}/g) || [];
+
+    const u16Len = u16Matches.join(' ').length;
+    const u8Len = u8Matches.join(' ').length;
+
+    const docText = u16Len > u8Len ? u16Matches.join('\n') : u8Matches.join('\n');
+    if (docText && docText.length > 20) {
+      return docText.replace(/ {2,}/g, ' ').trim();
+    }
+  } catch (oleErr) {
+    console.warn("OLE2 extraction fallback:", oleErr);
+  }
+
   const str = buffer.toString('binary');
   const cleanRuns = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ');
   const matches = cleanRuns.match(/[A-Za-z0-9][A-Za-z0-9 ,.\-\/()#:&@\n\r]{6,}/g);
@@ -148,22 +167,52 @@ function extractTextFromBuffer(buffer: Buffer, filename: string = ""): string {
   return buffer.toString('utf8');
 }
 
+/**
+ * Automatically cross-reference MIS database to enrich parsed fields if missing
+ */
+function enrichWithMISDatabase(parsed: any) {
+  if (!parsed || !parsed.folio) return parsed;
+  try {
+    const cleanFolio = String(parsed.folio).toLowerCase().trim();
+    const recordsPath = path.join(process.cwd(), 'src', 'data', 'misRecords.json');
+    if (fs.existsSync(recordsPath)) {
+      const records: any[] = JSON.parse(fs.readFileSync(recordsPath, 'utf8'));
+      const match = records.find(r => String(r.folio).toLowerCase().trim() === cleanFolio);
+      if (match) {
+        if (!parsed.company && match.company) {
+          parsed.company = match.company;
+          parsed.compSymbol = match.company.split(' ')[0].toUpperCase();
+        }
+        if (!parsed.deceased && match.deceased) {
+          parsed.deceased = match.deceased;
+        }
+        if (!parsed.legalHeir && match.legalHeir) {
+          parsed.legalHeir = match.legalHeir;
+        }
+        parsed.matchSource = "mis_enriched";
+      }
+    }
+  } catch (err) {
+    console.warn("MIS auto-enrichment warning:", err);
+  }
+  return parsed;
+}
+
 async function performHighAccuracyOCR(buffer: Buffer): Promise<string> {
-  // Guard with an 8-second timeout so Vercel free tier (10s max) never times out into a 504 gateway error!
   const timeoutPromise = new Promise<string>((resolve) => {
     setTimeout(() => {
-      console.warn("OCR timeout reached (8s limit for serverless), returning fallback");
+      console.warn("OCR timeout reached (35s limit), returning fallback");
       resolve("");
-    }, 8000);
+    }, 35000);
   });
 
   const ocrPromise = (async () => {
     try {
-      // Fast pre-processing: resize to reasonable 1400px width (much faster to process in WebAssembly than 2200px)
       const preprocessed = await sharp(buffer)
-        .resize({ width: 1400, withoutEnlargement: true })
+        .resize({ width: 1600, withoutEnlargement: true })
         .grayscale()
         .normalize()
+        .sharpen()
         .toBuffer();
 
       const worker = await Tesseract.createWorker('eng');
@@ -216,7 +265,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const parsed = parseLetterText(extractedText);
+      let parsed = parseLetterText(extractedText);
+      parsed = enrichWithMISDatabase(parsed);
 
       return NextResponse.json({
         success: true,
@@ -242,7 +292,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (!text || text.trim().length === 0) {
-      // Return safe structured response even if document text was blank
       const fallbackParsed = parseLetterText("");
       return NextResponse.json({
         success: true,
@@ -251,7 +300,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const parsed = parseLetterText(text);
+    let parsed = parseLetterText(text);
+    parsed = enrichWithMISDatabase(parsed);
 
     return NextResponse.json({
       success: true,

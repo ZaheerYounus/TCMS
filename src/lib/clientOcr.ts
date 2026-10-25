@@ -37,11 +37,11 @@ export async function preprocessImageInBrowser(file: File): Promise<Blob> {
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const d = imgData.data;
 
+        // Standard luminosity grayscale with gentle contrast adjustment (prevents blowing out fine text)
         for (let i = 0; i < d.length; i += 4) {
-          // Standard luminosity grayscale
           const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-          // Contrast stretching
-          const contrast = (gray - 128) * 1.5 + 128;
+          // Gentle contrast enhancement (1.15x instead of 1.5x)
+          const contrast = (gray - 128) * 1.15 + 128;
           const finalVal = Math.min(255, Math.max(0, contrast));
 
           d[i] = finalVal;
@@ -54,7 +54,7 @@ export async function preprocessImageInBrowser(file: File): Promise<Blob> {
         canvas.toBlob((blob) => {
           if (blob) resolve(blob);
           else resolve(file);
-        }, 'image/jpeg', 0.92);
+        }, 'image/jpeg', 0.95);
       } catch (err) {
         console.warn("Browser image preprocessing fallback:", err);
         resolve(file);
