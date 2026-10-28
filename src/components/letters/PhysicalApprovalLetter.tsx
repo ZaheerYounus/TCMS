@@ -11,13 +11,15 @@ import {
   UploadCloud, 
   Sparkles,
   Building2,
-  FileCheck2
+  FileCheck2,
+  Download
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { LetterNavTabs } from "./LetterNavTabs";
+import { exportPhysicalApprovalDocx } from "@/lib/docxExport";
 
 export interface TransferReceiptItem {
   receiptNo: string;
@@ -30,14 +32,13 @@ export function PhysicalApprovalLetter() {
   const [date, setDate] = useState("July 10, 2026");
 
   // Company Secretary (Recipient)
-  const [secretaryName, setSecretaryName] = useState("Ms. Ambreen Ali");
-  const [secretaryTitle, setSecretaryTitle] = useState("Company Secretary");
+  const [secretaryTitle, setSecretaryTitle] = useState("The Company Secretary");
   const [company, setCompany] = useState("Pakistan State Oil Company Limited");
   const [compSymbol, setCompSymbol] = useState("PSO");
   const [companyAddress, setCompanyAddress] = useState(
     "PSO House,\nKhayaban-e-Iqbal, Clifton,\nKarachi-75600."
   );
-  const [salutation, setSalutation] = useState("Dear Madam,");
+  const [salutation, setSalutation] = useState("Dear Sir / Madam,");
 
   // Corporate & Deceased Details
   const [deceased, setDeceased] = useState("Late Allah Bakhsh");
@@ -57,25 +58,26 @@ export function PhysicalApprovalLetter() {
   ]);
   const [transferPages, setTransferPages] = useState("06 (02 Copies)");
 
-  // Loss Receipts & Register
+  // OPTIONAL: Loss Register & Receipts
+  const [includeLoss, setIncludeLoss] = useState(false);
   const [lossReceiptNo, setLossReceiptNo] = useState("295");
   const [lossRegisterPages, setLossRegisterPages] = useState("02 (02 Copies)");
+  const [duplicateCertsCount, setDuplicateCertsCount] = useState("06");
 
-  // Split Receipts & Register
+  // OPTIONAL: Split Register & Receipts
+  const [includeSplit, setIncludeSplit] = useState(false);
   const [splitReceiptNo, setSplitReceiptNo] = useState("403");
   const [splitRegisterPages, setSplitRegisterPages] = useState("02 (02 Copies)");
 
-  // Actions Requested
-  const [duplicateCertsCount, setDuplicateCertsCount] = useState("06");
-
   // Signatories
-  const [signatory1Name, setSignatory1Name] = useState("Zohaib Jamal");
+  const [signatory1Name, setSignatory1Name] = useState("Authorized Signatory");
   const [signatory1Designation, setSignatory1Designation] = useState("Senior Officer");
-  const [signatory2Name, setSignatory2Name] = useState("M. Riaz Akhtar");
+  const [signatory2Name, setSignatory2Name] = useState("Authorized Signatory");
   const [signatory2Designation, setSignatory2Designation] = useState("Assistant Manager");
 
   // UI States
   const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -94,40 +96,80 @@ export function PhysicalApprovalLetter() {
     setTransferReceipts(updated);
   };
 
+  // Word Document (.docx) Export
+  const handleDownloadDocx = async () => {
+    setDownloading(true);
+    try {
+      await exportPhysicalApprovalDocx({
+        refNo,
+        date,
+        company,
+        companyAddress,
+        deceased,
+        folio,
+        certificatesCount,
+        totalShares: sharesCount,
+        transferRegisterPages: transferPages,
+        transferReceipts,
+        includeLoss,
+        lossReceiptNo,
+        lossRegisterPages,
+        includeSplit,
+        splitReceiptNo,
+        splitRegisterPages,
+        signatory1: signatory1Name,
+        signatory2: signatory2Name,
+      });
+    } catch (err) {
+      console.error("Failed to generate docx:", err);
+      alert("Failed to generate Word document. Please verify inputs.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   // AI Upload Handler
   const handleFileUpload = async (file: File) => {
     if (!file) return;
     setUploading(true);
     setUploadSuccess("");
-
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("letterType", "physical_approval");
 
       const res = await fetch("/api/parse-letter", {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.parsed) {
-          const p = data.parsed;
-          if (p.company) setCompany(p.company);
-          if (p.folio) setFolio(p.folio);
-          if (p.deceased) setDeceased(p.deceased.startsWith("Late") ? p.deceased : `Late ${p.deceased}`);
-          if (p.certificates) setCertificatesCount(p.certificates.replace(/[=]/g, ""));
-          if (p.shares) setSharesCount(p.shares.replace(/[=]/g, ""));
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const json = await res.json();
 
-          setUploadSuccess("Approval letter details auto-filled.");
+      if (json.success && json.data) {
+        const d = json.data;
+        if (d.company) setCompany(d.company);
+        if (d.compSymbol) setCompSymbol(d.compSymbol);
+        if (d.deceased) {
+          const cleanDeceased = d.deceased.toLowerCase().startsWith("late") 
+            ? d.deceased 
+            : `Late ${d.deceased}`;
+          setDeceased(cleanDeceased);
         }
+        if (d.folio) setFolio(d.folio);
+        if (d.refNo) setRefNo(d.refNo);
+        if (d.shares) setSharesCount(d.shares);
+        if (d.certificates) setCertificatesCount(d.certificates);
+
+        setUploadSuccess("Document analyzed successfully. Letter fields updated.");
+        setTimeout(() => setUploadSuccess(""), 4000);
+      } else {
+        throw new Error(json.error || "Could not extract data");
       }
-    } catch (e) {
-      console.error("Upload error:", e);
+    } catch (err: any) {
+      console.error("AI Upload error:", err);
+      alert(`AI Extraction note: ${err.message || "Could not read file"}`);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -136,35 +178,28 @@ export function PhysicalApprovalLetter() {
 ${refNo}
 ${date}
 
-${secretaryName}
-${secretaryTitle}
+The Company Secretary
 ${company}
 ${companyAddress}
 
 ${salutation}
 
-${company} (${compSymbol})
-Transmission of Shares & Dividends – ${deceased} – Folio # ${folio}
+${company.toUpperCase()}
+APPROVAL OF TRANSMISSION / TRANSFER OF SHARES
+${deceased} - Folio # ${folio}
 
-We refer to your office letter ref: ${companyLetterRef} dated ${companyLetterDate} regarding approval of transmission of shares in favor of legal heirs of above deceased shareholder.
-
-In this regard we are pleased to enclose herewith =${certificatesCount}= share certificates for =${sharesCount}= shares along with their relevant Loss & Transfer registers and other supporting documents being forwarding to you for approval of transfers thereon by the Directors / Authorized Signatories.
+We refer to the transmission case in respect of the above deceased shareholder. In this regard we are pleased to enclose herewith =${certificatesCount}= share certificates for =${sharesCount}= shares along with the relevant Transfer Register${includeLoss ? ", Loss Register" : ""}${includeSplit ? ", Split Register" : ""} and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
 
 The details of transfers being sent to you are given below:
 
 No. of transfer receipt(s) : ${String(transferReceipts.length).padStart(2, '0')}
 ${transferReceipts.map(r => `Transfer receipt(s) # : ${r.receiptNo} (in the name of ${r.heirName})`).join("\n")}
 Transfer register – no. of page(s) : ${transferPages}
-Loss receipt(s) # : ${lossReceiptNo}
-Loss register – no. of page(s) : ${lossRegisterPages}
-Split receipt(s) # : ${splitReceiptNo}
-Split register – no. of page(s) : ${splitRegisterPages}
-
+${includeLoss ? `Loss receipt(s) # : ${lossReceiptNo}\nLoss register – no. of page(s) : ${lossRegisterPages}\n` : ""}${includeSplit ? `Split receipt(s) # : ${splitReceiptNo}\nSplit register – no. of page(s) : ${splitRegisterPages}\n` : ""}
 Following actions are requested for approval of above transmission of shares:
 
-1. Authorized Signatory’s signatures on the face of =${duplicateCertsCount}= duplicate shares certificates.
-2. Authorized Signatory’s signatures on the Memorandum of Transfers (on the back of each share certificate).
-3. Authorized Signatory’s signature on Loss & Transfer register.
+${includeLoss ? `1. Authorized Signatory’s signatures on the face of =${duplicateCertsCount}= duplicate shares certificates.\n` : ""}${includeLoss ? "2." : "1."} Authorized Signatory’s signatures on the Memorandum of Transfers (on the back of each share certificate).
+${includeLoss ? "3." : "2."} Authorized Signatory’s signature on Transfer register${includeLoss ? " & Loss register" : ""}${includeSplit ? " & Split register" : ""}.
 
 After approval of transfer / transmission of shares as requested above, kindly arrange to return transfer registers along with share certificates / documents related to this transmission case.
 
@@ -189,6 +224,7 @@ Encl.: As stated above.
 
   return (
     <div className="space-y-4">
+      {/* Top Navigation Tabs */}
       <LetterNavTabs currentType="physical-approval" />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -222,7 +258,7 @@ Encl.: As stated above.
                       </Badge>
                     </div>
                     <p className="text-[11px] text-slate-500">
-                      {uploading ? "Analyzing document with Gemini AI..." : "Drop company letter image or PDF"}
+                      {uploading ? "Analyzing document with AI..." : "Drop company letter image or PDF"}
                     </p>
                   </div>
                 </div>
@@ -241,7 +277,7 @@ Encl.: As stated above.
           </Card>
 
           {/* Form Card */}
-          <Card className="shadow-sm border-slate-200">
+          <Card className="shadow-xs border-slate-200">
             <CardHeader className="py-3 px-4 bg-slate-50 border-b border-slate-200">
               <CardTitle className="text-xs font-bold text-[#0B2B5E]">
                 Physical Approval Parameters (Company Secretary)
@@ -249,14 +285,14 @@ Encl.: As stated above.
             </CardHeader>
             <CardContent className="p-4 space-y-3.5 text-xs">
               
-              {/* Ref No & Date */}
+              {/* Reference & Date */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Reference #</label>
                   <Input 
                     value={refNo} 
                     onChange={(e) => setRefNo(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    className="h-8 text-xs font-mono font-medium"
                   />
                 </div>
                 <div>
@@ -264,57 +300,50 @@ Encl.: As stated above.
                   <Input 
                     value={date} 
                     onChange={(e) => setDate(e.target.value)}
-                    className="h-8 text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Company Secretary (Recipient) */}
-              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                  Company Secretary (Addressee)
-                </span>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input 
-                    placeholder="Secretary Name (e.g. Ms. Ambreen Ali)"
-                    value={secretaryName}
-                    onChange={(e) => setSecretaryName(e.target.value)}
                     className="h-8 text-xs font-medium"
                   />
-                  <Input 
-                    placeholder="Title (Company Secretary)"
-                    value={secretaryTitle}
-                    onChange={(e) => setSecretaryTitle(e.target.value)}
-                    className="h-8 text-xs"
-                  />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <Input 
-                    placeholder="Company Name"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    className="h-8 text-xs font-medium col-span-2"
-                  />
-                  <Input 
-                    placeholder="Symbol (PSO)"
-                    value={compSymbol}
-                    onChange={(e) => setCompSymbol(e.target.value)}
-                    className="h-8 text-xs uppercase"
-                  />
-                </div>
-                <textarea 
-                  rows={2}
-                  placeholder="Secretary / Head Office Address..."
-                  value={companyAddress}
-                  onChange={(e) => setCompanyAddress(e.target.value)}
-                  className="w-full rounded-md border border-slate-200 p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                />
               </div>
 
-              {/* Deceased & Company Reference */}
+              {/* Addressee: Company Secretary */}
+              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                  Addressee: Company Secretary
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-slate-600 block">Company Name</label>
+                    <Input 
+                      value={company}
+                      onChange={(e) => setCompany(e.target.value)}
+                      className="h-8 text-xs font-medium bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-600 block">Company Symbol</label>
+                    <Input 
+                      value={compSymbol}
+                      onChange={(e) => setCompSymbol(e.target.value)}
+                      className="h-8 text-xs font-mono bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-600 block">Company Registered Address</label>
+                  <textarea 
+                    rows={2}
+                    value={companyAddress}
+                    onChange={(e) => setCompanyAddress(e.target.value)}
+                    className="w-full rounded-md border border-slate-200 p-2 text-xs focus:ring-1 focus:ring-blue-500 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Deceased & Folio */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Deceased Shareholder</label>
+                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Deceased Name</label>
                   <Input 
                     value={deceased} 
                     onChange={(e) => setDeceased(e.target.value)}
@@ -331,29 +360,8 @@ Encl.: As stated above.
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Company Ref Letter #</label>
-                  <Input 
-                    placeholder="e.g. MS/Transm/657"
-                    value={companyLetterRef} 
-                    onChange={(e) => setCompanyLetterRef(e.target.value)}
-                    className="h-8 text-xs font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Company Letter Date</label>
-                  <Input 
-                    placeholder="e.g. May 18, 2026"
-                    value={companyLetterDate} 
-                    onChange={(e) => setCompanyLetterDate(e.target.value)}
-                    className="h-8 text-xs"
-                  />
-                </div>
-              </div>
-
               {/* Share & Certificate Counts */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-semibold text-slate-600 mb-1 block"># Share Certificates</label>
                   <Input 
@@ -367,14 +375,6 @@ Encl.: As stated above.
                   <Input 
                     value={sharesCount} 
                     onChange={(e) => setSharesCount(e.target.value)}
-                    className="h-8 text-xs font-mono text-center font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1 block"># Duplicate Certs</label>
-                  <Input 
-                    value={duplicateCertsCount} 
-                    onChange={(e) => setDuplicateCertsCount(e.target.value)}
                     className="h-8 text-xs font-mono text-center font-bold"
                   />
                 </div>
@@ -420,59 +420,110 @@ Encl.: As stated above.
                     </div>
                   ))}
                 </div>
-              </div>
-
-              {/* Loss & Split Registers Controls */}
-              <div className="p-2.5 rounded-lg bg-orange-50/60 border border-orange-200 space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-orange-800 block">
-                  Loss, Split & Transfer Register Pages
-                </span>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] text-slate-600 block">Loss Receipt #</label>
-                    <Input 
-                      value={lossReceiptNo}
-                      onChange={(e) => setLossReceiptNo(e.target.value)}
-                      className="h-7 text-[11px] font-mono bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-600 block">Loss Register Pages</label>
-                    <Input 
-                      value={lossRegisterPages}
-                      onChange={(e) => setLossRegisterPages(e.target.value)}
-                      className="h-7 text-[11px] bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] text-slate-600 block">Split Receipt #</label>
-                    <Input 
-                      value={splitReceiptNo}
-                      onChange={(e) => setSplitReceiptNo(e.target.value)}
-                      className="h-7 text-[11px] font-mono bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-600 block">Split Register Pages</label>
-                    <Input 
-                      value={splitRegisterPages}
-                      onChange={(e) => setSplitRegisterPages(e.target.value)}
-                      className="h-7 text-[11px] bg-white"
-                    />
-                  </div>
-                </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-600 block">Transfer Register Pages</label>
+                  <label className="text-[10px] text-slate-600 block mt-1">Transfer Register Pages</label>
                   <Input 
                     value={transferPages}
                     onChange={(e) => setTransferPages(e.target.value)}
                     className="h-7 text-[11px] bg-white"
                   />
                 </div>
+              </div>
+
+              {/* OPTIONAL: Loss Register Toggle & Details */}
+              <div className="p-3 rounded-lg bg-amber-50/70 border border-amber-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={includeLoss} 
+                      onChange={(e) => setIncludeLoss(e.target.checked)}
+                      className="rounded border-amber-300 text-orange-600 focus:ring-orange-500 h-4 w-4"
+                    />
+                    <span className="text-xs font-bold text-amber-900">
+                      Include Loss Register & Receipts
+                    </span>
+                  </label>
+                  <span className="text-[10px] text-amber-700">Optional</span>
+                </div>
+
+                {includeLoss && (
+                  <div className="pt-2 border-t border-amber-200/80 space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] text-slate-700 block">Loss Receipt #</label>
+                        <Input 
+                          value={lossReceiptNo}
+                          onChange={(e) => setLossReceiptNo(e.target.value)}
+                          className="h-7 text-[11px] font-mono bg-white"
+                          placeholder="e.g. 295"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-700 block">Loss Pages</label>
+                        <Input 
+                          value={lossRegisterPages}
+                          onChange={(e) => setLossRegisterPages(e.target.value)}
+                          className="h-7 text-[11px] bg-white"
+                          placeholder="02 (02 Copies)"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-700 block"># Duplicate Certs</label>
+                        <Input 
+                          value={duplicateCertsCount}
+                          onChange={(e) => setDuplicateCertsCount(e.target.value)}
+                          className="h-7 text-[11px] font-mono bg-white"
+                          placeholder="06"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* OPTIONAL: Split Register Toggle & Details */}
+              <div className="p-3 rounded-lg bg-blue-50/70 border border-blue-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={includeSplit} 
+                      onChange={(e) => setIncludeSplit(e.target.checked)}
+                      className="rounded border-blue-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                    />
+                    <span className="text-xs font-bold text-blue-900">
+                      Include Split Register & Receipts
+                    </span>
+                  </label>
+                  <span className="text-[10px] text-blue-700">Optional</span>
+                </div>
+
+                {includeSplit && (
+                  <div className="pt-2 border-t border-blue-200/80 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-slate-700 block">Split Receipt #</label>
+                        <Input 
+                          value={splitReceiptNo}
+                          onChange={(e) => setSplitReceiptNo(e.target.value)}
+                          className="h-7 text-[11px] font-mono bg-white"
+                          placeholder="e.g. 403"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-700 block">Split Pages</label>
+                        <Input 
+                          value={splitRegisterPages}
+                          onChange={(e) => setSplitRegisterPages(e.target.value)}
+                          className="h-7 text-[11px] bg-white"
+                          placeholder="02 (02 Copies)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Signatories */}
@@ -512,7 +563,8 @@ Encl.: As stated above.
         {/* Right Preview: Official CDCSR A4 Letter Preview (7 cols) */}
         <div className="lg:col-span-7 space-y-3">
           
-          <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm print:hidden">
+          {/* Action Toolbar */}
+          <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs print:hidden">
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="bg-blue-50 text-[#0B2B5E] border-blue-200 text-xs">
                 Official Letter Preview (A4)
@@ -520,6 +572,15 @@ Encl.: As stated above.
               <span className="text-[11px] text-slate-500">Live preview</span>
             </div>
             <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                onClick={handleDownloadDocx}
+                disabled={downloading}
+                className="h-8 text-xs bg-[#F37021] hover:bg-[#D85B10] text-white font-semibold shadow-xs"
+              >
+                <Download className="h-3.5 w-3.5 mr-1" />
+                {downloading ? "Exporting..." : "Download Word (.docx)"}
+              </Button>
               <Button 
                 size="sm" 
                 variant="outline" 
@@ -546,17 +607,13 @@ Encl.: As stated above.
             {/* Reference & Date */}
             <div className="flex justify-between items-start mb-6">
               <div className="font-medium text-slate-900">{refNo}</div>
-            </div>
-
-            <div className="mb-6 font-medium text-slate-900">
-              {date}
+              <div className="font-medium text-slate-900">{date}</div>
             </div>
 
             {/* Recipient Address */}
             <div className="mb-6 leading-snug">
-              <div className="font-bold text-slate-900">{secretaryName}</div>
-              <div className="text-slate-800">{secretaryTitle}</div>
-              <div className="font-semibold text-slate-900">{company}</div>
+              <div className="font-medium text-slate-900">The Company Secretary</div>
+              <div className="font-bold text-slate-900">{company}</div>
               <div className="whitespace-pre-line text-slate-800">{companyAddress}</div>
             </div>
 
@@ -565,92 +622,129 @@ Encl.: As stated above.
               {salutation}
             </div>
 
-            {/* Subject Header */}
-            <div className="mb-5 leading-normal">
-              <div className="font-bold text-slate-900 underline decoration-slate-900">
-                {company} ({compSymbol})
+            {/* Subject */}
+            <div className="mb-6 leading-tight">
+              <div className="font-bold text-slate-900 uppercase">
+                {company} {compSymbol ? `(${compSymbol})` : ""}
               </div>
-              <div className="font-bold text-slate-900 underline decoration-slate-900">
-                Transmission of Shares & Dividends – {deceased} – Folio # {folio}
+              <div className="font-bold text-slate-900">
+                APPROVAL OF TRANSMISSION / TRANSFER OF SHARES
+              </div>
+              <div className="font-bold text-slate-900">
+                {deceased} - Folio # {folio}
               </div>
             </div>
 
-            {/* Body Paragraphs */}
-            <p className="mb-4 text-justify leading-relaxed">
-              We refer to your office letter ref: <span className="font-semibold">{companyLetterRef}</span> dated <span className="font-semibold">{companyLetterDate}</span> regarding approval of transmission of shares in favor of legal heirs of above deceased shareholder.
-            </p>
+            {/* Opening Paragraph */}
+            <div className="mb-4 text-justify">
+              We refer to the transmission case in respect of the above deceased shareholder. In this regard we are pleased to enclose herewith <strong>={certificatesCount}=</strong> share certificates for <strong>={sharesCount}=</strong> shares along with the relevant Transfer Register{includeLoss ? ", Loss Register" : ""}{includeSplit ? ", Split Register" : ""} and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
+            </div>
 
-            <p className="mb-4 text-justify leading-relaxed">
-              In this regard we are pleased to enclose herewith <span className="font-bold">={certificatesCount}=</span> share certificates for <span className="font-bold">={sharesCount}=</span> shares along with their relevant Loss & Transfer registers and other supporting documents being forwarding to you for approval of transfers thereon by the Directors / Authorized Signatories.
-            </p>
+            {/* Transfer Details Header */}
+            <div className="mb-3 font-semibold">
+              The details of transfers being sent to you are given below:
+            </div>
 
-            {/* Details of Transfers */}
-            <div className="mb-5 space-y-1">
-              <div className="font-medium mb-1.5">The details of transfers being sent to you are given below:</div>
-              <div className="grid grid-cols-12 gap-1 text-[13px] pl-1 font-mono">
-                <span className="col-span-5 text-slate-700">No. of transfer receipt(s)</span>
-                <span className="col-span-7">: {String(transferReceipts.length).padStart(2, '0')}</span>
-                
-                {transferReceipts.map((r, i) => (
-                  <div key={i} className="col-span-12 grid grid-cols-12">
-                    <span className="col-span-5 text-slate-700">Transfer receipt(s) #</span>
-                    <span className="col-span-7">: {r.receiptNo} (in the name of {r.heirName})</span>
+            {/* Details Block */}
+            <div className="mb-6 pl-4 space-y-1 font-mono text-xs">
+              <div className="flex">
+                <span className="w-64 font-sans font-medium text-slate-700">No. of transfer receipt(s) :</span>
+                <span className="font-bold">{String(transferReceipts.length).padStart(2, '0')}</span>
+              </div>
+
+              {transferReceipts.map((r, i) => (
+                <div key={i} className="flex">
+                  <span className="w-64 font-sans font-medium text-slate-700">Transfer receipt(s) # :</span>
+                  <span className="font-bold">{r.receiptNo}</span>
+                  <span className="font-sans font-medium ml-2 text-slate-700">(in the name of {r.heirName})</span>
+                </div>
+              ))}
+
+              <div className="flex">
+                <span className="w-64 font-sans font-medium text-slate-700">Transfer register – no. of page(s) :</span>
+                <span className="font-bold">{transferPages}</span>
+              </div>
+
+              {includeLoss && (
+                <>
+                  <div className="flex">
+                    <span className="w-64 font-sans font-medium text-slate-700">Loss receipt(s) # :</span>
+                    <span className="font-bold">{lossReceiptNo}</span>
                   </div>
-                ))}
+                  <div className="flex">
+                    <span className="w-64 font-sans font-medium text-slate-700">Loss register – no. of page(s) :</span>
+                    <span className="font-bold">{lossRegisterPages}</span>
+                  </div>
+                </>
+              )}
 
-                <span className="col-span-5 text-slate-700">Transfer register – no. of page(s)</span>
-                <span className="col-span-7">: {transferPages}</span>
-
-                <span className="col-span-5 text-slate-700">Loss receipt(s) #</span>
-                <span className="col-span-7">: {lossReceiptNo}</span>
-
-                <span className="col-span-5 text-slate-700">Loss register – no. of page(s)</span>
-                <span className="col-span-7">: {lossRegisterPages}</span>
-
-                <span className="col-span-5 text-slate-700">Split receipt(s) #</span>
-                <span className="col-span-7">: {splitReceiptNo}</span>
-
-                <span className="col-span-5 text-slate-700">Split register – no. of page(s)</span>
-                <span className="col-span-7">: {splitRegisterPages}</span>
-              </div>
+              {includeSplit && (
+                <>
+                  <div className="flex">
+                    <span className="w-64 font-sans font-medium text-slate-700">Split receipt(s) # :</span>
+                    <span className="font-bold">{splitReceiptNo}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-64 font-sans font-medium text-slate-700">Split register – no. of page(s) :</span>
+                    <span className="font-bold">{splitRegisterPages}</span>
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Actions Requested */}
-            <div className="mb-5 space-y-2 text-justify">
-              <p className="font-medium">Following actions are requested for approval of above transmission of shares:</p>
-              <ol className="list-decimal pl-5 space-y-1">
-                <li>Authorized Signatory’s signatures on the face of <span className="font-bold">={duplicateCertsCount}=</span> duplicate shares certificates.</li>
-                <li>Authorized Signatory’s signatures on the Memorandum of Transfers (on the back of each share certificate).</li>
-                <li>Authorized Signatory’s signature on Loss & Transfer register.</li>
-              </ol>
+            {/* Requested Actions */}
+            <div className="mb-4 font-semibold">
+              Following actions are requested for approval of above transmission of shares:
             </div>
 
-            {/* Closing Instructions */}
-            <div className="space-y-3 mb-10 text-justify">
-              <p>
-                After approval of transfer / transmission of shares as requested above, kindly arrange to return transfer registers along with share certificates / documents related to this transmission case.
-              </p>
-              <p>
-                Further, please arrange to check whether any other dividend warrant(s) pertaining to above deceased shareholder is/are still unpaid, if so, then please arrange to issue cheques(s) / online payment in favor of above legal heirs as per their entitlement.
-              </p>
+            <ol className="list-decimal pl-6 mb-6 space-y-1.5 text-justify">
+              {includeLoss && (
+                <li>
+                  Authorized Signatory’s signatures on the face of <strong>={duplicateCertsCount}=</strong> duplicate shares certificates.
+                </li>
+              )}
+              <li>
+                Authorized Signatory’s signatures on the Memorandum of Transfers (on the back of each share certificate).
+              </li>
+              <li>
+                Authorized Signatory’s signature on Transfer register{includeLoss ? " & Loss register" : ""}{includeSplit ? " & Split register" : ""}.
+              </li>
+            </ol>
+
+            {/* Return Instructions */}
+            <div className="mb-4 text-justify">
+              After approval of transfer / transmission of shares as requested above, kindly arrange to return transfer registers along with share certificates / documents related to this transmission case.
+            </div>
+
+            {/* Dividend Inquiry */}
+            <div className="mb-8 text-justify">
+              Further, please arrange to check whether any other dividend warrant(s) pertaining to above deceased shareholder is/are still unpaid, if so, then please arrange to issue cheques(s) / online payment in favor of above legal heirs as per their entitlement.
             </div>
 
             {/* Signatures */}
-            <div className="mt-8">
-              <div className="font-medium mb-12">Regards,</div>
-              <div className="flex justify-between items-end pt-4">
-                <div className="w-56 text-left">
-                  <div className="font-bold text-slate-900">{signatory1Name}</div>
-                  <div className="text-xs text-slate-700 font-medium">{signatory1Designation}</div>
+            <div className="mb-4">
+              Yours faithfully,
+              <div className="font-bold mt-1">For CDC Share Registrar Services Limited</div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 pt-10">
+              <div>
+                <div className="w-48 border-t border-slate-900 pt-1 font-bold text-xs">
+                  {signatory1Name}
                 </div>
-                <div className="w-56 text-right">
-                  <div className="font-bold text-slate-900">{signatory2Name}</div>
-                  <div className="text-xs text-slate-700 font-medium">{signatory2Designation}</div>
+                <div className="text-xs text-slate-600">{signatory1Designation}</div>
+              </div>
+              <div className="text-right">
+                <div className="w-48 border-t border-slate-900 pt-1 font-bold text-xs ml-auto">
+                  {signatory2Name}
                 </div>
+                <div className="text-xs text-slate-600">{signatory2Designation}</div>
               </div>
-              <div className="mt-8 text-xs font-medium text-slate-700">
-                Encl.: As stated above.
-              </div>
+            </div>
+
+            {/* Enclosures */}
+            <div className="mt-6 text-xs text-slate-600">
+              Encl.: As stated above.
             </div>
 
           </div>

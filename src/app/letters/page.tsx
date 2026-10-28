@@ -1274,7 +1274,7 @@ Encl.:  As stated above.`;
                             100% Completed! Data Auto-Reflected into Letter
                           </h4>
                           <span className="text-[10px] text-emerald-700">
-                            سارا ڈیٹا خودکار طریقے سے لیٹر اور نیچے فیلڈز میں منتقل ہو چکا ہے۔ (No button needed)
+                            All document data has been automatically reflected into the letter.
                           </span>
                         </div>
                       </div>

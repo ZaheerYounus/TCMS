@@ -24,7 +24,7 @@ export type LetterTypeId =
 export interface LetterTypeInfo {
   id: LetterTypeId;
   title: string;
-  urduTitle: string;
+  subtitle: string;
   desc: string;
   href: string;
   icon: any;
@@ -35,7 +35,7 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
   {
     id: "initial",
     title: "1st Intimation Letter",
-    urduTitle: "ابتدائی ٹرانسمیشن لیٹر",
+    subtitle: "Single & Multi-Folio Scrutiny",
     desc: "Single & Multi-Folio Transmission Requirements",
     href: "/letters",
     icon: FileText,
@@ -43,7 +43,7 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
   {
     id: "shares-delivery",
     title: "Delivery of Shares",
-    urduTitle: "ڈیلیوری آف شیئرز",
+    subtitle: "Physical Share Certificates",
     desc: "Forwarding physical transmitted shares to legal heirs",
     href: "/letters/shares-delivery",
     icon: Send,
@@ -52,7 +52,7 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
   {
     id: "cheques-delivery",
     title: "Delivery of Cheques",
-    urduTitle: "ڈیلیوری آف چیکس",
+    subtitle: "Unpaid Dividend Cheques",
     desc: "Forwarding banker's cheques for unpaid dividends",
     href: "/letters/cheques-delivery",
     icon: CreditCard,
@@ -61,7 +61,7 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
   {
     id: "cds-account",
     title: "CDS Account Letter",
-    urduTitle: "سی ڈی ایس اکاؤنٹ",
+    subtitle: "Book-Entry Transmission",
     desc: "Transmission under CDS Account (Closed / Intra-Report)",
     href: "/letters/cds-account",
     icon: Building,
@@ -69,7 +69,7 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
   {
     id: "physical-approval",
     title: "Physical Approval",
-    urduTitle: "فزیکل اپروول (کمپنی)",
+    subtitle: "Company Sec. Submission",
     desc: "Forwarding registers & certificates to Company Secretary",
     href: "/letters/physical-approval",
     icon: Stamp,
@@ -78,7 +78,7 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
   {
     id: "no-folio-found",
     title: "No Folio Found",
-    urduTitle: "نو فولیو فاؤنڈ",
+    subtitle: "Physical Records Notice",
     desc: "Intimation of no records found against CNIC/Name",
     href: "/letters/no-folio-found",
     icon: SearchX,
@@ -97,17 +97,17 @@ export function LetterNavTabs({ currentType }: { currentType?: LetterTypeId }) {
      "initial");
 
   return (
-    <div className="w-full bg-white border border-slate-200/80 rounded-xl p-2 shadow-sm mb-6">
+    <div className="w-full bg-white border border-slate-200/80 rounded-xl p-2 shadow-xs mb-6">
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 mb-2">
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-[#F37021]" />
-          <h2 className="text-xs font-bold tracking-wider uppercase text-slate-600">
-            Dedicated Letter Templates / مخصوص لیٹر ٹیمپلیٹس
+          <h2 className="text-xs font-bold tracking-wider uppercase text-slate-700">
+            Dedicated Letter Templates
           </h2>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
           <Sparkles className="h-3 w-3 text-[#F37021]" />
-          <span>Select template to open clean dedicated workspace</span>
+          <span>Select template to open dedicated workspace</span>
         </div>
       </div>
 
@@ -147,10 +147,10 @@ export function LetterNavTabs({ currentType }: { currentType?: LetterTypeId }) {
                 {tab.title}
               </div>
               <div className={cn(
-                "text-[10px] font-urdu leading-tight truncate",
-                isActive ? "text-orange-300 font-medium" : "text-slate-500"
+                "text-[10px] leading-tight truncate",
+                isActive ? "text-orange-200 font-medium" : "text-slate-500"
               )}>
-                {tab.urduTitle}
+                {tab.subtitle}
               </div>
             </Link>
           );

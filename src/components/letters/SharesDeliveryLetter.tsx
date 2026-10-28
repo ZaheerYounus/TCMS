@@ -16,13 +16,15 @@ import {
   MapPin,
   Phone,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Download
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { LetterNavTabs } from "./LetterNavTabs";
+import { exportSharesDeliveryDocx } from "@/lib/docxExport";
 
 export interface LegalHeirShareRow {
   folio: string;
@@ -62,8 +64,13 @@ export function SharesDeliveryLetter() {
     { folio: "25249", name: "MR. FARRUKH AFTAB AHMED", shares: "1,983" }
   ]);
 
+  // Signatories
+  const [signatory1, setSignatory1] = useState("Authorized Signatory");
+  const [signatory2, setSignatory2] = useState("Authorized Signatory");
+
   // UI States
   const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -100,53 +107,92 @@ export function SharesDeliveryLetter() {
     }
   };
 
-  // AI Auto-Extract Handler for Delivery of Shares
+  // Word Document (.docx) Export
+  const handleDownloadDocx = async () => {
+    setDownloading(true);
+    try {
+      await exportSharesDeliveryDocx({
+        refNo,
+        date,
+        recipientName,
+        recipientAddress,
+        recipientContact,
+        company,
+        deceased,
+        folio,
+        certificatesCount,
+        totalShares,
+        heirRows,
+        signatory1,
+        signatory2
+      });
+    } catch (err) {
+      console.error("Failed to generate docx:", err);
+      alert("Failed to generate Word document. Please verify inputs.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // Fast AI scan using backend route (Gemini 3.5 Flash-Lite)
   const handleFileUpload = async (file: File) => {
-    if (!file) return;
     setUploading(true);
     setUploadSuccess("");
-
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("letterType", "shares_delivery");
 
       const res = await fetch("/api/parse-letter", {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.parsed) {
-          const p = data.parsed;
-          if (p.company) setCompany(p.company);
-          if (p.folio) setFolio(p.folio);
-          if (p.deceased) setDeceased(p.deceased.startsWith("Late") ? p.deceased : `Late ${p.deceased}`);
-          if (p.legalHeir) setRecipientName(p.legalHeir);
-          if (p.address) setRecipientAddress(p.address);
-          if (p.contactNo) setRecipientContact(p.contactNo);
-          if (p.certificates) setCertificatesCount(p.certificates.replace(/[=]/g, ""));
-          if (p.shares) setTotalShares(p.shares.replace(/[=]/g, ""));
-
-          if (p.multiFolios && p.multiFolios.length > 0) {
-            const mappedRows: LegalHeirShareRow[] = p.multiFolios.map((m: any, i: number) => ({
-              folio: m.folio || `2524${7 + i}`,
-              name: m.heirName || p.legalHeir || `Legal Heir ${i + 1}`,
-              shares: m.shares && m.shares !== "=0=" ? m.shares : "1,000"
-            }));
-            setHeirRows(mappedRows);
-            updateTotalFromRows(mappedRows);
-          }
-
-          setUploadSuccess("Document analyzed! Delivery details auto-reflected into letter.");
-        }
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}`);
       }
-    } catch (e) {
-      console.error("Upload error:", e);
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data;
+        if (d.deceased) {
+          const cleanDeceased = d.deceased.toLowerCase().startsWith("late") 
+            ? d.deceased 
+            : `Late ${d.deceased}`;
+          setDeceased(cleanDeceased);
+        }
+        if (d.legalHeir) {
+          setRecipientName(d.legalHeir);
+        }
+        setRecipientAddress(d.address || "");
+        if (d.contactNo) {
+          setRecipientContact(d.contactNo);
+        }
+        if (d.refNo) {
+          setRefNo(d.refNo);
+        }
+        if (d.company) {
+          setCompany(d.company);
+        }
+        if (d.folio) {
+          setFolio(d.folio);
+        }
+        if (d.certificates) {
+          setCertificatesCount(d.certificates);
+        }
+        if (d.shares) {
+          setTotalShares(d.shares);
+        }
+
+        setUploadSuccess("Document analyzed successfully. Letter fields updated.");
+        setTimeout(() => setUploadSuccess(""), 4000);
+      } else {
+        throw new Error(json.error || "Failed to parse document");
+      }
+    } catch (err: any) {
+      console.error("AI Upload Error:", err);
+      alert(`AI Extraction note: ${err.message || "Could not extract data"}`);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -176,7 +222,7 @@ Legal heirs are requested to always quote their above-mentioned folio numbers in
 
 Regards,
 
-Authorized Signatory        Authorized Signatory
+${signatory1}        ${signatory2}
 
 Encl.: As stated above.
     `.trim();
@@ -192,6 +238,7 @@ Encl.: As stated above.
 
   return (
     <div className="space-y-4">
+      {/* Top Navigation Tabs */}
       <LetterNavTabs currentType="shares-delivery" />
 
       {/* Main Two-Column Layout */}
@@ -226,7 +273,7 @@ Encl.: As stated above.
                       </Badge>
                     </div>
                     <p className="text-[11px] text-slate-500">
-                      {uploading ? "Analyzing document with Gemini AI..." : "Drop letter image or PDF for instant auto-fill"}
+                      {uploading ? "Analyzing document with AI..." : "Drop letter image or PDF for instant auto-fill"}
                     </p>
                   </div>
                 </div>
@@ -245,7 +292,7 @@ Encl.: As stated above.
           </Card>
 
           {/* Letter Parameters Form */}
-          <Card className="shadow-sm border-slate-200">
+          <Card className="shadow-xs border-slate-200">
             <CardHeader className="py-3 px-4 bg-slate-50 border-b border-slate-200">
               <CardTitle className="text-xs font-bold text-[#0B2B5E] flex items-center justify-between">
                 <span>Delivery of Shares Details</span>
@@ -261,7 +308,7 @@ Encl.: As stated above.
                   <Input 
                     value={refNo} 
                     onChange={(e) => setRefNo(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    className="h-8 text-xs font-mono font-medium"
                   />
                 </div>
                 <div>
@@ -269,27 +316,18 @@ Encl.: As stated above.
                   <Input 
                     value={date} 
                     onChange={(e) => setDate(e.target.value)}
-                    className="h-8 text-xs"
+                    className="h-8 text-xs font-medium"
                   />
                 </div>
               </div>
 
-              {/* Company & Deceased */}
-              <div>
-                <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Company Name & Symbol</label>
-                <Input 
-                  value={company} 
-                  onChange={(e) => setCompany(e.target.value)}
-                  className="h-8 text-xs font-medium"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Deceased Shareholder</label>
+              {/* Company & Folio */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Company Name</label>
                   <Input 
-                    value={deceased} 
-                    onChange={(e) => setDeceased(e.target.value)}
+                    value={company} 
+                    onChange={(e) => setCompany(e.target.value)}
                     className="h-8 text-xs font-medium"
                   />
                 </div>
@@ -298,32 +336,42 @@ Encl.: As stated above.
                   <Input 
                     value={folio} 
                     onChange={(e) => setFolio(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    className="h-8 text-xs font-mono font-bold text-center"
                   />
                 </div>
               </div>
 
-              {/* Recipient Heir Details */}
+              {/* Deceased Name */}
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Deceased Shareholder Name</label>
+                <Input 
+                  value={deceased} 
+                  onChange={(e) => setDeceased(e.target.value)}
+                  className="h-8 text-xs font-medium"
+                />
+              </div>
+
+              {/* Recipient Representative Info */}
               <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                  Addressee / Recipient Heir
+                  Addressee / Legal Heir Representative
                 </span>
                 <div>
                   <Input 
-                    placeholder="Recipient Legal Heir Name (e.g. Ms. Samina Nazli)"
+                    placeholder="Recipient Name (e.g. Ms. Samina Nazli)" 
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
                     className="h-8 text-xs font-medium mb-1.5"
                   />
                   <textarea 
                     rows={3}
-                    placeholder="Complete Postal Address..."
+                    placeholder="Complete Postal Address (leave blank if missing)..."
                     value={recipientAddress}
                     onChange={(e) => setRecipientAddress(e.target.value)}
-                    className="w-full rounded-md border border-slate-200 p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                    className="w-full rounded-md border border-slate-200 p-2 text-xs focus:outline-hidden focus:ring-1 focus:ring-blue-500 bg-white"
                   />
                   <Input 
-                    placeholder="Contact # (e.g. 0333-429-2705)"
+                    placeholder="Contact # (e.g. 0333-429-2705)" 
                     value={recipientContact}
                     onChange={(e) => setRecipientContact(e.target.value)}
                     className="h-8 text-xs font-mono mt-1.5"
@@ -331,14 +379,14 @@ Encl.: As stated above.
                 </div>
               </div>
 
-              {/* Certificate & Shares Counts */}
+              {/* Share & Certificate Counts */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block"># of Share Certificates</label>
+                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block"># Certificates</label>
                   <Input 
                     value={certificatesCount} 
                     onChange={(e) => setCertificatesCount(e.target.value)}
-                    className="h-8 text-xs text-center font-mono font-semibold"
+                    className="h-8 text-xs font-mono text-center font-bold"
                   />
                 </div>
                 <div>
@@ -346,15 +394,18 @@ Encl.: As stated above.
                   <Input 
                     value={totalShares} 
                     onChange={(e) => setTotalShares(e.target.value)}
-                    className="h-8 text-xs text-center font-mono font-semibold"
+                    className="h-8 text-xs font-mono text-center font-bold text-blue-900 bg-blue-50"
                   />
                 </div>
               </div>
 
-              {/* Legal Heirs Allocation Rows */}
+              {/* Legal Heirs Allocation Table */}
               <div className="space-y-2 pt-2 border-t border-slate-100">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-700">Legal Heirs Share Allocation Table</span>
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-700 block">Legal Heirs Allocation Table</span>
+                    <span className="text-[10px] text-slate-500">Folios & share quantities per heir</span>
+                  </div>
                   <Button 
                     size="sm" 
                     variant="outline" 
@@ -399,6 +450,26 @@ Encl.: As stated above.
                 </div>
               </div>
 
+              {/* Signatories */}
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Signatory 1</label>
+                  <Input 
+                    value={signatory1}
+                    onChange={(e) => setSignatory1(e.target.value)}
+                    className="h-7 text-[11px]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Signatory 2</label>
+                  <Input 
+                    value={signatory2}
+                    onChange={(e) => setSignatory2(e.target.value)}
+                    className="h-7 text-[11px]"
+                  />
+                </div>
+              </div>
+
             </CardContent>
           </Card>
         </div>
@@ -407,7 +478,7 @@ Encl.: As stated above.
         <div className="lg:col-span-7 space-y-3">
           
           {/* Action Toolbar */}
-          <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm print:hidden">
+          <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs print:hidden">
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="bg-blue-50 text-[#0B2B5E] border-blue-200 text-xs">
                 Official Letter Preview (A4)
@@ -415,6 +486,15 @@ Encl.: As stated above.
               <span className="text-[11px] text-slate-500">Live reflection</span>
             </div>
             <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                onClick={handleDownloadDocx}
+                disabled={downloading}
+                className="h-8 text-xs bg-[#F37021] hover:bg-[#D85B10] text-white font-semibold shadow-xs"
+              >
+                <Download className="h-3.5 w-3.5 mr-1" />
+                {downloading ? "Exporting..." : "Download Word (.docx)"}
+              </Button>
               <Button 
                 size="sm" 
                 variant="outline" 
@@ -438,7 +518,7 @@ Encl.: As stated above.
           {/* Authentic Official CDCSR Letter Preview Sheet */}
           <div className="bg-white border border-slate-300 shadow-md rounded-sm p-10 min-h-[840px] text-slate-900 font-sans text-[13.5px] leading-relaxed relative print:m-0 print:border-none print:shadow-none print:p-0">
             
-            {/* Reference & Date */}
+            {/* Top Reference & Date Header */}
             <div className="flex justify-between items-start mb-6">
               <div className="font-medium text-slate-900">{refNo}</div>
             </div>
@@ -461,69 +541,76 @@ Encl.: As stated above.
               Dear Concern,
             </div>
 
-            {/* Subject Header */}
-            <div className="mb-5 leading-normal">
-              <div className="font-bold text-slate-900 underline decoration-slate-900">{company}</div>
-              <div className="font-bold text-slate-900 underline decoration-slate-900">
+            {/* Subject Line */}
+            <div className="mb-6 leading-tight">
+              <div className="font-bold text-slate-900 uppercase">
+                {company}
+              </div>
+              <div className="font-bold text-slate-900">
                 Transmission of Shares & Dividends – {deceased}- Folio # {folio}
               </div>
             </div>
 
             {/* Body Paragraph */}
-            <p className="mb-5 text-justify leading-relaxed">
-              We are pleased to forward herewith <span className="font-bold">={certificatesCount}=</span> shares certificates for <span className="font-bold">={totalShares}=</span> shares of above deceased shareholder of <span className="font-semibold">{company}</span> duly transmitted / transferred in the name following legal heirs, details are as follows:
-            </p>
+            <div className="mb-6 text-justify">
+              We are pleased to forward herewith <strong>={certificatesCount}=</strong> shares certificates for <strong>={totalShares}=</strong> shares of above deceased shareholder of {company} duly transmitted / transferred in the name following legal heirs, details are as follows:
+            </div>
 
-            {/* Shares Allocation Table */}
-            <div className="mb-6 overflow-hidden border border-slate-900">
-              <table className="w-full text-left text-[12.5px] border-collapse">
+            {/* Allocation Table */}
+            <div className="mb-6 overflow-hidden border border-slate-300 rounded-xs">
+              <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-900 font-bold bg-slate-50/50">
-                    <th className="p-2 border-r border-slate-900 w-32">Folio #</th>
-                    <th className="p-2 border-r border-slate-900">Name of Legal Heirs</th>
-                    <th className="p-2 text-right w-32"># of Shares</th>
+                  <tr className="bg-slate-100 border-b border-slate-300 font-bold text-slate-800">
+                    <th className="py-2 px-3 border-r border-slate-300">Folio #</th>
+                    <th className="py-2 px-3 border-r border-slate-300">Name of Legal Heirs</th>
+                    <th className="py-2 px-3 text-right"># of Shares</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-200">
                   {heirRows.map((r, i) => (
-                    <tr key={i} className="border-b border-slate-400 last:border-b-0">
-                      <td className="p-2 border-r border-slate-900 font-mono">{r.folio || "—"}</td>
-                      <td className="p-2 border-r border-slate-900 font-semibold">{r.name || "—"}</td>
-                      <td className="p-2 text-right font-mono font-medium">{r.shares || "0"}</td>
+                    <tr key={i} className="hover:bg-slate-50/50">
+                      <td className="py-2 px-3 font-mono font-medium border-r border-slate-300">{r.folio}</td>
+                      <td className="py-2 px-3 font-medium border-r border-slate-300">{r.name}</td>
+                      <td className="py-2 px-3 text-right font-mono font-bold">{r.shares}</td>
                     </tr>
                   ))}
-                  <tr className="border-t-2 border-slate-900 font-bold bg-slate-100/60">
-                    <td colSpan={2} className="p-2 border-r border-slate-900 text-right pr-4 uppercase">
-                      Total
-                    </td>
-                    <td className="p-2 text-right font-mono font-bold">
-                      {totalShares}
-                    </td>
+                  <tr className="bg-slate-50 font-bold border-t-2 border-slate-300 text-slate-900">
+                    <td colSpan={2} className="py-2 px-3 text-right uppercase tracking-wider text-[11px] border-r border-slate-300">Total</td>
+                    <td className="py-2 px-3 text-right font-mono text-sm">{totalShares}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            {/* Closing Acknowledgements */}
-            <div className="space-y-4 mb-14 text-justify">
-              <p>Kindly acknowledge the receipt.</p>
-              <p>Legal heirs are requested to always quote their above-mentioned folio numbers in correspondence with us.</p>
+            {/* Acknowledgement Instructions */}
+            <div className="space-y-4 mb-10 text-justify">
+              <div>Kindly acknowledge the receipt.</div>
+              <div>
+                Legal heirs are requested to always quote their above-mentioned folio numbers in correspondence with us.
+              </div>
             </div>
 
-            {/* Signatures */}
-            <div className="mt-12">
-              <div className="font-medium mb-14">Regards,</div>
-              <div className="flex justify-between items-end pt-4">
-                <div className="border-t border-slate-900 pt-1.5 w-52 text-left font-bold text-xs uppercase tracking-wide">
-                  Authorized Signatory
-                </div>
-                <div className="border-t border-slate-900 pt-1.5 w-52 text-right font-bold text-xs uppercase tracking-wide">
-                  Authorized Signatory
+            {/* Closing & Signatures */}
+            <div className="mb-6">
+              Regards,
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 pt-8">
+              <div>
+                <div className="w-48 border-t border-slate-900 pt-1 font-bold text-xs">
+                  {signatory1}
                 </div>
               </div>
-              <div className="mt-8 text-xs font-medium text-slate-700">
-                Encl.: As stated above.
+              <div className="text-right">
+                <div className="w-48 border-t border-slate-900 pt-1 font-bold text-xs ml-auto">
+                  {signatory2}
+                </div>
               </div>
+            </div>
+
+            {/* Enclosures */}
+            <div className="mt-8 text-xs text-slate-600">
+              Encl.: As stated above.
             </div>
 
           </div>

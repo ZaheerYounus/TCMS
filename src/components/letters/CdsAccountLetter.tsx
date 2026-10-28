@@ -10,13 +10,15 @@ import {
   Check, 
   UploadCloud, 
   Sparkles,
-  Layers
+  Layers,
+  Download
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { LetterNavTabs } from "./LetterNavTabs";
+import { exportCdsAccountDocx } from "@/lib/docxExport";
 
 export function CdsAccountLetter() {
   // Reference & Date
@@ -48,7 +50,7 @@ export function CdsAccountLetter() {
   ]);
   const [newCompanyInput, setNewCompanyInput] = useState("");
 
-  // Received Documents Checklist
+  // Documents Received Checklist (Fully Editable)
   const [receivedDocs, setReceivedDocs] = useState<string[]>([
     "Notarized copy of death certificate of deceased shareholder;",
     "Notarized copy of CNICs of the deceased shareholder & yourself;",
@@ -56,16 +58,26 @@ export function CdsAccountLetter() {
   ]);
   const [newReceivedInput, setNewReceivedInput] = useState("");
 
-  // Required Documents List
+  // Account Status Remarks
+  const [accountStatusRemarks, setAccountStatusRemarks] = useState(
+    `Kindly note that as per CDC records, subject CDS Account # ${cdsAccountNo} of deceased shareholder is still active / open with book-entry securities.`
+  );
+
+  // Documents Required / Pending Formalities (Fully Editable)
   const [requiredDocs, setRequiredDocs] = useState<string[]>([
-    `Posted Account Report of subject CDS Accounts # 03277-6959 of the deceased shareholder with "Closed" status duly stamped by relevant participant;`,
-    `Account Activity / Intra Account Movement Report under subject CDS Accounts # 03277-6959 of deceased showing transfer of shares of deceased shareholder to legal heir’s CDS Account along with the reason of transfer duly stamped by relevant participant;`,
+    `Posted Account Report of subject CDS Accounts # ${cdsAccountNo} of the deceased shareholder with "Closed" status duly stamped by relevant participant;`,
+    `Account Activity / Intra Account Movement Report under subject CDS Accounts # ${cdsAccountNo} of deceased showing transfer of shares of deceased shareholder to legal heir’s CDS Account along with the reason of transfer duly stamped by relevant participant;`,
     `Closing Account Report of CDS account of the deceased shareholder duly stamped by relevant participant.`
   ]);
   const [newRequiredInput, setNewRequiredInput] = useState("");
 
+  // Signatories
+  const [signatory1, setSignatory1] = useState("Authorized Signatory");
+  const [signatory2, setSignatory2] = useState("Authorized Signatory");
+
   // UI States
   const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -100,46 +112,77 @@ export function CdsAccountLetter() {
     setRequiredDocs(requiredDocs.filter((_, i) => i !== idx));
   };
 
-  // AI Document Upload Handler
+  // Word Document (.docx) Export
+  const handleDownloadDocx = async () => {
+    setDownloading(true);
+    try {
+      await exportCdsAccountDocx({
+        refNo,
+        date,
+        recipientName,
+        recipientAddress,
+        recipientContact,
+        company: companies.join(" / "),
+        deceased,
+        cdsAccountNo,
+        receivedDocs,
+        requiredDocs,
+        accountStatusRemarks,
+        signatory1,
+        signatory2
+      });
+    } catch (err) {
+      console.error("Failed to generate docx:", err);
+      alert("Failed to generate Word document. Please verify inputs.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // AI Upload Handler
   const handleFileUpload = async (file: File) => {
     if (!file) return;
     setUploading(true);
     setUploadSuccess("");
-
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("letterType", "cds_account");
 
       const res = await fetch("/api/parse-letter", {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.parsed) {
-          const p = data.parsed;
-          if (p.deceased) setDeceased(p.deceased.startsWith("Late") ? p.deceased : `Late ${p.deceased}`);
-          if (p.legalHeir) setRecipientName(p.legalHeir);
-          if (p.address) setRecipientAddress(p.address);
-          if (p.contactNo) setRecipientContact(p.contactNo);
-          if (p.folio) setCdsAccountNo(p.folio);
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const json = await res.json();
 
-          if (p.multiFolios && p.multiFolios.length > 0) {
-            setCompanies(p.multiFolios.map((m: any) => m.company));
-          } else if (p.company) {
-            setCompanies([p.company]);
-          }
-
-          setUploadSuccess("CDS details auto-filled into letter.");
+      if (json.success && json.data) {
+        const d = json.data;
+        if (d.legalHeir) setRecipientName(d.legalHeir);
+        if (d.address) setRecipientAddress(d.address);
+        if (d.contactNo) setRecipientContact(d.contactNo);
+        if (d.deceased) {
+          const cleanDeceased = d.deceased.toLowerCase().startsWith("late") 
+            ? d.deceased 
+            : `Late ${d.deceased}`;
+          setDeceased(cleanDeceased);
         }
+        if (d.folio) setCdsAccountNo(d.folio);
+        if (d.refNo) setRefNo(d.refNo);
+        if (d.company) {
+          setCompanies([d.company]);
+        }
+
+        setUploadSuccess("Document analyzed successfully. Letter fields updated.");
+        setTimeout(() => setUploadSuccess(""), 4000);
+      } else {
+        throw new Error(json.error || "Could not extract data");
       }
-    } catch (e) {
-      console.error("Upload error:", e);
+    } catch (err: any) {
+      console.error("AI Upload error:", err);
+      alert(`AI Extraction note: ${err.message || "Could not read file"}`);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -149,33 +192,32 @@ ${refNo}
 ${date}
 
 ${recipientName}
-${fatherHusbandName ? `F/H Name: ${fatherHusbandName}\n` : ""}${recipientAddress}
-${recipientContact}
+F/H Name: ${fatherHusbandName}
+${recipientAddress}
+${recipientContact ? `Contact: ${recipientContact}` : ""}
 
-Dear Concern,
+Dear Sir / Madam,
 
 ${companies.join("\n")}
-Transmission of Dividends – ${deceased}– CDS A/C # ${cdsAccountNo}
 
-We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents for each subject companies;
+Transmission of Shares
+${deceased} - CDS Account # ${cdsAccountNo}
 
-${receivedDocs.map((d, i) => `${i + 1}. ${d}`).join("\n")}
+We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents:
+${receivedDocs.map(d => `• ${d}`).join("\n")}
 
-In order to transmit unpaid dividends under the account mentioned above, we would request you to please arrange to furnish us following documents:
+${accountStatusRemarks}
 
-${requiredDocs.map((d, i) => `${receivedDocs.length + i + 1}. ${d}`).join("\n")}
-
-Please note that separate set of documents (one for each company) is required for the items mentioned above.
-
-Once we receive the required documents in order, we shall proceed further accordingly.
+In order to proceed further, following formalities / documents are still required:
+${requiredDocs.map((r, i) => `${i + 1}. ${r}`).join("\n")}
 
 Should you have any query, feel free to coordinate with us.
 
-Regards,
+Yours faithfully,
+For CDC Share Registrar Services Limited
 
-Authorized Signatory        Authorized Signatory
-
-Encl: as stated above.
+${signatory1}                      ${signatory2}
+Authorized Signatory             Authorized Signatory
     `.trim();
 
     navigator.clipboard.writeText(text);
@@ -189,6 +231,7 @@ Encl: as stated above.
 
   return (
     <div className="space-y-4">
+      {/* Top Navigation Tabs */}
       <LetterNavTabs currentType="cds-account" />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -216,13 +259,13 @@ Encl: as stated above.
                   </div>
                   <div>
                     <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <span>Upload / Scan CDS Document</span>
+                      <span>Upload CDS Letter / Request</span>
                       <Badge variant="outline" className="text-[10px] bg-white text-[#F37021] border-orange-200 py-0">
                         AI Vision
                       </Badge>
                     </div>
                     <p className="text-[11px] text-slate-500">
-                      {uploading ? "Analyzing document with Gemini AI..." : "Drop CDS letter image or PDF"}
+                      {uploading ? "Analyzing document with AI..." : "Drop CDS letter or PDF to auto-fill"}
                     </p>
                   </div>
                 </div>
@@ -241,10 +284,10 @@ Encl: as stated above.
           </Card>
 
           {/* Form Card */}
-          <Card className="shadow-sm border-slate-200">
+          <Card className="shadow-xs border-slate-200">
             <CardHeader className="py-3 px-4 bg-slate-50 border-b border-slate-200">
               <CardTitle className="text-xs font-bold text-[#0B2B5E]">
-                CDS Transmission Parameters
+                CDS Account Letter Parameters
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3.5 text-xs">
@@ -309,10 +352,10 @@ Encl: as stated above.
                   />
                   <textarea 
                     rows={3}
-                    placeholder="Complete Postal Address..."
+                    placeholder="Complete Postal Address (leave blank if missing)..."
                     value={recipientAddress}
                     onChange={(e) => setRecipientAddress(e.target.value)}
-                    className="w-full rounded-md border border-slate-200 p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                    className="w-full rounded-md border border-slate-200 p-2 text-xs focus:ring-1 focus:ring-blue-500 bg-white"
                   />
                   <Input 
                     placeholder="Contact # (e.g. 0301-8284039)"
@@ -344,6 +387,7 @@ Encl: as stated above.
                     value={newCompanyInput}
                     onChange={(e) => setNewCompanyInput(e.target.value)}
                     className="h-7 text-[11px]"
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddCompany())}
                   />
                   <Button size="sm" variant="outline" onClick={handleAddCompany} className="h-7 text-[11px] px-2.5">
                     Add
@@ -351,28 +395,103 @@ Encl: as stated above.
                 </div>
               </div>
 
-              {/* Required Documents List */}
+              {/* Documents Acknowledged / Received */}
               <div className="space-y-2 pt-2 border-t border-slate-100">
-                <span className="text-[11px] font-bold text-slate-700 block">Required CDS Documents (Numbered)</span>
+                <span className="text-[11px] font-bold text-slate-700 block">
+                  Documents Acknowledged / Received
+                </span>
                 <div className="space-y-1.5">
-                  {requiredDocs.map((doc, idx) => (
-                    <div key={idx} className="flex items-start gap-1.5 bg-slate-50 p-1.5 rounded border border-slate-200">
-                      <span className="font-mono text-slate-400 text-[10px] pt-1">{idx + 4}.</span>
-                      <textarea
-                        rows={2}
-                        value={doc}
-                        onChange={(e) => {
-                          const cp = [...requiredDocs];
-                          cp[idx] = e.target.value;
-                          setRequiredDocs(cp);
-                        }}
-                        className="w-full text-[11px] p-1 border rounded bg-white"
-                      />
-                      <button onClick={() => handleRemoveRequiredDoc(idx)} className="text-slate-400 hover:text-red-500 p-1">
+                  {receivedDocs.map((doc, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded border border-slate-200 text-xs">
+                      <span className="flex-1 text-slate-700">{doc}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveReceivedDoc(idx)}
+                        className="text-slate-400 hover:text-red-500 p-1"
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   ))}
+                </div>
+                <div className="flex gap-1.5">
+                  <Input 
+                    placeholder="Add received document..."
+                    value={newReceivedInput}
+                    onChange={(e) => setNewReceivedInput(e.target.value)}
+                    className="h-7 text-[11px]"
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddReceivedDoc())}
+                  />
+                  <Button size="sm" variant="outline" onClick={handleAddReceivedDoc} className="h-7 text-[11px] px-2.5">
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add
+                  </Button>
+                </div>
+              </div>
+
+              {/* Status Remarks */}
+              <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                <label className="text-[11px] font-semibold text-slate-600 block">
+                  CDS Account Status Finding
+                </label>
+                <textarea 
+                  rows={2}
+                  className="w-full text-xs rounded-md border border-slate-200 p-2 bg-white"
+                  value={accountStatusRemarks} 
+                  onChange={(e) => setAccountStatusRemarks(e.target.value)} 
+                />
+              </div>
+
+              {/* Pending Documents / Formalities Required */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <span className="text-[11px] font-bold text-slate-700 block">
+                  Pending Formalities / Documents Required
+                </span>
+                <div className="space-y-1.5">
+                  {requiredDocs.map((doc, idx) => (
+                    <div key={idx} className="flex items-start gap-1.5 bg-slate-50 p-1.5 rounded border border-slate-200 text-xs">
+                      <span className="font-mono text-slate-400 mt-0.5">{idx + 1}.</span>
+                      <span className="flex-1 text-slate-700">{doc}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveRequiredDoc(idx)}
+                        className="text-slate-400 hover:text-red-500 p-1 shrink-0"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-1.5">
+                  <Input 
+                    placeholder="Add required document / formality..."
+                    value={newRequiredInput}
+                    onChange={(e) => setNewRequiredInput(e.target.value)}
+                    className="h-7 text-[11px]"
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddRequiredDoc())}
+                  />
+                  <Button size="sm" variant="outline" onClick={handleAddRequiredDoc} className="h-7 text-[11px] px-2.5">
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add
+                  </Button>
+                </div>
+              </div>
+
+              {/* Signatories */}
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Signatory 1</label>
+                  <Input 
+                    value={signatory1}
+                    onChange={(e) => setSignatory1(e.target.value)}
+                    className="h-7 text-[11px]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Signatory 2</label>
+                  <Input 
+                    value={signatory2}
+                    onChange={(e) => setSignatory2(e.target.value)}
+                    className="h-7 text-[11px]"
+                  />
                 </div>
               </div>
 
@@ -383,7 +502,8 @@ Encl: as stated above.
         {/* Right Preview: Official CDCSR A4 Letter Preview (7 cols) */}
         <div className="lg:col-span-7 space-y-3">
           
-          <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm print:hidden">
+          {/* Action Toolbar */}
+          <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs print:hidden">
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="bg-blue-50 text-[#0B2B5E] border-blue-200 text-xs">
                 Official Letter Preview (A4)
@@ -391,6 +511,15 @@ Encl: as stated above.
               <span className="text-[11px] text-slate-500">Live preview</span>
             </div>
             <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                onClick={handleDownloadDocx}
+                disabled={downloading}
+                className="h-8 text-xs bg-[#F37021] hover:bg-[#D85B10] text-white font-semibold shadow-xs"
+              >
+                <Download className="h-3.5 w-3.5 mr-1" />
+                {downloading ? "Exporting..." : "Download Word (.docx)"}
+              </Button>
               <Button 
                 size="sm" 
                 variant="outline" 
@@ -417,10 +546,7 @@ Encl: as stated above.
             {/* Reference & Date */}
             <div className="flex justify-between items-start mb-6">
               <div className="font-medium text-slate-900">{refNo}</div>
-            </div>
-
-            <div className="mb-6 font-medium text-slate-900">
-              {date}
+              <div className="font-medium text-slate-900">{date}</div>
             </div>
 
             {/* Recipient Address */}
@@ -431,77 +557,81 @@ Encl: as stated above.
               )}
               <div className="whitespace-pre-line text-slate-800">{recipientAddress}</div>
               {recipientContact && (
-                <div className="text-slate-800 mt-1 font-medium">{recipientContact}</div>
+                <div className="text-slate-800 mt-1 font-medium">Contact: {recipientContact}</div>
               )}
             </div>
 
             {/* Salutation */}
             <div className="mb-4 font-medium">
-              Dear Concern,
+              Dear Sir / Madam,
             </div>
 
-            {/* Subject Companies Header */}
-            <div className="mb-5 leading-snug">
-              {companies.map((comp, idx) => (
-                <div key={idx} className="font-bold text-slate-900">{comp}</div>
+            {/* Subject Companies */}
+            <div className="mb-4 font-bold text-slate-900 leading-tight space-y-0.5">
+              {companies.map((c, i) => (
+                <div key={i}>{c}</div>
               ))}
-              <div className="font-bold text-slate-900 underline decoration-slate-900 mt-1">
-                Transmission of Dividends – {deceased}– CDS A/C # {cdsAccountNo}
+            </div>
+
+            {/* Subject Line */}
+            <div className="mb-6 leading-tight">
+              <div className="font-bold text-slate-900">
+                Transmission of Shares
+              </div>
+              <div className="font-bold text-slate-900">
+                {deceased} - CDS Account # {cdsAccountNo}
               </div>
             </div>
 
-            {/* Acknowledged Documents */}
-            <div className="mb-5 space-y-3 text-justify">
-              <p>
-                We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents for each subject companies;
-              </p>
-              <ol className="list-none space-y-1 pl-1">
-                {receivedDocs.map((doc, idx) => (
-                  <li key={idx} className="flex gap-2">
-                    <span className="font-semibold">{idx + 1}.</span>
-                    <span>{doc}</span>
-                  </li>
-                ))}
-              </ol>
+            {/* Opening Paragraph */}
+            <div className="mb-3 text-justify">
+              We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents:
             </div>
 
-            {/* Required Documents Section */}
-            <div className="mb-6 space-y-3 text-justify">
-              <p>
-                In order to <span className="underline font-semibold">transmit unpaid dividends</span> under the account mentioned above, we would request you to please arrange to furnish us following documents:
-              </p>
-              <ol className="list-none space-y-2 pl-1">
-                {requiredDocs.map((doc, idx) => (
-                  <li key={idx} className="flex gap-2 leading-relaxed">
-                    <span className="font-semibold">{receivedDocs.length + idx + 1}.</span>
-                    <span>{doc}</span>
-                  </li>
-                ))}
-              </ol>
+            {/* Documents List */}
+            <ul className="list-disc pl-6 mb-4 space-y-1 text-justify">
+              {receivedDocs.map((doc, idx) => (
+                <li key={idx}>{doc}</li>
+              ))}
+            </ul>
+
+            {/* Status Remark */}
+            <div className="mb-4 text-justify">
+              {accountStatusRemarks}
             </div>
 
-            {/* Note & Closing */}
-            <div className="space-y-4 mb-14 text-justify">
-              <p className="underline font-medium">
-                Please note that separate set of documents (one for each company) is required for the items mentioned above.
-              </p>
-              <p>Once we receive the required documents in order, we shall proceed further accordingly.</p>
-              <p>Should you have any query, feel free to coordinate with us.</p>
+            {/* Required Formalities */}
+            <div className="mb-3 font-semibold">
+              In order to proceed further, following formalities / documents are still required:
+            </div>
+
+            <ol className="list-decimal pl-6 mb-6 space-y-2 text-justify">
+              {requiredDocs.map((req, idx) => (
+                <li key={idx}>{req}</li>
+              ))}
+            </ol>
+
+            {/* Closing Note */}
+            <div className="mb-8 text-justify">
+              Should you have any query, feel free to coordinate with us.
             </div>
 
             {/* Signatures */}
-            <div className="mt-12">
-              <div className="font-medium mb-14">Regards,</div>
-              <div className="flex justify-between items-end pt-4">
-                <div className="border-t border-slate-900 pt-1.5 w-52 text-left font-bold text-xs uppercase tracking-wide">
-                  Authorized Signatory
-                </div>
-                <div className="border-t border-slate-900 pt-1.5 w-52 text-right font-bold text-xs uppercase tracking-wide">
-                  Authorized Signatory
+            <div className="mb-4">
+              Yours faithfully,
+              <div className="font-bold mt-1">For CDC Share Registrar Services Limited</div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 pt-12">
+              <div>
+                <div className="w-48 border-t border-slate-900 pt-1 font-bold text-xs">
+                  {signatory1}
                 </div>
               </div>
-              <div className="mt-8 text-xs font-medium text-slate-700">
-                Encl: as stated above.
+              <div className="text-right">
+                <div className="w-48 border-t border-slate-900 pt-1 font-bold text-xs ml-auto">
+                  {signatory2}
+                </div>
               </div>
             </div>
 
