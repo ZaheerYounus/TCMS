@@ -61,6 +61,12 @@ import {
 } from "@/lib/gapAnalyzer";
 import { parseLetterText, ParsedLetterResult } from "@/lib/letterParser";
 import { runBrowserOCR } from "@/lib/clientOcr";
+import { LetterNavTabs } from "@/components/letters/LetterNavTabs";
+import { SharesDeliveryLetter } from "@/components/letters/SharesDeliveryLetter";
+import { ChequesDeliveryLetter } from "@/components/letters/ChequesDeliveryLetter";
+import { CdsAccountLetter } from "@/components/letters/CdsAccountLetter";
+import { PhysicalApprovalLetter } from "@/components/letters/PhysicalApprovalLetter";
+import { NoFolioFoundLetter } from "@/components/letters/NoFolioFoundLetter";
 
 interface MultiFolioItem {
   folio: string;
@@ -78,6 +84,23 @@ interface ScrutinyDocItem {
 
 function LetterGenerationContent() {
   const searchParams = useSearchParams();
+  const queryType = searchParams.get("type");
+
+  if (queryType === "shares-delivery") {
+    return <SharesDeliveryLetter />;
+  }
+  if (queryType === "cheques-delivery") {
+    return <ChequesDeliveryLetter />;
+  }
+  if (queryType === "cds-account") {
+    return <CdsAccountLetter />;
+  }
+  if (queryType === "physical-approval") {
+    return <PhysicalApprovalLetter />;
+  }
+  if (queryType === "no-folio-found") {
+    return <NoFolioFoundLetter />;
+  }
 
   // Template Switcher: First Letter, No Folio Found, Physical Approval Covering, Delivery of Shares
   const [letterStage, setLetterStage] = useState<"first" | "no_folio" | "physical_approval" | "delivery_shares" | "delivery_cheques">("first");
@@ -983,6 +1006,9 @@ Encl.:  As stated above.`;
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
+      <div className="no-print">
+        <LetterNavTabs currentType="initial" />
+      </div>
       {/* Clean Compact Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs no-print">
         <div className="flex items-center gap-3">
