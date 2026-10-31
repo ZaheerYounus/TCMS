@@ -110,7 +110,7 @@ export function PhysicalApprovalLetter() {
         certificatesCount,
         totalShares: sharesCount,
         transferRegisterPages: transferPages,
-        transferReceipts,
+        transferReceipts: transferReceipts.map(t => ({ receiptNo: t.receiptNo, name: t.heirName })),
         includeLoss,
         lossReceiptNo,
         lossRegisterPages,

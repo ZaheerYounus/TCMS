@@ -28,7 +28,6 @@ export interface LetterTypeInfo {
   desc: string;
   href: string;
   icon: any;
-  badge?: string;
 }
 
 export const LETTER_TYPES: LetterTypeInfo[] = [
@@ -47,7 +46,6 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
     desc: "Forwarding physical transmitted shares to legal heirs",
     href: "/letters/shares-delivery",
     icon: Send,
-    badge: "Official Form"
   },
   {
     id: "cheques-delivery",
@@ -56,7 +54,6 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
     desc: "Forwarding banker's cheques for unpaid dividends",
     href: "/letters/cheques-delivery",
     icon: CreditCard,
-    badge: "Financial"
   },
   {
     id: "cds-account",
@@ -73,7 +70,6 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
     desc: "Forwarding registers & certificates to Company Secretary",
     href: "/letters/physical-approval",
     icon: Stamp,
-    badge: "Company Sec."
   },
   {
     id: "no-folio-found",
@@ -133,14 +129,6 @@ export function LetterNavTabs({ currentType }: { currentType?: LetterTypeId }) {
                 )}>
                   <Icon className="h-4 w-4" />
                 </div>
-                {tab.badge && (
-                  <span className={cn(
-                    "text-[9px] font-semibold px-1.5 py-0.5 rounded",
-                    isActive ? "bg-[#F37021] text-white" : "bg-slate-200 text-slate-600"
-                  )}>
-                    {tab.badge}
-                  </span>
-                )}
               </div>
 
               <div className="font-semibold text-xs leading-tight mb-0.5 truncate">

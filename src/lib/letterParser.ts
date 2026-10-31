@@ -297,7 +297,7 @@ export function parseLetterText(text: string): ParsedLetterResult {
         .replace(/^Ms\.?\s+/i, '')
         .replace(/^Mst\.?\s+/i, '')
         .replace(/F\/H.*$/i, '')
-        .replace(/\n.*/s, '')
+        .split('\n')[0]
         .replace(/\s*\([^)]*\)\s*$/, '')
         .trim();
       if (val.length > 2 && 

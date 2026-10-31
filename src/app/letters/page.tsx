@@ -102,8 +102,7 @@ function LetterGenerationContent() {
     return <NoFolioFoundLetter />;
   }
 
-  // Template Switcher: First Letter, No Folio Found, Physical Approval Covering, Delivery of Shares
-  const [letterStage, setLetterStage] = useState<"first" | "no_folio" | "physical_approval" | "delivery_shares" | "delivery_cheques">("first");
+  const letterStage = "first";
   const [openAccordion, setOpenAccordion] = useState<Record<string, boolean>>({
     quickUpload: true,
     basicDetails: true,
@@ -530,9 +529,7 @@ function LetterGenerationContent() {
       if (gap.hasLostShares) {
         setHasLostShares(true);
       }
-      if (gap.suggestedStage && gap.suggestedStage === "first") {
-        setLetterStage("first");
-      }
+
 
       setExtractedDataSummary({
         folio: p.folio || "",
@@ -657,9 +654,7 @@ function LetterGenerationContent() {
       if (gap.hasLostShares) {
         setHasLostShares(true);
       }
-      if (gap.suggestedStage && gap.suggestedStage === "first") {
-        setLetterStage("first");
-      }
+
 
       setUploadSuccessMsg(
         `Letter text analyzed! Extracted Folio: ${p.folio || 'N/A'}, Company: ${p.compSymbol || 'N/A'}. Received ${gap.receivedCount} of ${gap.totalRequirementsCount} documents. Response letter auto-prepared for the ${gap.missingDocs.length} remaining requirements!`
@@ -863,116 +858,7 @@ function LetterGenerationContent() {
       duplicateText = `\n${intro}\n${docsList}\n`;
     }
 
-    let bodyText = "";
-    if (letterStage === "no_folio") {
-      bodyText = `${refNo}              ${date}
-
-${legalHeir}
-F/H: ${deceased} (Late)
-${address}
-${contactNo ? 'Contact: ' + contactNo : ''}
-
-Dear Concern,
-
-${company}
-Transmission of Shares & Verification of Title – Late ${deceased} – Folio # ${folio}
-
-We refer to your query / communication regarding transmission of shares of the subject deceased shareholder.
-
-Please be advised that upon thorough scrutiny and search of the share register / records of ${company}, no shareholding or folio exists in the name of the deceased shareholder under the provided folio / particulars (${folio}).
-
-${noFolioComments ? noFolioComments + '\n\n' : ''}In order to enable us to investigate further, please furnish:
-1. Legible copies of original share certificates / counterfoils (if available).
-2. Dividend counterfoils / warrants previously issued by the Company.
-3. Complete CNIC of the deceased shareholder along with previous aliases / addresses.
-
-Regards,
-
-Authorized Signatory         Authorized Signatory
-Encl.:  As stated above.`;
-    } else if (letterStage === "physical_approval") {
-      bodyText = `${refNo}              ${date}
-
-The Company Secretary
-${company}
-
-Dear Sir / Madam,
-
-${company} Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}
-
-We refer to the transmission case in respect of the above deceased shareholder. In this regard we are pleased to enclose herewith ${certificates} share certificates for ${shares} shares along with their relevant Loss & Transfer registers and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
-
-The details of transfers being sent to you are given below:
-
-No. of transfer receipt(s) : ${String(transferReceipts.length).padStart(2, '0')}
-${transferReceipts.map((r: { receiptNo: string; name: string }) => `Transfer receipt(s) # : ${r.receiptNo} (in the name of ${r.name})`).join('\n')}
-Transfer register no. of page(s) : ${transferRegisterPages}
-${hasLossRegister ? `Loss receipt(s) # : ${lossReceiptNo || '295'}\nLoss register no. of page(s) : ${lossRegisterPages}\n` : ''}
-Following actions are requested for approval of above transmission of shares:
-
-1. Authorized Signatory's signatures on the face of duplicate shares certificates (if applicable).
-2. Authorized Signatory's signatures on the Memorandum of Transfers (on the back of each share certificate).
-3. Authorized Signatory's signature on Loss & Transfer register.
-
-After approval of transfer / transmission of shares as requested above, kindly arrange to return transfer registers along with share certificates / documents related to this transmission case.
-
-Further, please arrange to check whether any other dividend warrant(s) pertaining to above deceased shareholder is/are still unpaid, if so, then please arrange to issue cheque(s) / online payment in favor of above legal heirs as per their entitlement.
-
-Yours faithfully,
-For CDC Share Registrar Services Limited
-
-Authorized Signatory         Authorized Signatory
-Encl.:  As stated above.`;
-    } else if (letterStage === "delivery_cheques") {
-      bodyText = `${refNo}              ${date}
-
-${legalHeir}
-${address}
-${contactNo ? 'Contact: ' + contactNo : ''}
-
-Dear Concern,
-
-${company}
-Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}
-
-We refer to transmission of shares of the captioned deceased shareholder.
-
-Please find enclosed herewith following dividend cheque(s) / instrument(s) in respect of deceased shareholder:
-
-${cheques.map((c: { beneficiary: string; instrumentNo: string; amount: string }, i: number) => `${i + 1}. Beneficiary: ${c.beneficiary} | Instrument #: ${c.instrumentNo} | Amount (PKR): ${c.amount}`).join('\n')}
-
-Please acknowledge receipt of the cheque(s) / instrument(s).
-
-Yours faithfully,
-For CDC Share Registrar Services Limited
-
-Authorized Signatory         Authorized Signatory
-Encl.:  As stated above.`;
-    } else if (letterStage === "delivery_shares") {
-      bodyText = `${refNo}              ${date}
-
-${legalHeir}
-F/H: ${deceased} (Late)
-${address}
-${contactNo ? 'Contact: ' + contactNo : ''}
-
-Dear Concern,
-
-${company}
-Dispatch / Handover of Share Certificates – Folio # ${folio} (Transmission Completed)
-
-We are pleased to inform you that transmission of shares in respect of late ${deceased} has been successfully completed in accordance with the Succession Certificate.
-
-Accordingly, please find enclosed herewith the fresh physical share certificate(s) totaling ${shares} shares (${scripts || 'as attached'}) dispatched via ${deliveryMode} ${dispatchTrackingNo ? `(Consignment / Tracking #: ${dispatchTrackingNo})` : ''}.
-
-${deliveryNotes || 'Please acknowledge receipt of the share certificates by signing and returning the duplicate copy of this letter or counterfoil. In case of any query, please feel free to contact us.'}
-
-Regards,
-
-Authorized Signatory         Authorized Signatory
-Encl.: Share Certificates & Acknowledgement Slip`;
-    } else {
-      bodyText = `${refNo}              ${date}
+    const bodyText = `${refNo}              ${date}
 
 ${legalHeir}
 ${cleanHeirNameOnly ? '' : `F/H: ${deceased} (Late)\n`}${address}
@@ -997,7 +883,6 @@ Regards,
 
 Authorized Signatory         Authorized Signatory
 Encl.:  As stated above.`;
-    }
 
     navigator.clipboard.writeText(bodyText);
     setCopied(true);
@@ -1017,13 +902,13 @@ Encl.:  As stated above.`;
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              Letter Generation
+              1st Intimation Letter
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-[#D85B10] border border-orange-200">
-                Auto-Fill &amp; OCR Ready
+                Single &amp; Multi-Folio
               </span>
             </h1>
             <p className="text-xs text-slate-500">
-              Upload documents to auto-detect details and generate official transmission letters
+              Upload documents to auto-detect details and generate official transmission requirement letters
             </p>
           </div>
         </div>
@@ -1035,65 +920,57 @@ Encl.:  As stated above.`;
             className="bg-[#F37021] hover:bg-[#D85B10] text-white font-bold text-xs shadow-xs h-9 px-4 w-full sm:w-auto"
           >
             <Download className="mr-1.5 h-4 w-4" />
-            {downloading ? "Generating..." : `Download Word (${
-              letterStage === 'first' ? '1st Letter' :
-              letterStage === 'no_folio' ? 'No Folio Found' :
-              letterStage === 'physical_approval' ? 'Approval Covering' :
-              'Delivery of Shares'
-            })`}
+            {downloading ? "Generating..." : "Download Word (.docx)"}
+          </Button>
+          <Button
+            onClick={handleCopyText}
+            variant="outline"
+            className="text-xs font-semibold h-9 px-3 border-slate-300 bg-white"
+          >
+            {copied ? <Check className="mr-1.5 h-4 w-4 text-emerald-600" /> : <Copy className="mr-1.5 h-4 w-4" />}
+            {copied ? "Copied" : "Copy Text"}
+          </Button>
+          <Button
+            onClick={() => window.print()}
+            variant="outline"
+            className="text-xs font-semibold h-9 px-3 border-slate-300 text-slate-700 bg-white"
+          >
+            <Printer className="mr-1.5 h-4 w-4" />
+            Print (A4)
           </Button>
         </div>
       </div>
 
-      {/* Template Stage Switcher Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm no-print">
-        <div className="flex flex-wrap items-center gap-2">
+      {/* Sub-bar: Folio Mode & Layout Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs no-print">
+        <div className="flex items-center gap-2">
           <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
               type="button"
-              onClick={() => setLetterStage("first")}
+              onClick={() => setMode("single")}
               className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                letterStage === "first" 
-                  ? "bg-[#0B2B5E] text-white shadow-sm" 
+                mode === "single"
+                  ? "bg-[#0B2B5E] text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              1. First Letter
+              Single Folio
             </button>
             <button
               type="button"
-              onClick={() => setLetterStage("no_folio")}
+              onClick={() => setMode("multi")}
               className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                letterStage === "no_folio" 
-                  ? "bg-amber-600 text-white shadow-sm" 
+                mode === "multi"
+                  ? "bg-[#0B2B5E] text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              2. No Folio Found
-            </button>
-            <button
-              type="button"
-              onClick={() => setLetterStage("physical_approval" as any)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                letterStage === ("physical_approval" as any) 
-                  ? "bg-emerald-700 text-white shadow-sm" 
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              3. Physical Approval Covering
-            </button>
-            <button
-              type="button"
-              onClick={() => setLetterStage("delivery_shares" as any)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                letterStage === ("delivery_shares" as any) 
-                  ? "bg-indigo-700 text-white shadow-sm" 
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              4. Delivery of Shares
+              Multiple Folios
             </button>
           </div>
+          <span className="text-xs text-slate-500 font-medium ml-1">
+            {mode === "single" ? "Standard single-company transmission" : "Multiple companies & folios on one letter"}
+          </span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -1675,11 +1552,7 @@ Encl.:  As stated above.`;
             )}
           </div>
 
-          {/* TEMPLATE-SPECIFIC ACCORDIONS */}
-
-          {/* --- CASE A: FIRST LETTER (Separate Accordions for Received and Required) --- */}
-          {letterStage === "first" && (
-            <>
+          {/* ACCORDIONS: DOCUMENTS RECEIVED, DOCUMENTS REQUIRED & OBSERVATIONS */}
               {/* ACCORDION 3A: DOCUMENTS RECEIVED (View/Hide Separately) */}
               <div className="border border-emerald-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
                 <button
@@ -1909,391 +1782,9 @@ Encl.:  As stated above.`;
                   </div>
                 )}
               </div>
-            </>
-          )}
 
-          {/* --- CASE B: PHYSICAL APPROVAL (Transferees Distribution & Special Registers) --- */}
-          {letterStage === "physical_approval" && (
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
-              <button
-                type="button"
-                onClick={() => toggleAccordion("transferees")}
-                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50/60 via-white to-slate-50 hover:bg-emerald-50/80 transition-colors text-left"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-emerald-600/10 text-emerald-800">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                      3. Transferees Breakdown &amp; Registers
-                    </h3>
-                    <p className="text-[11px] text-slate-500 font-normal">
-                      Add/remove transferees (1, 2, 4, 6+), set shares/CNIC, Loss Register #, Split Register #
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge className="bg-emerald-100 text-emerald-900 text-[10px] font-bold">
-                    {transferees.length} Transferee(s)
-                  </Badge>
-                  {openAccordion.transferees ? (
-                    <ChevronUp className="h-4 w-4 text-slate-500" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-500" />
-                  )}
-                </div>
-              </button>
-
-              {openAccordion.transferees && (
-                <div className="p-4 pt-3 border-t border-slate-100 space-y-4 bg-white">
-                  {/* Dynamic Transferees Table */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800">
-                        Legal Heirs / Transferees List:
-                      </span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => {
-                          const nextNum = transferees.length + 1;
-                          setTransferees(prev => [
-                            ...prev,
-                            { id: Date.now().toString(), name: `Legal Heir ${nextNum}`, cnic: "", shares: "=0=", folio: `NEW-0${nextNum}`, relation: "Legal Heir" }
-                          ]);
-                        }}
-                        className="h-7 text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
-                      >
-                        <Plus className="h-3 w-3 mr-1" /> Add Transferee
-                      </Button>
-                    </div>
-
-                    <div className="space-y-2">
-                      {transferees.map((t, idx) => (
-                        <div key={t.id || idx} className="grid grid-cols-12 gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 items-center text-xs">
-                          <div className="col-span-1 text-center font-bold text-slate-500">
-                            #{idx + 1}
-                          </div>
-                          <div className="col-span-4">
-                            <Input
-                              placeholder="Transferee Name"
-                              value={t.name}
-                              onChange={(e) => {
-                                const copy = [...transferees];
-                                copy[idx].name = e.target.value;
-                                setTransferees(copy);
-                              }}
-                              className="h-8 text-xs font-semibold"
-                            />
-                          </div>
-                          <div className="col-span-3">
-                            <Input
-                              placeholder="CNIC (e.g. 42101-...)"
-                              value={t.cnic}
-                              onChange={(e) => {
-                                const copy = [...transferees];
-                                copy[idx].cnic = e.target.value;
-                                setTransferees(copy);
-                              }}
-                              className="h-8 text-xs"
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <Input
-                              placeholder="Shares (=500=)"
-                              value={t.shares}
-                              onChange={(e) => {
-                                const copy = [...transferees];
-                                copy[idx].shares = e.target.value;
-                                setTransferees(copy);
-                              }}
-                              className="h-8 text-xs font-bold text-emerald-800"
-                            />
-                          </div>
-                          <div className="col-span-2 flex items-center gap-1">
-                            <Input
-                              placeholder="Folio"
-                              value={t.folio}
-                              onChange={(e) => {
-                                const copy = [...transferees];
-                                copy[idx].folio = e.target.value;
-                                setTransferees(copy);
-                              }}
-                              className="h-8 text-xs"
-                            />
-                            {transferees.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setTransferees(prev => prev.filter((_, i) => i !== idx))}
-                                className="h-8 w-8 p-0 text-rose-500 hover:bg-rose-50 shrink-0"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Special Registers Options */}
-                  <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-2.5 rounded-lg bg-amber-50/50 border border-amber-200 text-xs space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="font-bold text-amber-950 flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={hasLossRegister}
-                            onChange={(e) => setHasLossRegister(e.target.checked)}
-                            className="h-4 w-4 rounded text-amber-600"
-                          />
-                          <span>Loss of Shares Register Entry</span>
-                        </label>
-                      </div>
-                      {hasLossRegister && (
-                        <div>
-                          <label className="text-[11px] text-amber-900 block mb-1">Receipt Entry / Serial #:</label>
-                          <Input
-                            value={lossReceiptNo}
-                            onChange={(e) => setLossReceiptNo(e.target.value)}
-                            placeholder="e.g. LR-2026/089"
-                            className="h-8 text-xs bg-white font-mono font-bold"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-2.5 rounded-lg bg-blue-50/50 border border-blue-200 text-xs space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="font-bold text-blue-950 flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={hasSplitRegister}
-                            onChange={(e) => setHasSplitRegister(e.target.checked)}
-                            className="h-4 w-4 rounded text-blue-600"
-                          />
-                          <span>Split of Certificates Register Entry</span>
-                        </label>
-                      </div>
-                      {hasSplitRegister && (
-                        <div>
-                          <label className="text-[11px] text-blue-900 block mb-1">Split Receipt Entry #:</label>
-                          <Input
-                            value={splitReceiptNo}
-                            onChange={(e) => setSplitReceiptNo(e.target.value)}
-                            placeholder="e.g. SR-2026/044"
-                            className="h-8 text-xs bg-white font-mono font-bold"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Covering Closing Instruction to Company Secretary:
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={approvalCoveringNotes}
-                      onChange={(e) => setApprovalCoveringNotes(e.target.value)}
-                      className="w-full p-2.5 text-xs rounded border border-slate-300 font-sans"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* --- CASE C: DELIVERY OF SHARES (Dispatch Mode & Tracking) --- */}
-          {letterStage === "delivery_shares" && (
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
-              <button
-                type="button"
-                onClick={() => toggleAccordion("deliveryDetails")}
-                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50/60 via-white to-slate-50 hover:bg-indigo-50/80 transition-colors text-left"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-indigo-700/10 text-indigo-700">
-                    <Truck className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                      3. Share Delivery &amp; Dispatch Mode
-                    </h3>
-                    <p className="text-[11px] text-slate-500 font-normal">
-                      Delivery mode (By Hand, TCS, Registered Post), Tracking Consignment #, Receipt counterfoil
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge className="bg-indigo-100 text-indigo-900 text-[10px] font-bold">
-                    {deliveryMode}
-                  </Badge>
-                  {openAccordion.deliveryDetails ? (
-                    <ChevronUp className="h-4 w-4 text-slate-500" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-500" />
-                  )}
-                </div>
-              </button>
-
-              {openAccordion.deliveryDetails && (
-                <div className="p-4 pt-3 border-t border-slate-100 space-y-3 bg-white text-xs">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="font-bold text-slate-700 block mb-1">Delivery / Dispatch Mode:</label>
-                      <select
-                        value={deliveryMode}
-                        onChange={(e) => setDeliveryMode(e.target.value)}
-                        className="w-full h-9 rounded border border-slate-300 px-2 font-bold text-slate-800 bg-white"
-                      >
-                        <option value="By Hand">By Hand (Deliver across counter with CNIC verification)</option>
-                        <option value="TCS Courier">TCS Courier Services</option>
-                        <option value="Registered Post">Registered Post A/D (Pakistan Post)</option>
-                        <option value="Leopard Courier">Leopard Courier Services</option>
-                        <option value="M&P Express">M&amp;P Express Logistics</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="font-bold text-slate-700 block mb-1">Consignment / Tracking Number:</label>
-                      <Input
-                        value={dispatchTrackingNo}
-                        onChange={(e) => setDispatchTrackingNo(e.target.value)}
-                        placeholder="e.g. TCS-789012345 or POD-1122"
-                        className="h-9 text-xs font-mono font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">Acknowledgement Instructions Note:</label>
-                    <textarea
-                      rows={2}
-                      value={deliveryNotes}
-                      onChange={(e) => setDeliveryNotes(e.target.value)}
-                      className="w-full p-2.5 text-xs rounded border border-slate-300 font-sans"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* --- CASE D: NO FOLIO FOUND LETTER COMMENTS --- */}
-          {letterStage === "no_folio" && (
-            <div className="border border-amber-200 rounded-xl overflow-hidden shadow-xs bg-amber-50/20 p-4 space-y-2">
-              <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                Additional Comments / Advice for No Folio Response (Optional):
-              </label>
-              <textarea
-                rows={3}
-                value={noFolioComments}
-                onChange={(e) => setNoFolioComments(e.target.value)}
-                placeholder="e.g. We have also searched computerized records against CNIC 42101-xxxxxxx-x and old manual registers, however no active holding was traced..."
-                className="w-full p-2.5 text-xs rounded border border-slate-300 font-sans bg-white"
-              />
-            </div>
-          )}
-
-          {/* --- CASE E: DELIVERY OF CHEQUES ACCORDION --- */}
-          {letterStage === "delivery_cheques" && (
-            <div className="border border-teal-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
-              <div className="p-4 bg-gradient-to-r from-teal-50/70 via-white to-slate-50 border-b border-teal-100 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-teal-700" />
-                    3. Dividend Cheques Breakdown
-                  </h3>
-                  <p className="text-[11px] text-slate-500 font-normal">
-                    Enter Beneficiary name, Banker's cheque / Instrument #, and Amount for each legal heir
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
-                    const nextId = (cheques.length + 1).toString();
-                    setCheques(prev => [
-                      ...prev,
-                      { id: nextId, beneficiary: legalHeir || `Beneficiary ${nextId}`, instrumentNo: "1351947" + nextId, amount: "2,000.00/-" }
-                    ]);
-                  }}
-                  className="h-7 text-xs bg-teal-700 hover:bg-teal-800 text-white font-bold"
-                >
-                  <Plus className="h-3 w-3 mr-1" /> Add Cheque
-                </Button>
-              </div>
-
-              <div className="p-4 space-y-2 bg-white">
-                {cheques.map((chk, idx) => (
-                  <div key={chk.id || idx} className="grid grid-cols-12 gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 items-center text-xs">
-                    <div className="col-span-1 text-center font-bold text-slate-500">
-                      #{idx + 1}
-                    </div>
-                    <div className="col-span-4">
-                      <Input
-                        placeholder="Beneficiary Name"
-                        value={chk.beneficiary}
-                        onChange={(e) => {
-                          const copy = [...cheques];
-                          copy[idx].beneficiary = e.target.value;
-                          setCheques(copy);
-                        }}
-                        className="h-8 text-xs font-semibold"
-                      />
-                    </div>
-                    <div className="col-span-3">
-                      <Input
-                        placeholder="Instrument #"
-                        value={chk.instrumentNo}
-                        onChange={(e) => {
-                          const copy = [...cheques];
-                          copy[idx].instrumentNo = e.target.value;
-                          setCheques(copy);
-                        }}
-                        className="h-8 text-xs font-mono"
-                      />
-                    </div>
-                    <div className="col-span-3">
-                      <Input
-                        placeholder="Amount (PKR)"
-                        value={chk.amount}
-                        onChange={(e) => {
-                          const copy = [...cheques];
-                          copy[idx].amount = e.target.value;
-                          setCheques(copy);
-                        }}
-                        className="h-8 text-xs font-bold text-teal-800"
-                      />
-                    </div>
-                    <div className="col-span-1 flex justify-center">
-                      {cheques.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setCheques(prev => prev.filter((_, i) => i !== idx))}
-                          className="h-7 w-7 p-0 text-rose-500 hover:bg-rose-50 shrink-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* ACCORDION 4: CUSTOM OBSERVATION & PLACEMENT (Only active on First Letter / General) */}
-          {letterStage === "first" && (
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+          {/* ACCORDION 4: CUSTOM OBSERVATION & PLACEMENT */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
               <button
                 type="button"
                 onClick={() => toggleAccordion("observations")}
@@ -2419,9 +1910,7 @@ Encl.:  As stated above.`;
                 </div>
               )}
             </div>
-          )}
-
-        </div>
+          </div>
 
         {/* RIGHT COLUMN: Flexible Live Letter Preview */}
         {previewLayout !== "hidden" && (
@@ -2432,12 +1921,7 @@ Encl.:  As stated above.`;
                   <div>
                     <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                       <FileSignature className="h-3.5 w-3.5 text-[#F37021]" />
-                      Live Letter Preview ({
-                        letterStage === 'first' ? '1st Letter' :
-                        letterStage === 'no_folio' ? 'No Folio Found' :
-                        letterStage === 'physical_approval' ? 'Approval Covering' :
-                        'Delivery of Shares'
-                      })
+                      1st Intimation Letter Preview (A4)
                     </CardTitle>
                     <CardDescription className="text-[10px] text-slate-500">
                       Standard transmission draft reflecting exact statutory requirements
@@ -2534,41 +2018,26 @@ Encl.:  As stated above.`;
               </div>
 
               {/* Addressee Info */}
-              {letterStage === "physical_approval" ? (
-                <div className="font-sans space-y-0.5 text-xs">
-                  <p className="font-bold text-slate-900">The Company Secretary</p>
-                  <p className="text-slate-700 font-bold text-[#0B2B5E]">{company}</p>
-                </div>
-              ) : (
-                <div className="font-sans space-y-0.5 text-xs">
-                  <p className="font-bold text-slate-900">{legalHeir} {cleanHeirNameOnly ? '' : (relation ? `(${relation})` : '')}</p>
-                  {!cleanHeirNameOnly && <p className="text-slate-600 font-medium">F/H: {deceased} (Late)</p>}
-                  <p className="text-slate-700">{address}</p>
-                  {contactNo && <p className="text-slate-600 text-[11px]">Contact: {contactNo}</p>}
-                </div>
-              )}
+              <div className="font-sans space-y-0.5 text-xs">
+                <p className="font-bold text-slate-900">{legalHeir} {cleanHeirNameOnly ? '' : (relation ? `(${relation})` : '')}</p>
+                {!cleanHeirNameOnly && <p className="text-slate-600 font-medium">F/H: {deceased} (Late)</p>}
+                <p className="text-slate-700">{address}</p>
+                {contactNo && <p className="text-slate-600 text-[11px]">Contact: {contactNo}</p>}
+              </div>
 
               <div className="font-sans text-xs pt-1">
-                <p className="font-semibold text-slate-700">
-                  {letterStage === "physical_approval" ? "Dear Sir / Madam," : "Dear Concern,"}
-                </p>
+                <p className="font-semibold text-slate-700">Dear Concern,</p>
               </div>
 
               {/* Subject */}
               <div className="font-sans text-xs space-y-0.5 border-l-2 border-l-[#F37021] pl-2.5 py-0.5 bg-orange-50/40">
                 <p className="font-bold text-[#0B2B5E]">{company}</p>
                 <p className="font-bold text-slate-900 underline">
-                  {letterStage === "first" && `Transmission of Shares and Dividends – Late ${deceased} – Folio # ${mode === "single" ? folio : multiFolios.map(m => m.folio).filter(Boolean).join(", ")}`}
-                  {letterStage === "no_folio" && `Transmission of Shares & Verification of Title – Late ${deceased} – Folio # ${folio}`}
-                  {letterStage === "physical_approval" && `Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}`}
-                  {letterStage === "delivery_shares" && `Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}`}
-                  {letterStage === "delivery_cheques" && `Transmission of Dividends – Late ${deceased} – Folio # ${folio}`}
+                  Transmission of Shares and Dividends – Late {deceased} – Folio # {mode === "single" ? folio : multiFolios.map(m => m.folio).filter(Boolean).join(", ")}
                 </p>
               </div>
 
-              {/* TEMPLATE 1: FIRST LETTER PREVIEW */}
-              {letterStage === "first" && (
-                <>
+
                   {scrutinyPosition === "top" && includeScrutinyNote && scrutinyRemark.trim() && (
                     <p className="my-2 p-2 rounded bg-blue-50/70 border border-blue-200 text-[#0B2B5E] font-sans">
                       {scrutinyRemark}
@@ -2662,150 +2131,6 @@ Encl.:  As stated above.`;
                   <p className="text-[11px] text-slate-600 pt-1">
                     Please ensure that details such as company name, folio number and number of shares are clearly mentioned on the Succession Certificate. Should you have any query, feel free to coordinate with us.
                   </p>
-                </>
-              )}
-
-              {/* TEMPLATE 2: NO FOLIO FOUND PREVIEW */}
-              {letterStage === "no_folio" && (
-                <>
-                  <p>
-                    We refer to your query / communication regarding transmission of shares of the subject deceased shareholder.
-                  </p>
-
-                  <p>
-                    Please be advised that upon thorough scrutiny and search of the share register / computerized records of <strong>{company}</strong>, no shareholding or folio exists in the name of the deceased shareholder under the provided folio / particulars (<strong>{folio}</strong>).
-                  </p>
-
-                  {noFolioComments && (
-                    <p className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-950 font-sans">
-                      {noFolioComments}
-                    </p>
-                  )}
-
-                  <p className="font-semibold text-slate-900">
-                    In order to enable us to investigate further, please furnish:
-                  </p>
-                  <ol className="list-decimal pl-5 space-y-1.5 text-slate-700">
-                    <li>Legible copies of original share certificates / counterfoils (if available).</li>
-                    <li>Dividend counterfoils / warrants previously issued by the Company.</li>
-                    <li>Complete CNIC of the deceased shareholder along with previous aliases / residential addresses.</li>
-                  </ol>
-                </>
-              )}
-
-              {/* TEMPLATE 3: PHYSICAL APPROVAL COVERING PREVIEW (Exact match: Late Allah Bakhsh) */}
-              {letterStage === "physical_approval" && (
-                <>
-                  <p>
-                    We refer to the transmission case in respect of the above deceased shareholder. In this regard we are pleased to enclose herewith <strong>{certificates}</strong> share certificates for <strong>{shares}</strong> shares along with their relevant Loss & Transfer registers and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
-                  </p>
-
-                  <p className="font-bold text-slate-900 pt-1">
-                    The details of transfers being sent to you are given below:
-                  </p>
-
-                  <div className="font-sans text-[11px] space-y-1 p-2 rounded bg-slate-50 border border-slate-200">
-                    <p><strong>No. of transfer receipt(s) :</strong> {String(transferReceipts.length).padStart(2, '0')}</p>
-                    {transferReceipts.map((tr, i) => (
-                      <p key={i}><strong>Transfer receipt(s) # :</strong> {tr.receiptNo} (in the name of {tr.name})</p>
-                    ))}
-                    <p><strong>Transfer register no. of page(s) :</strong> {transferRegisterPages}</p>
-                    {hasLossRegister && (
-                      <>
-                        <p><strong>Loss receipt(s) # :</strong> {lossReceiptNo || '295'}</p>
-                        <p><strong>Loss register no. of page(s) :</strong> {lossRegisterPages}</p>
-                      </>
-                    )}
-                  </div>
-
-                  <p className="font-bold text-slate-900 pt-1">
-                    Following actions are requested for approval of above transmission of shares:
-                  </p>
-                  <ul className="list-disc pl-5 space-y-1 text-[11px] text-slate-700">
-                    <li>Authorized Signatory's signatures on the face of duplicate shares certificates (if applicable).</li>
-                    <li>Authorized Signatory's signatures on the Memorandum of Transfers (on the back of each share certificate).</li>
-                    <li>Authorized Signatory's signature on Loss & Transfer register.</li>
-                  </ul>
-
-                  <p className="pt-1">
-                    After approval of transfer / transmission of shares as requested above, kindly arrange to return transfer registers along with share certificates / documents related to this transmission case.
-                  </p>
-                  <p>
-                    Further, please arrange to check whether any other dividend warrant(s) pertaining to above deceased shareholder is/are still unpaid, if so, then please arrange to issue cheque(s) / online payment in favor of above legal heirs as per their entitlement.
-                  </p>
-                </>
-              )}
-
-              {/* TEMPLATE 4: DELIVERY OF SHARES PREVIEW (Exact match: Late Muhammad Boota Bhatti) */}
-              {letterStage === "delivery_shares" && (
-                <>
-                  <p>
-                    We are pleased to forward herewith <strong>{certificates}</strong> shares certificates for <strong>{shares}</strong> shares of above deceased shareholder of {company} duly transmitted / transferred in the name following legal heirs, details are as follows:
-                  </p>
-
-                  <div className="border rounded overflow-hidden font-sans text-[11px] my-2">
-                    <table className="w-full text-left">
-                      <thead className="bg-slate-100 text-slate-700 font-bold border-b">
-                        <tr>
-                          <th className="p-1.5">Folio #</th>
-                          <th className="p-1.5">Name of Legal Heirs</th>
-                          <th className="p-1.5 text-right"># of Shares</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {transferees.map((t, i) => (
-                          <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
-                            <td className="p-1.5 font-bold text-slate-700">{t.folio}</td>
-                            <td className="p-1.5 font-bold text-slate-900">{t.name}</td>
-                            <td className="p-1.5 font-bold text-emerald-800 text-right">{t.shares}</td>
-                          </tr>
-                        ))}
-                        <tr className="bg-slate-50 font-bold border-t">
-                          <td className="p-1.5">Total</td>
-                          <td className="p-1.5"></td>
-                          <td className="p-1.5 text-right text-emerald-900">{shares}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <p>Kindly acknowledge the receipt.</p>
-                  <p>Legal heirs are requested to always quote their above-mentioned folio numbers in correspondence with us.</p>
-                </>
-              )}
-
-              {/* TEMPLATE 5: DELIVERY OF CHEQUES PREVIEW (Exact match: Folio 23927_ Delivery of Cheques) */}
-              {letterStage === "delivery_cheques" && (
-                <>
-                  <p>
-                    We are pleased to forward herewith <strong>={cheques.length}=</strong> Banker's cheques against unpaid dividend warrants of above deceased shareholder of {company} duly issued in the name of following legal heirs, details are as follows:
-                  </p>
-
-                  <div className="border rounded overflow-hidden font-sans text-[11px] my-2">
-                    <table className="w-full text-left">
-                      <thead className="bg-slate-100 text-slate-700 font-bold border-b">
-                        <tr>
-                          <th className="p-1.5">Beneficiary</th>
-                          <th className="p-1.5">Instrument #</th>
-                          <th className="p-1.5 text-right">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {cheques.map((c, i) => (
-                          <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
-                            <td className="p-1.5 font-bold text-slate-900">{c.beneficiary}</td>
-                            <td className="p-1.5 font-mono text-slate-700">{c.instrumentNo}</td>
-                            <td className="p-1.5 font-bold text-teal-800 text-right">{c.amount}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <p>Please note that there is no outstanding dividend remaining in the name of deceased shareholder.</p>
-                  <p>Kindly acknowledge the receipt.</p>
-                </>
-              )}
 
               {/* Signatures */}
               <div className="pt-4 font-sans space-y-1 border-t">
