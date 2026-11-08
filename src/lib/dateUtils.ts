@@ -1,4 +1,10 @@
 // Utility for standardizing dates strictly as DD/MM/YYYY across TCMS
+// Timezone: Asia/Karachi (Pakistan Standard Time, UTC+5)
+
+export function getKarachiNow(): Date {
+  // Real current date and time
+  return new Date();
+}
 
 export function formatDateDDMMYYYY(dateInput: string | Date | null | undefined): string {
   if (!dateInput) return '-';
@@ -65,8 +71,12 @@ export function calculateAgingDays(dateInput: string | Date | null | undefined):
   }
   if (!date || isNaN(date.getTime())) return 0;
 
-  const now = new Date('2026-10-10');
+  const now = getKarachiNow();
   const diffTime = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   return Math.max(0, diffDays);
+}
+
+export function getTodayDDMMYYYY(): string {
+  return formatDateDDMMYYYY(getKarachiNow());
 }

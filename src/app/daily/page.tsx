@@ -231,7 +231,7 @@ export default function DailyRegisterPage() {
           officerName: officer ? officer.name : 'Zaheer Ahmed',
           status: newStatus,
           remarks: newRemarks,
-          date: dateFilter === "custom" && customDate ? customDate : "2026-09-19"
+          date: dateFilter === "custom" && customDate ? customDate : new Date().toISOString().split('T')[0]
         })
       });
 
@@ -442,7 +442,7 @@ export default function DailyRegisterPage() {
                 <Filter className="h-3.5 w-3.5 text-[#F37021]" /> Date:
               </span>
               {[
-                { id: "today", label: "Today (19 Sep)" },
+                { id: "today", label: "Today" },
                 { id: "yesterday", label: "Yesterday" },
                 { id: "week", label: "This Week" },
                 { id: "month", label: "This Month" },

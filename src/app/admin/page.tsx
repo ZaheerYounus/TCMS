@@ -1,24 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { 
   ShieldCheck, 
   UserCheck, 
-  Settings2, 
+  UserPlus,
+  KeyRound,
   History, 
-  Plus, 
   UploadCloud, 
   FileSpreadsheet, 
   CheckCircle2, 
   AlertCircle, 
   Database,
   RefreshCw,
-  FolderArchive,
-  Layers,
-  Clock
+  Clock,
+  Lock,
+  Unlock,
+  ShieldAlert
 } from "lucide-react";
 import {
   Table,
@@ -29,28 +31,154 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const systemUsers = [
-  { name: "Zaheer Ahmed (You)", email: "zaheer.ahmed@cdcsr.com.pk", role: "Project Lead & Master Admin", status: "Active (Master Admin)", lastLogin: "Active Now" },
-  { name: "Azib Yousuf", email: "azib.yousuf@cdcsr.com.pk", role: "Team Lead", status: "Active", lastLogin: "19-09-2026 18:40" },
-  { name: "Muqaddas Sharif", email: "muqaddas.sharif@cdcsr.com.pk", role: "Transmission Officer", status: "Active", lastLogin: "19-09-2026 16:15" },
-  { name: "Zohaib Jamal", email: "zohaib.jamal@cdcsr.com.pk", role: "Senior Officer Transmission", status: "Active", lastLogin: "19-09-2026 15:30" },
-  { name: "Ali Raza", email: "ali.raza@cdcsr.com.pk", role: "Filing & Vault Officer", status: "Active", lastLogin: "19-09-2026 12:05" },
-];
+interface UserRecord {
+  id: string;
+  username: string;
+  name: string;
+  role: 'ADMIN' | 'STAFF';
+  isActive: boolean;
+  createdAt: string;
+}
 
 const auditLogs = [
-  { user: "Zaheer Ahmed", action: "Outward folio auto-fetch & status workflow updated", target: "Daily Register", time: "Just now" },
+  { user: "Zaheer Ahmed", action: "Transmission Case Management System database synchronized", target: "Data Engine", time: "Just now" },
   { user: "Zaheer Ahmed", action: "Updated Transmission Letter formalities engine", target: "Letters Module", time: "25 mins ago" },
   { user: "Azib Yousuf", action: "Dispatched transmission formalities letter", target: "HBL-19316", time: "2 hours ago" },
-  { user: "Ali Raza", action: "Archived physical folder BOX-01 to safe vault", target: "Folder #01", time: "4 hours ago" },
+  { user: "Ali Raza", action: "Archived physical folder to vault", target: "Filing Archive", time: "4 hours ago" },
 ];
 
 export default function AdminPage() {
   const [targetType, setTargetType] = useState<"mis" | "filing">("mis");
   const [uploadMode, setUploadMode] = useState<"merge" | "replace">("merge");
+  const [confirmReplace, setConfirmReplace] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [uploadError, setUploadError] = useState<string>("");
+
+  // Users State
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<"STAFF" | "ADMIN">("STAFF");
+  const [userActionError, setUserActionError] = useState("");
+  const [userActionSuccess, setUserActionSuccess] = useState("");
+
+  // Password reset state
+  const [resetTargetUser, setResetTargetUser] = useState<UserRecord | null>(null);
+  const [resetNewPassword, setResetNewPassword] = useState("");
+
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const res = await fetch("/api/admin/users");
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data.users || []);
+      }
+    } catch (err) {
+      console.error("Failed to load users", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUserActionError("");
+    setUserActionSuccess("");
+
+    if (!newUsername.trim() || !newName.trim() || !newPassword.trim()) {
+      setUserActionError("Please fill out all user fields.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: newUsername.trim(),
+          name: newName.trim(),
+          password: newPassword,
+          role: newRole,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create user.");
+      }
+
+      setUserActionSuccess(`Staff user ${newUsername} created successfully.`);
+      setNewUsername("");
+      setNewName("");
+      setNewPassword("");
+      setShowAddModal(false);
+      await loadUsers();
+    } catch (err: any) {
+      setUserActionError(err.message || "Failed to create user.");
+    }
+  };
+
+  const handleToggleUserStatus = async (user: UserRecord) => {
+    setUserActionError("");
+    setUserActionSuccess("");
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          action: "toggleStatus",
+          isActive: !user.isActive,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to change user status.");
+      }
+      setUserActionSuccess(`User ${user.username} is now ${!user.isActive ? "Active" : "Disabled"}.`);
+      await loadUsers();
+    } catch (err: any) {
+      setUserActionError(err.message || "Failed to toggle status.");
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetTargetUser || !resetNewPassword) return;
+
+    setUserActionError("");
+    setUserActionSuccess("");
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: resetTargetUser.id,
+          action: "resetPassword",
+          newPassword: resetNewPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to reset password.");
+      }
+      setUserActionSuccess(`Password reset for ${resetTargetUser.username} completed.`);
+      setResetTargetUser(null);
+      setResetNewPassword("");
+    } catch (err: any) {
+      setUserActionError(err.message || "Failed to reset password.");
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -63,7 +191,12 @@ export default function AdminPage() {
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
-      setUploadError("Please choose an Excel (.xlsx, .xls) or CSV file first.");
+      setUploadError("Please choose an Excel (.xlsx, .xls) file first.");
+      return;
+    }
+
+    if (uploadMode === "replace" && !confirmReplace) {
+      setUploadError("You must check the confirmation checkbox to replace the entire database.");
       return;
     }
 
@@ -76,6 +209,9 @@ export default function AdminPage() {
       formData.append("file", selectedFile);
       formData.append("targetType", targetType);
       formData.append("mode", uploadMode);
+      if (confirmReplace) {
+        formData.append("confirmReplace", "true");
+      }
 
       const res = await fetch("/api/admin/upload", {
         method: "POST",
@@ -89,6 +225,7 @@ export default function AdminPage() {
 
       setUploadResult(data);
       setSelectedFile(null);
+      setConfirmReplace(false);
     } catch (err: any) {
       setUploadError(err.message || "File upload failed.");
     } finally {
@@ -114,7 +251,7 @@ export default function AdminPage() {
               System Administration &amp; Data Pipeline
             </h1>
             <p className="text-blue-100/80 text-xs sm:text-sm mt-0.5">
-              Administrator: <strong>Zaheer Ahmed (Team Lead)</strong>. Full rights to manage transmission master files, audit logs, and operational databases.
+              CDC Share Registrar Services — Transmission Case Management System (TCMS). Full rights to manage accounts, master records, and data pipelines.
             </p>
           </div>
 
@@ -134,10 +271,10 @@ export default function AdminPage() {
             <div>
               <CardTitle className="text-base font-bold text-[#0B2B5E] flex items-center gap-2">
                 <Database className="h-5 w-5 text-[#F37021]" />
-                Transmission Master Data Uploader (Excel / CSV)
+                Transmission Master Data Uploader (.xlsx / .xls)
               </CardTitle>
               <CardDescription className="text-xs">
-                Upload your latest daily updated MIS or Physical Filing spreadsheets. The system will parse records and immediately synchronize transmission inquiries, folio auto-fetching, and reporting.
+                Upload your updated MIS or Physical Filing spreadsheets (Max 10MB). Records are validated and company names normalized automatically.
               </CardDescription>
             </div>
             <Badge variant="outline" className="text-xs bg-orange-50 border-orange-200 text-[#D85B10] font-bold">
@@ -175,7 +312,10 @@ export default function AdminPage() {
                 </label>
                 <select
                   value={uploadMode}
-                  onChange={(e: any) => setUploadMode(e.target.value)}
+                  onChange={(e: any) => {
+                    setUploadMode(e.target.value);
+                    setConfirmReplace(false);
+                  }}
                   className="w-full h-10 text-xs font-bold rounded-lg border border-slate-300 bg-white px-3 text-slate-800"
                 >
                   <option value="merge">Merge with Existing Records (Recommended)</option>
@@ -191,11 +331,11 @@ export default function AdminPage() {
               {/* File Input */}
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
-                  3. Select Excel (.xlsx, .xls) or CSV:
+                  3. Select Excel (.xlsx, .xls):
                 </label>
                 <input
                   type="file"
-                  accept=".xlsx,.xls,.csv"
+                  accept=".xlsx,.xls"
                   onChange={handleFileChange}
                   className="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-[#0B2B5E] file:text-white hover:file:bg-[#103a7a] file:cursor-pointer cursor-pointer border border-slate-300 rounded-lg p-1.5 bg-slate-50"
                 />
@@ -207,16 +347,32 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* Replace Mode Warning & Checkbox */}
+            {uploadMode === "replace" && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+                <ShieldAlert className="h-5 w-5 text-red-600 shrink-0" />
+                <label className="flex items-center gap-2 text-xs font-bold text-red-900 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={confirmReplace}
+                    onChange={(e) => setConfirmReplace(e.target.checked)}
+                    className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-500"
+                  />
+                  I confirm that I want to completely replace and overwrite the current database.
+                </label>
+              </div>
+            )}
+
             {/* Action Bar */}
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 flex-wrap gap-2">
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <FileSpreadsheet className="h-4 w-4 text-[#F37021]" />
-                Supported column headers: <code>Folio</code>, <code>Company</code>, <code>Deceased</code>, <code>Legal Heir</code>, <code>Status</code>, <code>Remarks</code>.
+                Supported columns: <code>Folio</code>, <code>Company</code>, <code>Deceased</code>, <code>Legal Heir</code>, <code>Status</code>, <code>Remarks</code>. Max 10MB.
               </div>
 
               <Button
                 type="submit"
-                disabled={uploading || !selectedFile}
+                disabled={uploading || !selectedFile || (uploadMode === "replace" && !confirmReplace)}
                 className="bg-[#F37021] hover:bg-[#D85B10] text-white font-bold text-xs h-10 px-5 shadow-sm"
               >
                 {uploading ? (
@@ -243,10 +399,7 @@ export default function AdminPage() {
                   Database Successfully Updated!
                 </p>
                 <p>
-                  Processed <strong>{uploadResult.recordsProcessed}</strong> records from uploaded file. Current total records in database: <strong>{uploadResult.totalRecords}</strong>.
-                </p>
-                <p className="text-[11px] text-emerald-800">
-                  All downstream search indexes, daily register auto-fetch, and case inquiry filters are now operating on this fresh dataset!
+                  Processed <strong>{uploadResult.recordsProcessed}</strong> records from uploaded file. Current total records: <strong>{uploadResult.totalRecords}</strong>.
                 </p>
               </div>
             </div>
@@ -270,57 +423,206 @@ export default function AdminPage() {
         {/* User Management */}
         <Card className="lg:col-span-2 border-slate-200 shadow-sm">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-sm font-bold text-[#0B2B5E] flex items-center gap-2">
                   <UserCheck className="h-4 w-4 text-[#F37021]" />
-                  Authorized Operators &amp; Privileges
+                  Authorized Staff Accounts &amp; Access Control
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Role-based access matrix for CDCSR operations staff and administrators.
+                  Enterprise role-based accounts (1 Admin + 4 Staff members). Add staff or reset passwords.
                 </CardDescription>
               </div>
+              <Button
+                size="sm"
+                onClick={() => setShowAddModal(!showAddModal)}
+                className="bg-[#0B2B5E] hover:bg-[#153a73] text-white text-xs h-8 px-3 font-semibold shrink-0"
+              >
+                <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                {showAddModal ? "Cancel" : "Add Staff User"}
+              </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow className="text-xs bg-slate-50">
-                  <TableHead>Staff Name</TableHead>
-                  <TableHead>Assigned Role</TableHead>
-                  <TableHead>Status / Clearance</TableHead>
-                  <TableHead>Last Active</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="text-xs">
-                {systemUsers.map((u, i) => (
-                  <TableRow key={i} className={i === 0 ? "bg-orange-50/40 font-semibold" : ""}>
-                    <TableCell>
-                      <div>
-                        <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                          {u.name}
-                          {i === 0 && (
-                            <Badge className="bg-[#0B2B5E] text-white text-[9px] px-1.5 py-0">You</Badge>
-                          )}
-                        </p>
-                        <p className="text-[11px] text-slate-500">{u.email}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`text-[11px] ${i === 0 ? 'border-[#F37021] text-[#D85B10] bg-orange-50 font-bold' : 'bg-slate-50 text-slate-700'}`}>
-                        {u.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={`text-[10px] font-bold ${i === 0 ? 'bg-emerald-600 text-white' : 'bg-green-100 text-green-700 border-green-200'}`}>
-                        {u.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-slate-500 font-mono text-[11px]">{u.lastLogin}</TableCell>
+          <CardContent className="space-y-4">
+            {/* User Action Feedback */}
+            {userActionSuccess && (
+              <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>{userActionSuccess}</span>
+              </div>
+            )}
+            {userActionError && (
+              <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                <span>{userActionError}</span>
+              </div>
+            )}
+
+            {/* Add User Form Drawer */}
+            {showAddModal && (
+              <form onSubmit={handleCreateUser} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                <h4 className="text-xs font-bold text-[#0B2B5E] flex items-center gap-1.5">
+                  <UserPlus className="h-4 w-4 text-[#F37021]" />
+                  Create New Staff Account
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Username</label>
+                    <Input
+                      placeholder="e.g. staff5"
+                      value={newUsername}
+                      onChange={(e) => setNewUsername(e.target.value)}
+                      className="h-8 text-xs bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Full Name</label>
+                    <Input
+                      placeholder="e.g. Tariq Khan"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      className="h-8 text-xs bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Password</label>
+                    <Input
+                      type="password"
+                      placeholder="Min 6 characters"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="h-8 text-xs bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Role</label>
+                    <select
+                      value={newRole}
+                      onChange={(e: any) => setNewRole(e.target.value)}
+                      className="w-full h-8 text-xs font-semibold rounded-md border border-slate-300 bg-white px-2 text-slate-800"
+                    >
+                      <option value="STAFF">STAFF (Masked PII)</option>
+                      <option value="ADMIN">ADMIN (Full Rights)</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAddModal(false)}
+                    className="h-8 text-xs text-slate-600"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="h-8 text-xs bg-[#F37021] hover:bg-[#D85B10] text-white font-bold"
+                  >
+                    Save Account
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {/* Password Reset Modal / Box */}
+            {resetTargetUser && (
+              <form onSubmit={handleResetPassword} className="p-4 bg-orange-50 border border-orange-200 rounded-xl space-y-3">
+                <h4 className="text-xs font-bold text-[#0B2B5E] flex items-center gap-1.5">
+                  <KeyRound className="h-4 w-4 text-[#F37021]" />
+                  Reset Password for {resetTargetUser.name} ({resetTargetUser.username})
+                </h4>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="password"
+                    placeholder="Enter new password (min 6 chars)"
+                    value={resetNewPassword}
+                    onChange={(e) => setResetNewPassword(e.target.value)}
+                    className="h-8 text-xs bg-white max-w-xs"
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="h-8 text-xs bg-[#0B2B5E] hover:bg-[#153a73] text-white font-bold"
+                  >
+                    Set Password
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setResetTargetUser(null); setResetNewPassword(""); }}
+                    className="h-8 text-xs text-slate-600"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {/* Users Table */}
+            {loadingUsers ? (
+              <div className="py-8 text-center text-xs text-slate-500">Loading staff accounts...</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-xs bg-slate-50">
+                    <TableHead>Staff Member</TableHead>
+                    <TableHead>Username</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody className="text-xs">
+                  {users.map((u) => (
+                    <TableRow key={u.id} className={u.role === 'ADMIN' ? 'bg-blue-50/20' : ''}>
+                      <TableCell>
+                        <p className="font-bold text-slate-900">{u.name}</p>
+                        <p className="text-[10px] text-slate-400 font-mono">ID: {u.id.slice(0, 8)}</p>
+                      </TableCell>
+                      <TableCell className="font-mono text-slate-700">{u.username}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-[11px] ${u.role === 'ADMIN' ? 'border-[#F37021] text-[#D85B10] bg-orange-50 font-bold' : 'bg-slate-100 text-slate-700'}`}>
+                          {u.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`text-[10px] font-bold ${u.isActive ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                          {u.isActive ? "Active" : "Disabled"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setResetTargetUser(u); setResetNewPassword(""); }}
+                            title="Reset password"
+                            className="h-7 px-2 text-[11px] text-slate-600 hover:text-[#0B2B5E]"
+                          >
+                            <KeyRound className="h-3 w-3 mr-1" />
+                            Reset
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleUserStatus(u)}
+                            title={u.isActive ? "Disable account" : "Enable account"}
+                            className={`h-7 px-2 text-[11px] ${u.isActive ? 'text-amber-700 hover:bg-amber-50' : 'text-emerald-700 hover:bg-emerald-50'}`}
+                          >
+                            {u.isActive ? <Lock className="h-3 w-3 mr-1" /> : <Unlock className="h-3 w-3 mr-1" />}
+                            {u.isActive ? "Disable" : "Enable"}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 

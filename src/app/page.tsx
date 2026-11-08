@@ -102,7 +102,7 @@ export default function Dashboard() {
     {
       title: "Worked / Responded This Month",
       value: workedThisMonth.toLocaleString(),
-      subtext: "Responses & filings sent in Sep 2026",
+      subtext: "Responses & filings sent this month",
       icon: TrendingUp,
       color: "text-blue-700",
       bgColor: "bg-blue-50",
@@ -184,15 +184,21 @@ export default function Dashboard() {
     { name: "In Transfer Process", value: inTransfer },
   ];
 
-  const companyPending = [
-    { name: "Habib Bank (HBL)", pending: 948, total: 1312 },
-    { name: "OGDC", pending: 415, total: 643 },
-    { name: "SNGPL", pending: 312, total: 443 },
-    { name: "SSGC", pending: 233, total: 327 },
-    { name: "PSO", pending: 216, total: 315 },
-    { name: "PIAA", pending: 223, total: 311 },
-    { name: "Askari Bank (AKBL)", pending: 196, total: 292 },
-  ];
+  const companyPending = (misStats?.companyMisSummary && misStats.companyMisSummary.length > 0)
+    ? misStats.companyMisSummary.slice(0, 7).map((c: any) => ({
+        name: c.company,
+        pending: c.pending || 0,
+        total: c.total || 0,
+      }))
+    : [
+        { name: "Habib Bank (HBL)", pending: 948, total: 1312 },
+        { name: "OGDC", pending: 415, total: 643 },
+        { name: "SNGPL", pending: 312, total: 443 },
+        { name: "SSGC", pending: 233, total: 327 },
+        { name: "PSO", pending: 216, total: 315 },
+        { name: "PIAA", pending: 223, total: 311 },
+        { name: "Askari Bank (AKBL)", pending: 196, total: 292 },
+      ];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -209,7 +215,7 @@ export default function Dashboard() {
               <span className="text-xs text-orange-200 font-medium">CDC Share Registrar Services Limited</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Share Transmission Management System
+              Transmission Case Management System (TCMS)
             </h1>
             <p className="text-blue-100/80 text-xs sm:text-sm mt-1 max-w-2xl">
               Real-time synchronization for 215 listed companies across 340,000+ shareholder portfolios. Standard Date Format: <strong>DD/MM/YYYY</strong>.

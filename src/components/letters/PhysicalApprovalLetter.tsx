@@ -188,7 +188,7 @@ ${company.toUpperCase()}
 APPROVAL OF TRANSMISSION / TRANSFER OF SHARES
 ${deceased} - Folio # ${folio}
 
-We refer to the transmission case in respect of the above deceased shareholder. In this regard we are pleased to enclose herewith =${certificatesCount}= share certificates for =${sharesCount}= shares along with the relevant Transfer Register${includeLoss ? ", Loss Register" : ""}${includeSplit ? ", Split Register" : ""} and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
+We refer to the transmission case in respect of the above deceased shareholder. In this regard we are pleased to enclose herewith ${certificatesCount} share certificates for ${sharesCount} shares along with the relevant Transfer Register${includeLoss ? ", Loss Register" : ""}${includeSplit ? ", Split Register" : ""} and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
 
 The details of transfers being sent to you are given below:
 
@@ -198,7 +198,7 @@ Transfer register – no. of page(s) : ${transferPages}
 ${includeLoss ? `Loss receipt(s) # : ${lossReceiptNo}\nLoss register – no. of page(s) : ${lossRegisterPages}\n` : ""}${includeSplit ? `Split receipt(s) # : ${splitReceiptNo}\nSplit register – no. of page(s) : ${splitRegisterPages}\n` : ""}
 Following actions are requested for approval of above transmission of shares:
 
-${includeLoss ? `1. Authorized Signatory’s signatures on the face of =${duplicateCertsCount}= duplicate shares certificates.\n` : ""}${includeLoss ? "2." : "1."} Authorized Signatory’s signatures on the Memorandum of Transfers (on the back of each share certificate).
+${includeLoss ? `1. Authorized Signatory’s signatures on the face of ${duplicateCertsCount} duplicate shares certificates.\n` : ""}${includeLoss ? "2." : "1."} Authorized Signatory’s signatures on the Memorandum of Transfers (on the back of each share certificate).
 ${includeLoss ? "3." : "2."} Authorized Signatory’s signature on Transfer register${includeLoss ? " & Loss register" : ""}${includeSplit ? " & Split register" : ""}.
 
 After approval of transfer / transmission of shares as requested above, kindly arrange to return transfer registers along with share certificates / documents related to this transmission case.
@@ -637,7 +637,7 @@ Encl.: As stated above.
 
             {/* Opening Paragraph */}
             <div className="mb-4 text-justify">
-              We refer to the transmission case in respect of the above deceased shareholder. In this regard we are pleased to enclose herewith <strong>={certificatesCount}=</strong> share certificates for <strong>={sharesCount}=</strong> shares along with the relevant Transfer Register{includeLoss ? ", Loss Register" : ""}{includeSplit ? ", Split Register" : ""} and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
+              We refer to the transmission case in respect of the above deceased shareholder. In this regard we are pleased to enclose herewith <strong>{certificatesCount}</strong> share certificates for <strong>{sharesCount}</strong> shares along with the relevant Transfer Register{includeLoss ? ", Loss Register" : ""}{includeSplit ? ", Split Register" : ""} and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
             </div>
 
             {/* Transfer Details Header */}
@@ -700,7 +700,7 @@ Encl.: As stated above.
             <ol className="list-decimal pl-6 mb-6 space-y-1.5 text-justify">
               {includeLoss && (
                 <li>
-                  Authorized Signatory’s signatures on the face of <strong>={duplicateCertsCount}=</strong> duplicate shares certificates.
+                  Authorized Signatory’s signatures on the face of <strong>{duplicateCertsCount}</strong> duplicate shares certificates.
                 </li>
               )}
               <li>

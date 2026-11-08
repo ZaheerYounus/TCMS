@@ -2,16 +2,42 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import * as XLSX from 'xlsx';
+import { getCurrentUser } from '@/lib/auth';
+import { normalizeCompanyName } from '@/lib/companyDictionary';
+import { dataStore } from '@/lib/dataStore';
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getCurrentUser(req);
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized: Admin privileges required.' }, { status: 403 });
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const targetType = (formData.get('targetType') as string) || 'mis'; // 'mis' | 'filing' | 'daily'
     const mode = (formData.get('mode') as string) || 'merge'; // 'merge' | 'replace'
+    const confirmReplace = formData.get('confirmReplace') === 'true' || req.headers.get('x-confirm-replace') === 'true';
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    }
+
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+      return NextResponse.json({ error: 'Invalid file format. Only Excel files (.xlsx, .xls) are accepted.' }, { status: 400 });
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: 'File size exceeds 10MB limit.' }, { status: 400 });
+    }
+
+    if (mode === 'replace' && !confirmReplace) {
+      return NextResponse.json({
+        error: 'Confirmation required: Overwriting the database requires explicit confirmation (confirmReplace: true).'
+      }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -43,7 +69,8 @@ export async function POST(req: NextRequest) {
       // Map rows to canonical MIS record structure
       const parsedRecords: any[] = rawRows.map((row, idx) => {
         const folio = String(row['Folio'] || row['Folio #'] || row['folio'] || row['FOLIO'] || '').trim();
-        const company = String(row['Company'] || row['Company Name'] || row['company'] || row['COMP'] || 'CDCSR Client Company').trim();
+        const rawComp = String(row['Company'] || row['Company Name'] || row['company'] || row['COMP'] || 'CDCSR Client Company').trim();
+        const company = normalizeCompanyName(rawComp);
         const deceased = String(row['Deceased'] || row['Deceased Shareholder'] || row['Shareholder'] || row['deceased'] || '').trim();
         const legalHeir = String(row['Legal Heir'] || row['Applicant'] || row['legalHeir'] || '').trim();
         const status = String(row['Status'] || row['Case Status'] || row['status'] || 'Waiting').trim();
@@ -148,6 +175,9 @@ export async function POST(req: NextRequest) {
       finalRecords.forEach(r => { if (r.company) companiesSet.add(r.company.trim()); });
       fs.writeFileSync(companiesPath, JSON.stringify(Array.from(companiesSet).sort(), null, 2), 'utf-8');
 
+      // Invalidate in-memory data cache
+      dataStore.invalidateCache();
+
       return NextResponse.json({
         success: true,
         targetType: 'mis',
@@ -166,7 +196,7 @@ export async function POST(req: NextRequest) {
       const parsedFiling: any[] = rawRows.map((row, idx) => ({
         sNo: String(row['S No'] || row['sNo'] || idx + 1),
         folio: String(row['Folio'] || row['Folio #'] || row['folio'] || '').trim(),
-        company: String(row['Company'] || row['Company Name'] || row['company'] || 'CDCSR Issuer').trim(),
+        company: normalizeCompanyName(String(row['Company'] || row['Company Name'] || row['company'] || 'CDCSR Issuer').trim()),
         letterDate: String(row['Letter Date'] || row['letterDate'] || nowStr),
         deceased: String(row['Deceased'] || row['Shareholder'] || row['deceased'] || '').trim(),
         fileNo: String(row['File #'] || row['File No'] || row['fileNo'] || 'BOX-01').trim(),

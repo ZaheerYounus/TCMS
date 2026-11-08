@@ -205,12 +205,12 @@ ${recipientName}
 ${recipientAddress}
 Contact # ${recipientContact}
 
-Dear Concern,
+Dear Sir / Madam,
 
 ${company}
-Transmission of Shares & Dividends – ${deceased}- Folio # ${folio}
+Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}
 
-We are pleased to forward herewith =${certificatesCount}= shares certificates for =${totalShares}= shares of above deceased shareholder of ${company} duly transmitted / transferred in the name following legal heirs, details are as follows:
+We are pleased to forward herewith ${certificatesCount} shares certificates for ${totalShares} shares of above deceased shareholder of ${company} duly transmitted / transferred in the name following legal heirs, details are as follows:
 
 Folio #\tName of Legal Heirs\t# of Shares
 ${heirRows.map(r => `${r.folio}\t${r.name}\t${r.shares}`).join("\n")}
@@ -538,7 +538,7 @@ Encl.: As stated above.
 
             {/* Salutation */}
             <div className="mb-4 font-medium">
-              Dear Concern,
+              Dear Sir / Madam,
             </div>
 
             {/* Subject Line */}
@@ -547,13 +547,13 @@ Encl.: As stated above.
                 {company}
               </div>
               <div className="font-bold text-slate-900">
-                Transmission of Shares & Dividends – {deceased}- Folio # {folio}
+                Transmission of Shares & Dividends – Late {deceased} – Folio # {folio}
               </div>
             </div>
 
             {/* Body Paragraph */}
             <div className="mb-6 text-justify">
-              We are pleased to forward herewith <strong>={certificatesCount}=</strong> shares certificates for <strong>={totalShares}=</strong> shares of above deceased shareholder of {company} duly transmitted / transferred in the name following legal heirs, details are as follows:
+              We are pleased to forward herewith <strong>{certificatesCount}</strong> shares certificates for <strong>{totalShares}</strong> shares of above deceased shareholder of {company} duly transmitted / transferred in the name following legal heirs, details are as follows:
             </div>
 
             {/* Allocation Table */}

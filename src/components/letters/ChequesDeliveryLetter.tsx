@@ -186,7 +186,7 @@ ${recipientName}
 ${recipientAddress}
 Contact # ${recipientContact}
 
-Dear Concern,
+Dear Sir / Madam,
 
 ${company}
 Transmission of Shares & Dividends – Late ${deceased} – Folio # ${folio}
@@ -510,7 +510,7 @@ Encl.: As stated above.
 
             {/* Salutation */}
             <div className="mb-4 font-medium">
-              Dear Concern,
+              Dear Sir / Madam,
             </div>
 
             {/* Subject */}

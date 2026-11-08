@@ -1,0 +1,142 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String      @id @default(cuid())
+  username     String      @unique
+  name         String
+  role         String      @default("STAFF") // "ADMIN" | "STAFF"
+  passwordHash String
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  lastLogin    DateTime?
+  auditLogs    AuditTrail[]
+}
+
+model Case {
+  id              String       @id @default(cuid())
+  caseId          String       @unique // e.g. TR-000001
+  compSymbol      String?
+  company         String
+  folio           String
+  shareholder     String?
+  deceased        String
+  legalHeir       String?
+  cnic            String?
+  address         String?
+  shares          String?
+  certificates    String?
+  status          String       @default("Waiting")
+  statusCode      String       @default("WAITING")
+  isClosed        Boolean      @default(false)
+  reqRecDate      String?
+  formSentDate    String?
+  formRecDate     String?
+  fwdCompDate     String?
+  appRecDate      String?
+  fwdTransDate    String?
+  recTransDate    String?
+  physAppFwdComp  String?
+  sharesRecComp   String?
+  sharesFwdDate   String?
+  chqRecComp      String?
+  chqFwdLegalHeir String?
+  remarks         String?
+  workedThisMonth Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  auditTrail      AuditTrail[]
+
+  @@index([folio])
+  @@index([company])
+  @@index([statusCode])
+  @@index([isClosed])
+}
+
+model AuditTrail {
+  id        String   @id @default(cuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [caseId], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  userName  String
+  action    String
+  note      String?
+  timestamp String
+  createdAt DateTime @default(now())
+
+  @@index([caseId])
+}
+
+model Shareholder {
+  id           String   @id @default(cuid())
+  folio        String
+  company      String
+  compSymbol   String?
+  name         String
+  cnic         String?
+  address      String?
+  fatherName   String?
+  shares       String?
+  certificates String?
+  createdAt    DateTime @default(now())
+
+  @@index([folio])
+  @@index([cnic])
+  @@index([company])
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  symbol    String   @unique
+  name      String
+  sector    String?
+  createdAt DateTime @default(now())
+}
+
+model DailyRegister {
+  id          String   @id @default(cuid())
+  entryDate   String
+  time        String?
+  type        String   @default("INWARD") // "INWARD" | "OUTWARD"
+  refNo       String
+  folio       String
+  company     String
+  compSymbol  String?
+  shareholder String?
+  legalHeir   String?
+  relation    String?
+  enclosures  String?
+  assignedTo  String?
+  officerName String?
+  status      String   @default("RECEIVED")
+  remarks     String?
+  createdAt   DateTime @default(now())
+
+  @@index([folio])
+  @@index([entryDate])
+}
+
+model FilingRecord {
+  id         String   @id @default(cuid())
+  sNo        String?
+  folio      String
+  company    String
+  letterDate String?
+  deceased   String?
+  fileNo     String   @default("BOX-01")
+  officer    String?
+  remarks    String?
+  createdAt  DateTime @default(now())
+
+  @@index([folio])
+  @@index([fileNo])
+  @@index([company])
+}

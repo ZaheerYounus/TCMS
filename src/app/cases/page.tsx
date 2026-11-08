@@ -48,7 +48,7 @@ const getStatusBadge = (status: string, isClosed?: boolean, workedThisMonth?: bo
         <Badge className="bg-teal-100 text-teal-800 border-teal-300 text-[10px] font-bold whitespace-nowrap">
           Partially Closed
         </Badge>
-        {workedThisMonth && <span className="bg-blue-100 text-blue-800 text-[9px] font-bold px-1 rounded">Sep 26</span>}
+        {workedThisMonth && <span className="bg-blue-100 text-blue-800 text-[9px] font-bold px-1 rounded">This Month</span>}
       </div>
     );
   }
@@ -58,7 +58,7 @@ const getStatusBadge = (status: string, isClosed?: boolean, workedThisMonth?: bo
         <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] font-bold whitespace-nowrap">
           Closed (Transmitted)
         </Badge>
-        {workedThisMonth && <span className="bg-blue-100 text-blue-800 text-[9px] font-bold px-1 rounded">Sep 26</span>}
+        {workedThisMonth && <span className="bg-blue-100 text-blue-800 text-[9px] font-bold px-1 rounded">This Month</span>}
       </div>
     );
   }
@@ -68,7 +68,7 @@ const getStatusBadge = (status: string, isClosed?: boolean, workedThisMonth?: bo
         <Badge className="bg-orange-100 text-[#F37021] border-orange-300 text-[10px] font-bold whitespace-nowrap">
           Pending with Us
         </Badge>
-        {workedThisMonth && <span className="bg-blue-100 text-blue-800 text-[9px] font-bold px-1 rounded">Sep 26</span>}
+        {workedThisMonth && <span className="bg-blue-100 text-blue-800 text-[9px] font-bold px-1 rounded">This Month</span>}
       </div>
     );
   }
@@ -78,7 +78,7 @@ const getStatusBadge = (status: string, isClosed?: boolean, workedThisMonth?: bo
         <Badge className="bg-purple-100 text-purple-900 border-purple-300 text-[10px] font-bold whitespace-nowrap">
           Custody Awaited
         </Badge>
-        {workedThisMonth && <span className="bg-blue-100 text-blue-800 text-[9px] font-bold px-1 rounded">Sep 26</span>}
+        {workedThisMonth && <span className="bg-blue-100 text-blue-800 text-[9px] font-bold px-1 rounded">This Month</span>}
       </div>
     );
   }
@@ -88,7 +88,7 @@ const getStatusBadge = (status: string, isClosed?: boolean, workedThisMonth?: bo
         <Badge className="bg-amber-100 text-amber-900 border-amber-200 text-[10px] font-semibold whitespace-nowrap">
           Awaiting Legal Heirs
         </Badge>
-        {workedThisMonth && <span className="bg-blue-100 text-blue-800 text-[9px] font-bold px-1 rounded">Sep 26</span>}
+        {workedThisMonth && <span className="bg-blue-100 text-blue-800 text-[9px] font-bold px-1 rounded">This Month</span>}
       </div>
     );
   }

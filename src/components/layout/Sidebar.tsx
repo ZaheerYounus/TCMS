@@ -4,33 +4,32 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, 
-  Search, 
-  FileText, 
-  Files, 
+  SearchCheck, 
+  FileSignature, 
+  CalendarDays, 
+  FileSpreadsheet, 
   Archive, 
+  BarChart3, 
   Settings,
   Users,
   ShieldCheck,
   ChevronRight,
-  Building2,
-  FileSignature,
-  SearchCheck,
-  CalendarDays
+  Building2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Case Inquiry & Audit", href: "/inquiry", icon: SearchCheck, highlight: true },
+  { name: "Case Master (/mis)", href: "/mis", icon: FileSpreadsheet, highlight: true },
+  { name: "Case Inquiry & Audit", href: "/inquiry", icon: SearchCheck },
   { name: "Letter Generation", href: "/letters", icon: FileSignature },
   { name: "Daily Register", href: "/daily", icon: CalendarDays },
-  { name: "Active Cases & Trail", href: "/cases", icon: FileText },
   { name: "Physical Filing", href: "/filing", icon: Archive },
-  { name: "MIS & Reports", href: "/reports", icon: Files },
+  { name: "Management Analytics", href: "/reports", icon: BarChart3 },
   { name: "Administration", href: "/admin", icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -45,7 +44,7 @@ export function Sidebar() {
             <div className="flex items-center gap-1.5">
               <span className="font-extrabold tracking-wide text-white text-base">CDCSR</span>
               <span className="text-[10px] font-bold bg-[#F37021] text-white px-1.5 py-0.5 rounded tracking-wider">
-                STMS
+                TCMS
               </span>
             </div>
             <p className="text-[11px] text-blue-200 truncate">Share Registrar Services</p>
@@ -65,6 +64,7 @@ export function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={onNavigate}
                 className={cn(
                   "group flex items-center justify-between rounded-lg px-3 py-2.5 text-xs font-semibold transition-all duration-150",
                   isActive

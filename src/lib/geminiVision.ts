@@ -17,8 +17,7 @@ export async function analyzeDocumentWithGemini(
   mimeType: string = 'image/jpeg',
   apiKey?: string
 ): Promise<GeminiVisionResult> {
-  const defaultServerKey = Buffer.from("QVEuQWI4Uk42SllBRVlGb1NUTlZDY2ExOHlPeGI1M29OWWpxdGZLNlduUU1KbmkyMUtJS0E=", "base64").toString("utf-8");
-  const key = apiKey || process.env.GEMINI_API_KEY || defaultServerKey;
+  const key = apiKey || process.env.GEMINI_API_KEY;
   if (!key) {
     return { success: false, error: 'NO_API_KEY', source: 'ocr_fallback' };
   }

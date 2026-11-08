@@ -59,12 +59,12 @@ export default function ReportsPage() {
     loadData();
   }, []);
 
-  const totalCases = summaryData?.totalCases || 13256;
-  const closed = summaryData?.totalClosed || 3180;
-  const pending = summaryData?.pending || 305;
-  const awaitingHeirs = summaryData?.waitingLegalHeirs || 6322;
-  const coSigning = summaryData?.coSigning || 24;
-  const coApproval = summaryData?.coApproval || 95;
+  const totalCases = summaryData?.totalCases || 0;
+  const closed = summaryData?.totalClosed || 0;
+  const pending = summaryData?.pending || 0;
+  const awaitingHeirs = summaryData?.waitingLegalHeirs || 0;
+  const coSigning = summaryData?.coSigning || 0;
+  const coApproval = summaryData?.coApproval || 0;
 
   // Filter raw companies list
   const rawCompanies: any[] = summaryData?.companyMisSummary || [];
@@ -97,11 +97,11 @@ export default function ReportsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-black tracking-tight text-slate-900">MIS &amp; Regulatory Reporting</h2>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900">Management KPI &amp; Compliance Analytics</h2>
             <Badge className="bg-[#0B2B5E] text-white font-bold text-xs">Live Synced DB</Badge>
           </div>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Consolidated Client Company Transmission Status Register across all Pakistan Stock Exchange (PSX) listed client companies.
+            Turnaround metrics, company summaries, and transmission SLA compliance for CDCSR operations. Visible to all staff.
           </p>
         </div>
         <div className="flex items-center gap-2">

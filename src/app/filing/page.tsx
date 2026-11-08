@@ -178,11 +178,11 @@ function FilingContent() {
     }
   };
 
-  const criticalCount = data?.criticalCount || 30;
-  const warningCount = data?.warningCount || 47;
-  const healthyCount = data?.healthyCount || 399;
-  const totalFiles = data?.totalPhysicalFiles || 476;
-  const totalCasesInFiling = data?.totalRecords || 11481;
+  const criticalCount = data?.criticalCount || 0;
+  const warningCount = data?.warningCount || 0;
+  const healthyCount = data?.healthyCount || 0;
+  const totalFiles = data?.totalPhysicalFiles || 0;
+  const totalCasesInFiling = data?.totalRecords || 0;
 
   const files = data?.files || [];
   const matchedRecords = data?.matchedRecords || [];

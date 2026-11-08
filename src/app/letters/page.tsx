@@ -82,26 +82,8 @@ interface ScrutinyDocItem {
   objection: string;
 }
 
-function LetterGenerationContent() {
+function MainLetterGenerator() {
   const searchParams = useSearchParams();
-  const queryType = searchParams.get("type");
-
-  if (queryType === "shares-delivery") {
-    return <SharesDeliveryLetter />;
-  }
-  if (queryType === "cheques-delivery") {
-    return <ChequesDeliveryLetter />;
-  }
-  if (queryType === "cds-account") {
-    return <CdsAccountLetter />;
-  }
-  if (queryType === "physical-approval") {
-    return <PhysicalApprovalLetter />;
-  }
-  if (queryType === "no-folio-found") {
-    return <NoFolioFoundLetter />;
-  }
-
   const letterStage = "first";
   const [openAccordion, setOpenAccordion] = useState<Record<string, boolean>>({
     quickUpload: true,
@@ -181,29 +163,7 @@ function LetterGenerationContent() {
   const [pastedText, setPastedText] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Gemini Vision AI Integration State
-  const [geminiApiKey, setGeminiApiKey] = useState<string>("");
-  const [showAiKeyModal, setShowAiKeyModal] = useState<boolean>(false);
-  const [tempApiKeyInput, setTempApiKeyInput] = useState<string>("");
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedKey = localStorage.getItem("tcms_gemini_api_key");
-      if (storedKey) {
-        setGeminiApiKey(storedKey);
-        setTempApiKeyInput(storedKey);
-      }
-    }
-  }, []);
-
-  const handleSaveAiKey = (key: string) => {
-    const cleanKey = key.trim();
-    setGeminiApiKey(cleanKey);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("tcms_gemini_api_key", cleanKey);
-    }
-    setShowAiKeyModal(false);
-  };
 
   // Multi-document upload for Second Letter
   const [dossierFiles, setDossierFiles] = useState<string[]>([]);
@@ -555,13 +515,8 @@ function LetterGenerationContent() {
       formData.append("file", file);
 
       try {
-        const headers: Record<string, string> = {};
-        if (geminiApiKey) {
-          headers["x-gemini-key"] = geminiApiKey;
-        }
         const res = await fetch("/api/parse-letter", {
           method: "POST",
-          headers,
           body: formData,
         });
         if (res.ok) {
@@ -1050,42 +1005,27 @@ Encl.:  As stated above.`;
                   className="hidden" 
                 />
 
-                {/* AI Multimodal Vision Status & One-Click Activation Bar */}
-                <div className="flex flex-wrap items-center justify-between p-2.5 bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-orange-50/40 rounded-xl border border-blue-200/80 gap-2">
+                {/* AI Multimodal Vision Status Bar (Server Powered) */}
+                <div className="flex flex-wrap items-center justify-between p-2.5 bg-gradient-to-r from-emerald-50/70 via-blue-50/50 to-orange-50/40 rounded-xl border border-emerald-200/80 gap-2">
                   <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-lg ${geminiApiKey ? "bg-emerald-100 text-emerald-800" : "bg-blue-100 text-[#0B2B5E]"}`}>
-                      <Sparkles className="h-4 w-4" />
+                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800">
+                      <Sparkles className="h-4 w-4 text-[#F37021]" />
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-800">
-                          {geminiApiKey ? "AI Vision Active (Gemini 2.0 / 1.5 Flash)" : "Human-Like AI Vision (Gemini Multimodal)"}
+                        <span className="text-xs font-bold text-slate-900">
+                          AI Multimodal Vision Active (Server Powered)
                         </span>
-                        <span className={`inline-block h-2 w-2 rounded-full ${geminiApiKey ? "bg-emerald-500 animate-pulse" : "bg-amber-400"}`} />
+                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                       </div>
-                      <p className="text-[10px] text-slate-500">
-                        {geminiApiKey 
-                          ? "Reads handwritten blue ink, mobile camera photos, and multi-folio tables with human understanding." 
-                          : "Supports handwritten letters & multi-folio extraction like a human. Connect free key."}
+                      <p className="text-[10px] text-slate-600">
+                        Human-like reading for handwritten letters, mobile camera photos, and multi-folio tables.
                       </p>
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setTempApiKeyInput(geminiApiKey);
-                      setShowAiKeyModal(true);
-                    }}
-                    className={`text-xs h-7 font-bold shadow-2xs ${
-                      geminiApiKey 
-                        ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" 
-                        : "border-[#0B2B5E] text-[#0B2B5E] bg-white hover:bg-blue-50"
-                    }`}
-                  >
-                    {geminiApiKey ? "AI Settings (Connected ✓)" : "🔑 Connect Free AI Key"}
-                  </Button>
+                  <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold border border-emerald-200">
+                    Shared Server Key Active
+                  </Badge>
                 </div>
 
                 <div className="p-4 border-2 border-dashed border-orange-200 rounded-xl bg-orange-50/30 hover:bg-orange-50/60 transition-all text-center">
@@ -2249,83 +2189,32 @@ Encl.:  As stated above.`;
         </DialogContent>
       </Dialog>
 
-      {/* AI Key Configuration Modal */}
-      <Dialog open={showAiKeyModal} onOpenChange={setShowAiKeyModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm font-bold text-[#0B2B5E]">
-              <Sparkles className="h-4 w-4 text-[#F37021]" />
-              AI Multimodal Vision (Google Gemini)
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Connect your free Google Gemini API key to activate human-like reading for handwritten ink, mobile phone photos, and multi-folio tables with 100% accuracy.
-            </DialogDescription>
-          </DialogHeader>
 
-          <div className="space-y-3 py-2 text-xs">
-            <div className="p-3 bg-blue-50/70 rounded-lg border border-blue-200 text-slate-700 space-y-1.5">
-              <p className="font-semibold text-[#0B2B5E]">How to get a free key in 30 seconds:</p>
-              <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-600">
-                <li>Visit <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[#F37021] underline font-bold">Google AI Studio (Free)</a></li>
-                <li>Sign in with your Google Account &amp; click <strong>"Create API Key"</strong></li>
-                <li>Paste your API key below and click <strong>Save &amp; Activate</strong></li>
-              </ol>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Gemini API Key:
-              </label>
-              <Input
-                type="password"
-                value={tempApiKeyInput}
-                onChange={(e) => setTempApiKeyInput(e.target.value)}
-                placeholder="AIzaSy..."
-                className="font-mono text-xs"
-              />
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                Saved securely in your browser's local storage.
-              </span>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            {geminiApiKey && (
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  handleSaveAiKey("");
-                  setTempApiKeyInput("");
-                }}
-                className="text-xs h-8 mr-auto"
-              >
-                Disconnect Key
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAiKeyModal(false)}
-              className="text-xs h-8"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => handleSaveAiKey(tempApiKeyInput)}
-              className="bg-[#0B2B5E] hover:bg-[#103a7a] text-white text-xs font-bold h-8 px-4"
-            >
-              Save &amp; Activate
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
+}
+
+function LetterGenerationContent() {
+  const searchParams = useSearchParams();
+  const queryType = searchParams.get("type");
+
+  if (queryType === "shares-delivery") {
+    return <SharesDeliveryLetter />;
+  }
+  if (queryType === "cheques-delivery") {
+    return <ChequesDeliveryLetter />;
+  }
+  if (queryType === "cds-account") {
+    return <CdsAccountLetter />;
+  }
+  if (queryType === "physical-approval") {
+    return <PhysicalApprovalLetter />;
+  }
+  if (queryType === "no-folio-found") {
+    return <NoFolioFoundLetter />;
+  }
+
+  return <MainLetterGenerator />;
 }
 
 export default function LetterGenerationPage() {

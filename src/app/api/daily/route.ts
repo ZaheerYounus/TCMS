@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/auth';
 import fs from 'fs';
 import path from 'path';
 
@@ -33,7 +34,8 @@ export async function GET(req: NextRequest) {
     const query = (searchParams.get('q') || '').toLowerCase().trim();
 
     const all = getDailyData();
-    const todayStr = "2026-09-19"; // Synchronized system date
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
 
     let filtered = [...all];
 
@@ -47,14 +49,18 @@ export async function GET(req: NextRequest) {
       if (dateFilter === 'today') {
         filtered = filtered.filter(item => item.date === todayStr);
       } else if (dateFilter === 'yesterday') {
-        const yDate = new Date("2026-09-19");
+        const yDate = new Date(now);
         yDate.setDate(yDate.getDate() - 1);
         const yStr = yDate.toISOString().split('T')[0];
         filtered = filtered.filter(item => item.date === yStr);
       } else if (dateFilter === 'week') {
-        filtered = filtered.filter(item => item.date >= '2026-09-13');
+        const wDate = new Date(now);
+        wDate.setDate(wDate.getDate() - 7);
+        const wStr = wDate.toISOString().split('T')[0];
+        filtered = filtered.filter(item => item.date >= wStr);
       } else if (dateFilter === 'month') {
-        filtered = filtered.filter(item => item.date.startsWith('2026-09'));
+        const mPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        filtered = filtered.filter(item => item.date.startsWith(mPrefix));
       } else if (dateFilter !== 'all') {
         filtered = filtered.filter(item => item.date === dateFilter);
       }
@@ -102,11 +108,19 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: "Authentication required to add daily register entries." },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const all = getDailyData();
 
     const now = new Date();
-    const dateStr = body.date || "2026-09-19";
+    const dateStr = body.date || now.toISOString().split('T')[0];
     const timeStr = body.time || now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const newId = `CORR-${dateStr.replace(/-/g, '')}-${String(all.length + 1).padStart(2, '0')}`;
@@ -123,9 +137,9 @@ export async function POST(req: NextRequest) {
       legalHeir: body.legalHeir || '',
       relation: body.relation || 'Legal Heir',
       enclosures: body.enclosures || 'Standard transmission application',
-      assignedTo: body.assignedTo || 'ZA',
-      officerName: body.officerName || 'Zaheer Ahmed',
-      status: body.status || (body.type === 'OUTWARD' ? 'DISPATCHED' : 'RECEIVED'),
+      assignedTo: currentUser.username,
+      officerName: currentUser.name,
+      status: (body.status || (body.type === 'OUTWARD' ? 'DISPATCHED' : 'RECEIVED')).toUpperCase(),
       remarks: body.remarks || ''
     };
 

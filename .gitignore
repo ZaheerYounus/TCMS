@@ -36,3 +36,9 @@ yarn-error.log*
 next-env.d.ts
 
 *.traineddata
+
+# Private customer data & database seeds (CDCSR PII)
+src/data/misRecords.json
+src/data/shareholdersSample.json
+*.db
+*.sqlite
