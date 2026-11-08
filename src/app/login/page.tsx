@@ -146,22 +146,48 @@ function LoginForm() {
             </form>
 
             {/* Quick Access Helper for Administrator & Staff */}
-            <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-500 space-y-1.5">
-              <p className="font-semibold text-slate-400 flex items-center gap-1.5">
-                <Shield className="h-3 w-3 text-emerald-400" /> Authorized Team Credentials:
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono bg-slate-900/80 p-2 rounded border border-slate-800 text-slate-400">
-                <div>
-                  <span className="text-[#F37021] font-bold">Admin:</span> admin<br />
-                  <span className="text-slate-500">Pass:</span> Admin@TCMS2026
-                </div>
-                <div>
-                  <span className="text-blue-400 font-bold">Staff:</span> staff1 .. staff4<br />
-                  <span className="text-slate-500">Pass:</span> Staff1@TCMS
+            <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-500 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-slate-400 flex items-center gap-1.5">
+                  <Shield className="h-3 w-3 text-emerald-400" /> Authorized Team Credentials:
+                </p>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUsername("admin");
+                      setPassword("tcms@cdcsr2026");
+                      setError(null);
+                    }}
+                    className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-950/80 text-orange-400 border border-orange-800/50 hover:bg-orange-900 transition-colors"
+                  >
+                    Use Admin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUsername("staff1");
+                      setPassword("cdcsr@staff1");
+                      setError(null);
+                    }}
+                    className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-950/80 text-blue-400 border border-blue-800/50 hover:bg-blue-900 transition-colors"
+                  >
+                    Use Staff
+                  </button>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500 italic text-center pt-1">
-                Administrators can create or modify accounts in the Admin panel.
+              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono bg-slate-900/80 p-2.5 rounded border border-slate-800 text-slate-400">
+                <div>
+                  <span className="text-[#F37021] font-bold">Admin ID:</span> admin<br />
+                  <span className="text-slate-400">Password:</span> tcms@cdcsr2026
+                </div>
+                <div>
+                  <span className="text-blue-400 font-bold">Staff ID:</span> staff1<br />
+                  <span className="text-slate-400">Password:</span> cdcsr@staff1
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-500 italic text-center pt-0.5">
+                Click &ldquo;Use Admin&rdquo; or &ldquo;Use Staff&rdquo; to auto-fill credentials.
               </p>
             </div>
           </CardContent>

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "usr_admin",
+    "username": "admin",
+    "name": "Zaheer Ahmed (Lead & Admin)",
+    "role": "ADMIN",
+    "passwordHash": "d894b4a40ec34195fd3766cec7ac28aa:ad7252b233a20c40c4632230c9a4d6c81390e20e573840eeedb7044b2b521113",
+    "isActive": true,
+    "createdAt": "2026-11-08T18:16:24.054Z",
+    "updatedAt": "2026-11-08T18:16:24.056Z"
+  },
+  {
+    "id": "usr_staff1",
+    "username": "staff1",
+    "name": "Azib Yousuf (Team Lead)",
+    "role": "STAFF",
+    "passwordHash": "d245d79662880893fee0f88416da50c3:d122417d4620ca5f7dbe89b8e4c1f24626ea9d3d106af7699ece117c574ebd2d",
+    "isActive": true,
+    "createdAt": "2026-11-08T18:16:24.242Z",
+    "updatedAt": "2026-11-08T18:16:24.242Z"
+  },
+  {
+    "id": "usr_staff2",
+    "username": "staff2",
+    "name": "Muqaddas Sharif (Senior Officer)",
+    "role": "STAFF",
+    "passwordHash": "26d9be4e49e9703fed9d2bb933b73efa:90181529ba05f127ed1ccce83acd2a7b380796c2f466fd8c86232a2e3eae98db",
+    "isActive": true,
+    "createdAt": "2026-11-08T18:16:24.448Z",
+    "updatedAt": "2026-11-08T18:16:24.448Z"
+  },
+  {
+    "id": "usr_staff3",
+    "username": "staff3",
+    "name": "Zohaib Jamal (Transmission Officer)",
+    "role": "STAFF",
+    "passwordHash": "4e2033e604af2503a1fdf345e2ae1c39:72b31e6cabf4ad67d3607ba7f33d3fb35c37c6a30dbbeba0a931d98ecf7adfa9",
+    "isActive": true,
+    "createdAt": "2026-11-08T18:16:24.649Z",
+    "updatedAt": "2026-11-08T18:16:24.649Z"
+  },
+  {
+    "id": "usr_staff4",
+    "username": "staff4",
+    "name": "Ali Raza (Filing & Vault Officer)",
+    "role": "STAFF",
+    "passwordHash": "77fb4c76ea1b8015721a5b38f99560f4:c5c837354dc41596c4cb584724f4d69c77f7cefeab0d4f0267fa120ab7873c8a",
+    "isActive": true,
+    "createdAt": "2026-11-08T18:16:24.846Z",
+    "updatedAt": "2026-11-08T18:16:24.846Z"
+  }
+]
