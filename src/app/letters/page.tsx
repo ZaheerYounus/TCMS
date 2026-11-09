@@ -72,7 +72,7 @@ interface MultiFolioItem {
   company: string;
   shares: string;
   certificates: string;
-  scripts: string;
+  scripts?: string;
 }
 
 interface ScrutinyDocItem {
@@ -133,6 +133,12 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
   const [companySearchQuery, setCompanySearchQuery] = useState("");
   const [mode, setMode] = useState<"single" | "multi">(initialMode);
   const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    if (initialMode) {
+      setMode(initialMode);
+    }
+  }, [initialMode]);
   const [copied, setCopied] = useState(false);
   const [syncToMis, setSyncToMis] = useState(true);
   const [searchingFolio, setSearchingFolio] = useState(false);
@@ -184,18 +190,20 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
   const [contactNo, setContactNo] = useState("0333-3535404");
 
   // Reference & Date (Requirement 4: Standard DD/MM/YYYY)
-  const [refNo, setRefNo] = useState("CDCSR/LTC/OGDC/1207/26");
+  const [refNo, setRefNo] = useState(() => {
+    return initialMode === "multi" ? "CDCSR/LTC/VAR/1207/26" : "CDCSR/LTC/OGDC/1207/26";
+  });
   const [date, setDate] = useState(() => {
     const d = new Date();
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
   });
 
-  // Multi Folio Rows
+  // Multi Folio Rows (No scripts column needed)
   const [multiFolios, setMultiFolios] = useState<MultiFolioItem[]>([
-    { folio: "283", company: "Khyber Tobacco Company Limited", shares: "3", certificates: "02", scripts: "Cert # 2110-2111" },
-    { folio: "8053", company: "K-Electric Limited", shares: "113", certificates: "01", scripts: "Cert # 9401" },
-    { folio: "14452", company: "PAK Suzuki Motor Company Limited", shares: "39", certificates: "04", scripts: "Cert # 8011-8014" },
-    { folio: "I0151", company: "Pakistan International Airlines Corporation Limited", shares: "100", certificates: "01", scripts: "Cert # 15201" },
+    { folio: "283", company: "Khyber Tobacco Company Limited", shares: "3", certificates: "02" },
+    { folio: "8053", company: "K-Electric Limited", shares: "113", certificates: "01" },
+    { folio: "14452", company: "PAK Suzuki Motor Company Limited", shares: "39", certificates: "04" },
+    { folio: "I0151", company: "Pakistan International Airlines Corporation Limited", shares: "100", certificates: "01" },
   ]);
 
   // Documents Received (Step 1)
@@ -460,7 +468,14 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
     setExtractedDataSummary(null);
 
     const applyParsedData = (p: ParsedLetterResult) => {
-      if (p.mode === "multi" && p.multiFolios && p.multiFolios.length > 1) {
+      if (initialMode === "single") {
+        setMode("single");
+      } else if (initialMode === "multi") {
+        setMode("multi");
+        if (p.multiFolios && p.multiFolios.length > 0) {
+          setMultiFolios(p.multiFolios);
+        }
+      } else if (p.mode === "multi" && p.multiFolios && p.multiFolios.length > 1) {
         setMode("multi");
         setMultiFolios(p.multiFolios);
       } else {
@@ -704,7 +719,7 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
   };
 
   const addMultiFolioRow = () => {
-    setMultiFolios(prev => [...prev, { folio: "", company: "", shares: "", certificates: "", scripts: "" }]);
+    setMultiFolios(prev => [...prev, { folio: "", company: "", shares: "", certificates: "" }]);
   };
 
   const removeMultiFolioRow = (index: number) => {
@@ -824,13 +839,15 @@ ${contactNo ? 'Contact: ' + contactNo : ''}
 
 Dear Concern,
 
-${company}
-Transmission of Shares and Dividends – Late ${deceased} – Folio # ${mode === 'single' ? folio : multiFolios.map(m => m.folio).join(', ')}
+${mode === "single" ? `${company}\nTransmission of Shares and Dividends – Late ${deceased} – Folio # ${folio}` : `Transmission of Shares & Dividends – Late ${deceased}`}
 
 ${scrutinyPosition === 'top' && plainRemark ? plainRemark + '\n' : ''}We refer to your letter regarding the captioned subject and acknowledge the receipt of:
 ${receivedDocs.map(d => '- ' + d).join('\n')}
 
-Kindly note that as per company's record total, ${certificates} share certificate for ${shares} shares under folio of ${company} is registered in name of deceased shareholder (details of shares attached).${includeStandardCertLine ? '\n\nShare certificates shall be sent upon our further instructions.' : ''}${hasLostShares ? '\n\n' + duplicateIntro + '\n' + duplicateDocs.map((d, i) => '• ' + d).join('\n') : ''}
+${mode === "multi" 
+  ? `Kindly note that following shares are registered in the name of subject deceased shareholder (details of shares attached):\n` + multiFolios.map((m, idx) => `   ${idx + 1}. Folio #${m.folio} | ${m.company} | Certs: ${m.certificates} | Shares: ${m.shares}`).join('\n')
+  : `Kindly note that as per company's record total, ${certificates} share certificate for ${shares} shares under folio of ${company} is registered in name of deceased shareholder (details of shares attached).`
+}${includeStandardCertLine ? '\n\nShare certificates shall be sent upon our further instructions.' : ''}${hasLostShares ? '\n\n' + duplicateIntro + '\n' + duplicateDocs.map((d, i) => '• ' + d).join('\n') : ''}
 ${scrutinyPosition === 'middle' && plainRemark ? plainRemark + '\n' : ''}
 In order to enable us to process transmission of shares and dividends in favor of legal heir(s), following documents are required:
 ${requiredDocs.map((d, i) => `${i + 1}. ${d}`).join('\n')}
@@ -1075,7 +1092,7 @@ Encl.:  As stated above.`;
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-xs font-mono font-bold text-[#0B2B5E] bg-blue-100 px-2 py-0.5 rounded">
-                  {company ? (company.length > 25 ? company.slice(0, 25) + '...' : company) : 'Select Company'}
+                  {mode === "single" ? (company ? (company.length > 25 ? company.slice(0, 25) + '...' : company) : 'Select Company') : `${multiFolios.length} Folios Registered`}
                 </span>
                 {openAccordion.basicDetails ? (
                   <ChevronUp className="h-4 w-4 text-slate-500" />
@@ -1087,145 +1104,180 @@ Encl.:  As stated above.`;
 
             {openAccordion.basicDetails && (
               <div className="p-4 pt-3 border-t border-slate-100 space-y-4 bg-white">
-                {/* Mode switcher (Single vs Multi Folio) */}
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-700">Holding Mode:</span>
-                    <button
-                      type="button"
-                      onClick={() => setMode("single")}
-                      className={`px-2.5 py-1 text-xs rounded font-bold transition-all ${
-                        mode === "single" ? "bg-[#0B2B5E] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      Single Folio
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMode("multi")}
-                      className={`px-2.5 py-1 text-xs rounded font-bold transition-all ${
-                        mode === "multi" ? "bg-[#0B2B5E] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      Multiple Folios
-                    </button>
+                {/* Reference Number and Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3 border-b border-slate-100">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Reference Number <span className="text-rose-500">*</span>
+                    </label>
+                    <Input 
+                      value={refNo} 
+                      onChange={(e) => setRefNo(e.target.value)} 
+                      placeholder="e.g. CDCSR/LTC/OGDC/1207/26" 
+                      className="text-xs h-9 font-mono font-bold text-[#0B2B5E]" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Letter Date <span className="text-rose-500">*</span>
+                    </label>
+                    <Input 
+                      value={date} 
+                      onChange={(e) => setDate(e.target.value)} 
+                      placeholder="DD/MM/YYYY" 
+                      className="text-xs h-9 font-medium" 
+                    />
                   </div>
                 </div>
 
-                {/* Company Name with Full Selectable List / Autocomplete Dropdown */}
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-700">
-                      Company Name <span className="text-rose-500">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddCompanyModal(true)}
-                      className="text-[11px] font-bold text-[#F37021] hover:text-[#D85B10] flex items-center gap-1"
-                    >
-                      <Plus className="h-3 w-3" />
-                      + Add New Company
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <Input 
-                      value={company}
-                      onChange={(e) => {
-                        setCompany(e.target.value);
-                        setCompanySearchQuery(e.target.value);
-                        setIsCompanyDropdownOpen(true);
-                      }}
-                      onFocus={() => {
-                        setCompanySearchQuery(company);
-                        setIsCompanyDropdownOpen(true);
-                      }}
-                      placeholder="Search and select from 175+ registered companies..." 
-                      className="text-xs h-9 pr-8 font-semibold text-[#0B2B5E]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                      className="absolute right-2 top-2 text-slate-400 hover:text-slate-700"
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {/* Autocomplete Dropdown Menu */}
-                  {isCompanyDropdownOpen && (
-                    <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-300 rounded-lg shadow-xl py-1 text-xs">
-                      <div 
-                        onClick={() => {
-                          setShowAddCompanyModal(true);
-                          setIsCompanyDropdownOpen(false);
-                        }}
-                        className="px-3 py-2 bg-orange-50 hover:bg-orange-100 cursor-pointer font-bold text-[#D85B10] border-b border-orange-200 flex items-center justify-between"
-                      >
-                        <span>+ Add New Company</span>
-                        <span className="text-[10px] bg-[#F37021] text-white px-1.5 py-0.5 rounded font-mono">Custom</span>
+                {/* Company Name (for Single Folio) or Deceased Name (for Multiple Folios) */}
+                {mode === "single" ? (
+                  <>
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-bold text-slate-700">
+                          Company Name <span className="text-rose-500">*</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddCompanyModal(true)}
+                          className="text-[11px] font-bold text-[#F37021] hover:text-[#D85B10] flex items-center gap-1"
+                        >
+                          <Plus className="h-3 w-3" />
+                          + Add New Company
+                        </button>
                       </div>
-                      {allCompanies
-                        .filter(c => c.toLowerCase().includes((companySearchQuery || "").toLowerCase()))
-                        .slice(0, 35)
-                        .map((comp, idx) => (
-                          <div
-                            key={idx}
+                      <div className="relative">
+                        <Input 
+                          value={company}
+                          onChange={(e) => {
+                            setCompany(e.target.value);
+                            setCompanySearchQuery(e.target.value);
+                            setIsCompanyDropdownOpen(true);
+                          }}
+                          onFocus={() => {
+                            setCompanySearchQuery(company);
+                            setIsCompanyDropdownOpen(true);
+                          }}
+                          placeholder="Search and select from 175+ registered companies..." 
+                          className="text-xs h-9 pr-8 font-semibold text-[#0B2B5E]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                          className="absolute right-2 top-2 text-slate-400 hover:text-slate-700"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {/* Autocomplete Dropdown Menu */}
+                      {isCompanyDropdownOpen && (
+                        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-300 rounded-lg shadow-xl py-1 text-xs">
+                          <div 
                             onClick={() => {
-                              setCompany(comp);
-                              const sym = comp.split(' ')[0].toUpperCase();
-                              setCompSymbol(sym);
-                              setRefNo(`CDCSR/LTC/${sym}/${folio || '0000'}/26`);
+                              setShowAddCompanyModal(true);
                               setIsCompanyDropdownOpen(false);
                             }}
-                            className="px-3 py-2 hover:bg-blue-50 cursor-pointer font-medium text-slate-800 border-b border-slate-50 last:border-0 flex items-center justify-between"
+                            className="px-3 py-2 bg-orange-50 hover:bg-orange-100 cursor-pointer font-bold text-[#D85B10] border-b border-orange-200 flex items-center justify-between"
                           >
-                            <span>{comp}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">{comp.split(' ')[0]}</span>
+                            <span>+ Add New Company</span>
+                            <span className="text-[10px] bg-[#F37021] text-white px-1.5 py-0.5 rounded font-mono">Custom</span>
                           </div>
-                        ))}
-                      {allCompanies.filter(c => c.toLowerCase().includes((companySearchQuery || "").toLowerCase())).length === 0 && (
-                        <div className="p-3 text-slate-500 text-center text-xs">
-                          <p>No existing company matches "{companySearchQuery}".</p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newName = companySearchQuery.trim();
-                              if (newName) {
-                                setAllCompanies(prev => [newName, ...prev]);
-                                setCompany(newName);
-                                const sym = newName.split(' ')[0].toUpperCase();
-                                setCompSymbol(sym);
-                                setRefNo(`CDCSR/LTC/${sym}/${folio || '0000'}/26`);
-                                setIsCompanyDropdownOpen(false);
-                              }
-                            }}
-                            className="mt-1 text-xs font-bold text-[#F37021] hover:underline"
-                          >
-                            Use "{companySearchQuery}" as company &rarr;
-                          </button>
+                          {allCompanies
+                            .filter(c => c.toLowerCase().includes((companySearchQuery || "").toLowerCase()))
+                            .slice(0, 35)
+                            .map((comp, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  setCompany(comp);
+                                  const sym = comp.split(' ')[0].toUpperCase();
+                                  setCompSymbol(sym);
+                                  setRefNo(`CDCSR/LTC/${sym}/${folio || '0000'}/26`);
+                                  setIsCompanyDropdownOpen(false);
+                                }}
+                                className="px-3 py-2 hover:bg-blue-50 cursor-pointer font-medium text-slate-800 border-b border-slate-50 last:border-0 flex items-center justify-between"
+                              >
+                                <span>{comp}</span>
+                                <span className="text-[10px] text-slate-400 font-mono">{comp.split(' ')[0]}</span>
+                              </div>
+                            ))}
+                          {allCompanies.filter(c => c.toLowerCase().includes((companySearchQuery || "").toLowerCase())).length === 0 && (
+                            <div className="p-3 text-slate-500 text-center text-xs">
+                              <p>No existing company matches "{companySearchQuery}".</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newName = companySearchQuery.trim();
+                                  if (newName) {
+                                    setAllCompanies(prev => [newName, ...prev]);
+                                    setCompany(newName);
+                                    const sym = newName.split(' ')[0].toUpperCase();
+                                    setCompSymbol(sym);
+                                    setRefNo(`CDCSR/LTC/${sym}/${folio || '0000'}/26`);
+                                    setIsCompanyDropdownOpen(false);
+                                  }
+                                }}
+                                className="mt-1 text-xs font-bold text-[#F37021] hover:underline"
+                              >
+                                Use "{companySearchQuery}" as company &rarr;
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
 
-                {/* Folio & Shareholding */}
-                {mode === "single" ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">Folio Number</label>
-                      <Input 
-                        value={folio} 
-                        onChange={(e) => {
-                          setFolio(e.target.value);
-                          setRefNo(`CDCSR/LTC/${compSymbol || 'COMP'}/${e.target.value}/26`);
-                        }}
-                        placeholder="e.g. 44058" 
-                        className="text-xs h-9 font-bold text-[#0B2B5E]"
-                      />
+                    {/* Single Folio Particulars */}
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700 block mb-1">Folio Number</label>
+                        <Input 
+                          value={folio} 
+                          onChange={(e) => {
+                            setFolio(e.target.value);
+                            setRefNo(`CDCSR/LTC/${compSymbol || 'COMP'}/${e.target.value}/26`);
+                          }}
+                          placeholder="e.g. 44058" 
+                          className="text-xs h-9 font-bold text-[#0B2B5E]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700 block mb-1">Deceased Shareholder</label>
+                        <Input 
+                          value={deceased} 
+                          onChange={(e) => setDeceased(e.target.value)}
+                          placeholder="e.g. Saiyed Ali Imam Jafri" 
+                          className="text-xs h-9 font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700 block mb-1">Registered Shares</label>
+                        <Input 
+                          value={shares} 
+                          onChange={(e) => setShares(e.target.value)}
+                          placeholder="e.g. =1,000=" 
+                          className="text-xs h-9"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700 block mb-1">Certificates Count</label>
+                        <Input 
+                          value={certificates} 
+                          onChange={(e) => setCertificates(e.target.value)}
+                          placeholder="e.g. =01=" 
+                          className="text-xs h-9"
+                        />
+                      </div>
                     </div>
+                  </>
+                ) : (
+                  <>
                     <div>
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">Deceased Shareholder</label>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                        Deceased Shareholder Name <span className="text-rose-500">*</span>
+                      </label>
                       <Input 
                         value={deceased} 
                         onChange={(e) => setDeceased(e.target.value)}
@@ -1233,86 +1285,80 @@ Encl.:  As stated above.`;
                         className="text-xs h-9 font-medium"
                       />
                     </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">Registered Shares</label>
-                      <Input 
-                        value={shares} 
-                        onChange={(e) => setShares(e.target.value)}
-                        placeholder="e.g. =1,000=" 
-                        className="text-xs h-9"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">Certificates Count</label>
-                      <Input 
-                        value={certificates} 
-                        onChange={(e) => setCertificates(e.target.value)}
-                        placeholder="e.g. =01=" 
-                        className="text-xs h-9"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold text-slate-700">Multiple Folios Breakdown</p>
-                      <Button 
-                        type="button" 
-                        onClick={addMultiFolioRow} 
-                        size="sm" 
-                        className="h-7 text-xs bg-[#0B2B5E] text-white"
-                      >
-                        <Plus className="mr-1 h-3 w-3" /> Add Folio
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      {multiFolios.map((row, idx) => (
-                        <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
-                          <Input 
-                            placeholder="Folio #" 
-                            value={row.folio} 
-                            onChange={(e) => updateMultiFolioRow(idx, "folio", e.target.value)}
-                            className="h-8 text-xs w-24 font-bold"
-                          />
-                          <Input 
-                            placeholder="Company" 
-                            value={row.company} 
-                            onChange={(e) => updateMultiFolioRow(idx, "company", e.target.value)}
-                            className="h-8 text-xs flex-1"
-                          />
-                          <Input 
-                            placeholder="Shares" 
-                            value={row.shares} 
-                            onChange={(e) => updateMultiFolioRow(idx, "shares", e.target.value)}
-                            className="h-8 text-xs w-20"
-                          />
-                          <Input 
-                            placeholder="Certs" 
-                            value={row.certificates} 
-                            onChange={(e) => updateMultiFolioRow(idx, "certificates", e.target.value)}
-                            className="h-8 text-xs w-16"
-                          />
-                          <Input 
-                            placeholder="Scripts / Dist #" 
-                            value={row.scripts} 
-                            onChange={(e) => updateMultiFolioRow(idx, "scripts", e.target.value)}
-                            className="h-8 text-xs flex-1"
-                          />
-                          {multiFolios.length > 1 && (
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => removeMultiFolioRow(idx)}
-                              className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
+
+                    <div className="space-y-3 pt-1">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-700">Multiple Folios Breakdown</p>
+                          <p className="text-[11px] text-slate-500">Each folio with respective company, share count &amp; cert count.</p>
                         </div>
-                      ))}
+                        <Button 
+                          type="button" 
+                          onClick={addMultiFolioRow} 
+                          size="sm" 
+                          className="h-7 text-xs bg-[#0B2B5E] text-white"
+                        >
+                          <Plus className="mr-1 h-3 w-3" /> Add Folio
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {multiFolios.map((row, idx) => (
+                          <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
+                            <div className="w-24">
+                              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Folio #</span>
+                              <Input 
+                                placeholder="Folio #" 
+                                value={row.folio} 
+                                onChange={(e) => updateMultiFolioRow(idx, "folio", e.target.value)}
+                                className="h-8 text-xs font-bold"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Company Name</span>
+                              <Input 
+                                placeholder="Company Name" 
+                                value={row.company} 
+                                onChange={(e) => updateMultiFolioRow(idx, "company", e.target.value)}
+                                className="h-8 text-xs font-medium"
+                              />
+                            </div>
+                            <div className="w-24">
+                              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Shares</span>
+                              <Input 
+                                placeholder="Shares" 
+                                value={row.shares} 
+                                onChange={(e) => updateMultiFolioRow(idx, "shares", e.target.value)}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            <div className="w-20">
+                              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Certs</span>
+                              <Input 
+                                placeholder="Certs" 
+                                value={row.certificates} 
+                                onChange={(e) => updateMultiFolioRow(idx, "certificates", e.target.value)}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            {multiFolios.length > 1 && (
+                              <div className="pt-3">
+                                <Button 
+                                  type="button" 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => removeMultiFolioRow(idx)}
+                                  className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
+                                  title="Remove row"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )}
 
                 {/* Certificate Distinctive Scripts (Hidden for First Letter) */}
@@ -1872,10 +1918,18 @@ Encl.:  As stated above.`;
 
               {/* Subject */}
               <div className="font-sans text-xs space-y-0.5 border-l-2 border-l-[#F37021] pl-2.5 py-0.5 bg-orange-50/40">
-                <p className="font-bold text-[#0B2B5E]">{company}</p>
-                <p className="font-bold text-slate-900 underline">
-                  Transmission of Shares and Dividends – Late {deceased} – Folio # {mode === "single" ? folio : multiFolios.map(m => m.folio).filter(Boolean).join(", ")}
-                </p>
+                {mode === "single" ? (
+                  <>
+                    <p className="font-bold text-[#0B2B5E]">{company}</p>
+                    <p className="font-bold text-slate-900 underline">
+                      Transmission of Shares and Dividends – Late {deceased} – Folio # {folio}
+                    </p>
+                  </>
+                ) : (
+                  <p className="font-bold text-slate-900 underline">
+                    Transmission of Shares &amp; Dividends – Late {deceased}
+                  </p>
+                )}
               </div>
 
 
@@ -1890,10 +1944,16 @@ Encl.:  As stated above.`;
                     <strong>{receivedDocs.length > 0 ? receivedDocs.join(", ") : "documents submitted"}</strong>.
                   </p>
 
-                  <p>
-                    Kindly note that as per company's record total, <strong>{certificates}</strong> share certificate for{" "}
-                    <strong>{shares}</strong> shares {scripts ? `(${scripts}) ` : ''}under folio of <strong>{company}</strong> is registered in the name of subject deceased shareholder (details of shares attached). In case if share certificate is lost, please intimate us accordingly.
-                  </p>
+                  {mode === "multi" ? (
+                    <p>
+                      Kindly note that following shares are registered in the name of subject deceased shareholder (details of shares attached). In case if share certificate is lost, please intimate us accordingly:
+                    </p>
+                  ) : (
+                    <p>
+                      Kindly note that as per company's record total, <strong>{certificates}</strong> share certificate for{" "}
+                      <strong>{shares}</strong> shares under folio of <strong>{company}</strong> is registered in the name of subject deceased shareholder (details of shares attached). In case if share certificate is lost, please intimate us accordingly.
+                    </p>
+                  )}
 
                   {/* Multi Folio Table in preview if active */}
                   {mode === "multi" && multiFolios.length > 0 && (
@@ -1903,10 +1963,9 @@ Encl.:  As stated above.`;
                           <tr>
                             <th className="p-1.5">S #</th>
                             <th className="p-1.5">Company</th>
-                            <th className="p-1.5">Folio</th>
-                            <th className="p-1.5">Certs</th>
-                            <th className="p-1.5">Shares</th>
-                            <th className="p-1.5">Scripts</th>
+                            <th className="p-1.5">Folio #</th>
+                            <th className="p-1.5"># of Certs</th>
+                            <th className="p-1.5"># of Shares</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1917,7 +1976,6 @@ Encl.:  As stated above.`;
                               <td className="p-1.5 font-bold">{m.folio}</td>
                               <td className="p-1.5">{m.certificates}</td>
                               <td className="p-1.5">{m.shares}</td>
-                              <td className="p-1.5">{m.scripts}</td>
                             </tr>
                           ))}
                         </tbody>

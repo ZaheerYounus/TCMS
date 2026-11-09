@@ -235,7 +235,6 @@ export async function POST(req: NextRequest) {
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Folio #", bold: true, size: 20 })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "# of Certs", bold: true, size: 20 })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "# of Shares", bold: true, size: 20 })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Scripts / Distinctive #", bold: true, size: 20 })] })] }),
               ]
             }),
             ...multiFolioTable.map((item: any, idx: number) => new TableRow({
@@ -245,7 +244,6 @@ export async function POST(req: NextRequest) {
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.folio || ''), size: 20 })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.certificates || ''), size: 20 })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.shares || ''), size: 20 })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.scripts || ''), size: 20 })] })] }),
               ]
             }))
           ]
