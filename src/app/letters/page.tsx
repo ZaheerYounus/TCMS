@@ -49,7 +49,10 @@ import {
   ZoomIn,
   ZoomOut,
   Minimize2,
-  Maximize2
+  Maximize2,
+  Camera,
+  SwitchCamera,
+  RefreshCw
 } from "lucide-react";
 import companiesList from "@/data/companiesList.json";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -167,6 +170,16 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pastedText, setPastedText] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Camera Live Scanner State
+  const [cameraModalOpen, setCameraModalOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraFacingMode, setCameraFacingMode] = useState<"environment" | "user">("environment");
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [capturingPhoto, setCapturingPhoto] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
 
 
 
@@ -642,6 +655,100 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
     }
   };
 
+  // Camera Live Scanning Functions
+  const startCamera = async (facing: "environment" | "user" = cameraFacingMode) => {
+    stopCamera();
+    setCameraError(null);
+    try {
+      if (typeof window === "undefined" || !navigator?.mediaDevices?.getUserMedia) {
+        throw new Error("Camera API is not supported in this browser environment.");
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(e => console.warn("Video play error:", e));
+      }
+    } catch (err: any) {
+      console.error("Camera access error:", err);
+      let msg = "Could not access camera. Please ensure permissions are granted in browser settings.";
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        msg = "Camera permission was denied. Please allow camera permissions in your browser address bar.";
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        msg = "No camera hardware detected on this device.";
+      }
+      setCameraError(msg);
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  const switchCamera = () => {
+    const nextMode = cameraFacingMode === "environment" ? "user" : "environment";
+    setCameraFacingMode(nextMode);
+    startCamera(nextMode);
+  };
+
+  const handleCaptureCameraPhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
+    setCapturingPhoto(true);
+    const canvas = canvasRef.current || document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `camera_scan_${Date.now()}.jpg`, { type: "image/jpeg" });
+          stopCamera();
+          setCameraModalOpen(false);
+          setCapturingPhoto(false);
+          handleFileUpload(file);
+        } else {
+          setCapturingPhoto(false);
+        }
+      }, "image/jpeg", 0.95);
+    } else {
+      setCapturingPhoto(false);
+    }
+  };
+
+  // Attach camera stream whenever modal opens and video element is mounted
+  useEffect(() => {
+    if (cameraModalOpen && cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+      videoRef.current.play().catch(e => console.warn("Video play error:", e));
+    }
+  }, [cameraModalOpen, cameraStream]);
+
+  // Clean up camera stream when component unmounts
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
   // Multi-document Dossier Upload Handler for Second Letter
   const handleDossierUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -932,6 +1039,22 @@ Encl.:  As stated above.`;
                   className="hidden" 
                 />
 
+                {/* Native Device Camera Capture Input (Fallback & Mobile Support) */}
+                <input 
+                  type="file" 
+                  ref={cameraCaptureInputRef} 
+                  accept="image/*" 
+                  capture="environment" 
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      stopCamera();
+                      setCameraModalOpen(false);
+                      handleFileUpload(e.target.files[0]);
+                    }
+                  }}
+                  className="hidden" 
+                />
+
                 <div className="p-4 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50/60 hover:bg-slate-50 transition-all text-center">
                   <div 
                     className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 mb-2 cursor-pointer"
@@ -945,7 +1068,7 @@ Encl.:  As stated above.`;
                   >
                     Drop incoming request letter or scan here
                   </h4>
-                  <p className="text-[11px] text-slate-500 mb-3">Supports PDF, Word (.docx/.doc), Scanned Photos/Images (JPG, PNG)</p>
+                  <p className="text-[11px] text-slate-500 mb-3">Supports Live Camera Snapshot, PDF, Word (.docx/.doc), Scanned Photos/Images (JPG, PNG)</p>
                   
                   {/* Real-time Percentage Progress Bar */}
                   {uploadingFile && (
@@ -969,12 +1092,24 @@ Encl.:  As stated above.`;
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     <Button
                       type="button"
+                      onClick={() => {
+                        setCameraModalOpen(true);
+                        startCamera("environment");
+                      }}
+                      disabled={uploadingFile}
+                      className="h-8 bg-[#F37021] hover:bg-[#D85B10] text-white font-bold text-xs px-3.5 shadow-2xs flex items-center gap-1.5"
+                    >
+                      <Camera className="h-3.5 w-3.5" />
+                      Live Camera Scan
+                    </Button>
+                    <Button
+                      type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingFile}
-                      className="h-8 bg-[#0B2B5E] hover:bg-[#103a7a] text-white font-bold text-xs px-4 shadow-2xs"
+                      className="h-8 bg-[#0B2B5E] hover:bg-[#103a7a] text-white font-bold text-xs px-3.5 shadow-2xs flex items-center gap-1.5"
                     >
-                      <UploadCloud className="mr-1.5 h-3.5 w-3.5 text-orange-400" />
-                      {uploadingFile ? `Analyzing Letter (${uploadProgressPercent}%)...` : "Select Letter / Scan to Auto-Fill"}
+                      <UploadCloud className="h-3.5 w-3.5 text-orange-400" />
+                      {uploadingFile ? `Analyzing (${uploadProgressPercent}%)...` : "Select Letter / Scan"}
                     </Button>
                     <Button
                       type="button"
@@ -984,7 +1119,7 @@ Encl.:  As stated above.`;
                       className="h-8 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs px-3 shadow-2xs"
                     >
                       <ClipboardPaste className="mr-1.5 h-3.5 w-3.5 text-[#F37021]" />
-                      Paste Letter Text
+                      Paste Text
                     </Button>
                   </div>
                 </div>
@@ -2145,6 +2280,145 @@ Encl.:  As stated above.`;
               {uploadingFile ? "Analyzing..." : "Analyze & Extract"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Live Camera Scanner Dialog */}
+      <Dialog 
+        open={cameraModalOpen} 
+        onOpenChange={(open) => {
+          if (!open) stopCamera();
+          setCameraModalOpen(open);
+        }}
+      >
+        <DialogContent className="max-w-2xl p-0 overflow-hidden bg-slate-950 border-slate-800 text-white">
+          <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-[#F37021]/20 text-[#F37021]">
+                <Camera className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  Document Camera Scanner
+                  <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    AI Multimodal Vision
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Hold letter flat and clear in front of camera
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={switchCamera}
+                className="text-slate-300 hover:text-white hover:bg-slate-800 text-xs h-8 px-2.5 flex items-center gap-1"
+                title="Switch between front and back cameras"
+              >
+                <SwitchCamera className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Switch Camera</span>
+              </Button>
+            </div>
+          </div>
+
+          <div className="relative aspect-[4/3] sm:aspect-[16/10] bg-black flex items-center justify-center overflow-hidden">
+            {cameraError ? (
+              <div className="p-6 text-center max-w-md space-y-3">
+                <AlertCircle className="h-10 w-10 text-rose-500 mx-auto" />
+                <h4 className="text-sm font-bold text-white">Camera Access Notice</h4>
+                <p className="text-xs text-slate-400">{cameraError}</p>
+                <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+                  <Button
+                    type="button"
+                    onClick={() => startCamera(cameraFacingMode)}
+                    className="h-8 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                    Try Again
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => cameraCaptureInputRef.current?.click()}
+                    className="h-8 bg-[#F37021] hover:bg-[#D85B10] text-white text-xs font-bold"
+                  >
+                    <Camera className="h-3.5 w-3.5 mr-1" />
+                    Use Device Camera
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Visual Viewfinder Overlay for Document Alignment */}
+                <div className="absolute inset-4 sm:inset-8 border border-white/30 rounded-xl pointer-events-none flex flex-col justify-between p-3 bg-black/10">
+                  <div className="flex justify-between items-start">
+                    <div className="w-8 h-8 border-t-4 border-l-4 border-emerald-400 -mt-1 -ml-1 rounded-tl-md shadow-sm" />
+                    <span className="bg-black/60 text-white text-[10px] font-medium px-3 py-1 rounded-full backdrop-blur-xs border border-white/10">
+                      Align entire letter inside frame
+                    </span>
+                    <div className="w-8 h-8 border-t-4 border-r-4 border-emerald-400 -mt-1 -mr-1 rounded-tr-md shadow-sm" />
+                  </div>
+
+                  <div className="flex justify-between items-end">
+                    <div className="w-8 h-8 border-b-4 border-l-4 border-emerald-400 -mb-1 -ml-1 rounded-bl-md shadow-sm" />
+                    <div className="w-8 h-8 border-b-4 border-r-4 border-emerald-400 -mb-1 -mr-1 rounded-br-md shadow-sm" />
+                  </div>
+                </div>
+
+                {/* Off-screen canvas for high-resolution photo capture */}
+                <canvas ref={canvasRef} className="hidden" />
+              </>
+            )}
+          </div>
+
+          <div className="p-4 bg-slate-900 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                stopCamera();
+                setCameraModalOpen(false);
+              }}
+              className="text-slate-300 border-slate-700 hover:bg-slate-800 hover:text-white text-xs h-9 w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+
+            {!cameraError && (
+              <Button
+                type="button"
+                onClick={handleCaptureCameraPhoto}
+                disabled={capturingPhoto}
+                className="bg-[#F37021] hover:bg-[#D85B10] text-white font-bold text-xs h-10 px-6 rounded-full shadow-lg flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <div className="h-4 w-4 rounded-full border-2 border-white flex items-center justify-center">
+                  <div className="h-2 w-2 rounded-full bg-white" />
+                </div>
+                {capturingPhoto ? "Processing & Reading..." : "Capture & Scan Letter"}
+              </Button>
+            )}
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => cameraCaptureInputRef.current?.click()}
+              className="text-slate-400 hover:text-slate-200 text-xs h-9 flex items-center gap-1.5 w-full sm:w-auto justify-center"
+            >
+              <Camera className="h-3.5 w-3.5" />
+              Use Native Phone Camera
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
