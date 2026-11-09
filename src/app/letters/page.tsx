@@ -848,113 +848,24 @@ Encl.:  As stated above.`;
   };
 
   return (
-    <div className="space-y-4 w-full max-w-screen-2xl mx-auto pb-12">
-      {/* Clean Dedicated Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs no-print">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-[#0B2B5E] text-white shadow-xs">
-            <FileSignature className="h-5 w-5 text-[#F37021]" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              {mode === "multi" ? "Various Folios 1st Intimation Letter" : "1st Intimation Letter (Single Folio)"}
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-[#D85B10] border border-orange-200">
-                {mode === "multi" ? "Multi-Folio" : "Single Folio"}
-              </span>
-            </h1>
-            <p className="text-xs text-slate-500">
-              {mode === "multi"
-                ? "Official transmission intimation & statutory requirement requisition for multiple folios / companies"
-                : "Official transmission intimation & statutory requirement requisition for single deceased folio"}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button
-            onClick={handleGenerateWord}
-            disabled={downloading}
-            className="bg-[#F37021] hover:bg-[#D85B10] text-white font-bold text-xs shadow-xs h-9 px-4 w-full sm:w-auto"
-          >
-            <Download className="mr-1.5 h-4 w-4" />
-            {downloading ? "Generating..." : "Download Word (.docx)"}
-          </Button>
-          <Button
-            onClick={handleCopyText}
-            variant="outline"
-            className="text-xs font-semibold h-9 px-3 border-slate-300 bg-white"
-          >
-            {copied ? <Check className="mr-1.5 h-4 w-4 text-emerald-600" /> : <Copy className="mr-1.5 h-4 w-4" />}
-            {copied ? "Copied" : "Copy Text"}
-          </Button>
-          <Button
-            onClick={() => window.print()}
-            variant="outline"
-            className="text-xs font-semibold h-9 px-3 border-slate-300 text-slate-700 bg-white"
-          >
-            <Printer className="mr-1.5 h-4 w-4" />
-            Print (A4)
-          </Button>
-        </div>
-      </div>
-
-      {/* Sub-bar: Folio Mode & Layout Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs no-print">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setMode("single")}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                mode === "single"
-                  ? "bg-[#0B2B5E] text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Single Folio
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("multi")}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                mode === "multi"
-                  ? "bg-[#0B2B5E] text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Multiple Folios
-            </button>
-          </div>
-          <span className="text-xs text-slate-500 font-medium ml-1">
-            {mode === "single" ? "Standard single-company transmission" : "Multiple companies & folios on one letter"}
+    <div className="w-full max-w-screen-2xl mx-auto pb-12">
+      {/* Restore Banner if Preview is Hidden */}
+      {previewLayout === "hidden" && (
+        <div className="mb-4 flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 px-4 shadow-xs no-print">
+          <span className="text-xs font-medium text-emerald-800">
+            A4 Letter Preview is hidden for full-width editing.
           </span>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setPreviewLayout("wide")}
+            className="h-7 text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-semibold flex items-center gap-1.5"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Show A4 Live Preview
+          </Button>
         </div>
-
-        <div className="flex items-center gap-3">
-          {previewLayout === "hidden" && (
-            <button
-              type="button"
-              onClick={() => setPreviewLayout("normal")}
-              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-xs"
-            >
-              <Eye className="h-3.5 w-3.5" />
-              Show Live Preview
-            </button>
-          )}
-          <div className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
-              id="syncMis" 
-              checked={syncToMis} 
-              onChange={(e) => setSyncToMis(e.target.checked)} 
-              className="h-4 w-4 rounded border-slate-300 text-[#F37021] focus:ring-[#F37021]"
-            />
-            <label htmlFor="syncMis" className="text-xs text-slate-700 font-medium cursor-pointer">
-              Auto-sync dispatch in MIS correspondence
-            </label>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* 2-Column Working Layout: Left Form Inputs | Right Live Preview */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -966,25 +877,22 @@ Encl.:  As stated above.`;
             <button
               type="button"
               onClick={() => toggleAccordion("quickUpload")}
-              className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-orange-50/50 via-white to-blue-50/30 hover:bg-orange-50/80 transition-colors text-left"
+              className="w-full flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
             >
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg bg-[#F37021]/10 text-[#F37021]">
-                  <Sparkles className="h-4 w-4" />
+                <div className="p-1.5 rounded-lg bg-orange-100 text-[#F37021]">
+                  <UploadCloud className="h-4 w-4" />
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                    1. Smart Letter Upload &amp; Auto-Fill
+                    Upload Incoming Request Letter
                   </h3>
                   <p className="text-[11px] text-slate-500 font-normal">
-                    Upload incoming shareholder request (PDF, Word, or Photo/Scanned Image) to auto-fill details
+                    Drop letter or scan (PDF, Image, Word) to auto-fill particulars
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Badge className="bg-orange-100 text-[#D85B10] border-orange-200 text-[10px] font-bold">
-                  OCR &amp; Auto-Fill
-                </Badge>
                 {openAccordion.quickUpload ? (
                   <ChevronUp className="h-4 w-4 text-slate-500" />
                 ) : (
@@ -1007,34 +915,19 @@ Encl.:  As stated above.`;
                   className="hidden" 
                 />
 
-                {/* AI Multimodal Vision Status Bar (Server Powered) */}
-                <div className="flex flex-wrap items-center justify-between p-2.5 bg-gradient-to-r from-emerald-50/70 via-blue-50/50 to-orange-50/40 rounded-xl border border-emerald-200/80 gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800">
-                      <Sparkles className="h-4 w-4 text-[#F37021]" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-900">
-                          AI Multimodal Vision Active (Server Powered)
-                        </span>
-                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                      </div>
-                      <p className="text-[10px] text-slate-600">
-                        Human-like reading for handwritten letters, mobile camera photos, and multi-folio tables.
-                      </p>
-                    </div>
+                <div className="p-4 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50/60 hover:bg-slate-50 transition-all text-center">
+                  <div 
+                    className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 mb-2 cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <UploadCloud className="h-5 w-5 text-[#F37021]" />
                   </div>
-                  <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold border border-emerald-200">
-                    Shared Server Key Active
-                  </Badge>
-                </div>
-
-                <div className="p-4 border-2 border-dashed border-orange-200 rounded-xl bg-orange-50/30 hover:bg-orange-50/60 transition-all text-center">
-                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 mb-2">
-                    <FileUp className="h-5 w-5 text-[#F37021]" />
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-800">Drop incoming request letter or scan here</h4>
+                  <h4 
+                    className="text-xs font-bold text-slate-800 cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Drop incoming request letter or scan here
+                  </h4>
                   <p className="text-[11px] text-slate-500 mb-3">Supports PDF, Word (.docx/.doc), Scanned Photos/Images (JPG, PNG)</p>
                   
                   {/* Real-time Percentage Progress Bar */}
@@ -1053,9 +946,6 @@ Encl.:  As stated above.`;
                           style={{ width: `${Math.max(5, uploadProgressPercent)}%` }}
                         />
                       </div>
-                      <p className="text-[10px] text-slate-500 text-center font-medium">
-                        Human-like OCR thinking: Reading Folio, Company, Deceased, Legal Heir, Contact &amp; Address...
-                      </p>
                     </div>
                   )}
 
@@ -1932,6 +1822,15 @@ Encl.:  As stated above.`;
                     <Button 
                       variant="outline" 
                       size="sm" 
+                      onClick={() => window.print()}
+                      className="h-7 text-xs px-2 text-slate-700"
+                    >
+                      <Printer className="h-3 w-3 mr-1" />
+                      <span className="text-[10px]">Print</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
                       onClick={handleCopyText} 
                       className="h-7 text-xs px-2 text-slate-700"
                     >
@@ -1942,10 +1841,10 @@ Encl.:  As stated above.`;
                       size="sm" 
                       onClick={handleGenerateWord}
                       disabled={downloading}
-                      className="h-7 text-xs px-2 bg-[#F37021] hover:bg-[#D85B10] text-white font-bold shadow-xs"
+                      className="h-7 text-xs px-2.5 bg-[#F37021] hover:bg-[#D85B10] text-white font-bold shadow-xs"
                     >
                       <Download className="h-3 w-3 mr-1" />
-                      <span className="text-[10px]">Word</span>
+                      <span className="text-[10px]">{downloading ? "Exporting..." : "Download Word (.docx)"}</span>
                     </Button>
                   </div>
                 </div>

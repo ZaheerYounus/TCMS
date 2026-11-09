@@ -222,29 +222,9 @@ Encl.: As stated above.
   };
 
   return (
-    <div className="space-y-4">
-      {/* Dedicated Clean Header */}
-      <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-xl px-5 py-3 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-700 border border-amber-200 shadow-xs">
-            <Stamp className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900 tracking-tight">Physical Approval Letter</h1>
-            <p className="text-xs text-slate-500">Forwarding transmission registers &amp; share certificates to Company Secretary</p>
-          </div>
-        </div>
-        <div className="hidden sm:flex items-center gap-2">
-          <span className="text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full">
-            Dedicated Approval Page
-          </span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        
-        {/* Left Form: Dedicated Inputs (5 cols) */}
-        <div className="xl:col-span-5 space-y-4">
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start pb-8">
+      {/* Left Form: Dedicated Inputs (5 cols) */}
+      <div className="xl:col-span-5 space-y-4">
           
           {/* Quick AI Upload Dropzone */}
           <Card className="border-dashed border-2 border-slate-300 bg-slate-50/60 hover:bg-slate-50 transition-all">
@@ -764,8 +744,6 @@ Encl.: As stated above.
           </div>
 
         </div>
-
       </div>
-    </div>
-  );
+    );
 }

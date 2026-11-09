@@ -200,30 +200,9 @@ ${signatory1}                      ${signatory2}
   };
 
   return (
-    <div className="space-y-4">
-      {/* Dedicated Clean Header */}
-      <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-xl px-5 py-3 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-50 text-rose-700 border border-rose-200 shadow-xs">
-            <SearchX className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900 tracking-tight">No Folio Found Letter</h1>
-            <p className="text-xs text-slate-500">Formal notification of no physical share records found</p>
-          </div>
-        </div>
-        <div className="hidden sm:flex items-center gap-2">
-          <span className="text-[11px] font-semibold bg-rose-50 text-rose-800 border border-rose-200 px-3 py-1 rounded-full">
-            Dedicated Search Status Page
-          </span>
-        </div>
-      </div>
-
-      {/* Main Two-Column Layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        
-        {/* ================= LEFT FORM CONTROLS (5 cols) ================= */}
-        <div className="xl:col-span-5 space-y-4">
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start pb-8">
+      {/* ================= LEFT FORM CONTROLS (5 cols) ================= */}
+      <div className="xl:col-span-5 space-y-4">
           
           {/* Quick AI Upload Dropzone */}
           <Card className="border-dashed border-2 border-slate-300 bg-slate-50/60 hover:bg-slate-50 transition-all">
@@ -601,8 +580,6 @@ ${signatory1}                      ${signatory2}
           </div>
 
         </div>
-
       </div>
-    </div>
-  );
+    );
 }

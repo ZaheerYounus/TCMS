@@ -229,29 +229,9 @@ Authorized Signatory             Authorized Signatory
   };
 
   return (
-    <div className="space-y-4">
-      {/* Dedicated Clean Header */}
-      <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-xl px-5 py-3 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-50 text-cyan-700 border border-cyan-200 shadow-xs">
-            <Building className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900 tracking-tight">CDS Account Transmission Letter</h1>
-            <p className="text-xs text-slate-500">Transmission of book-entry securities under CDS account</p>
-          </div>
-        </div>
-        <div className="hidden sm:flex items-center gap-2">
-          <span className="text-[11px] font-semibold bg-cyan-50 text-cyan-800 border border-cyan-200 px-3 py-1 rounded-full">
-            Dedicated CDS Page
-          </span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        
-        {/* Left Form: Dedicated Inputs (5 cols) */}
-        <div className="xl:col-span-5 space-y-4">
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start pb-8">
+      {/* Left Form: Dedicated Inputs (5 cols) */}
+      <div className="xl:col-span-5 space-y-4">
           
           {/* Quick AI Upload Dropzone */}
           <Card className="border-dashed border-2 border-slate-300 bg-slate-50/60 hover:bg-slate-50 transition-all">
@@ -652,8 +632,6 @@ Authorized Signatory             Authorized Signatory
           </div>
 
         </div>
-
       </div>
-    </div>
-  );
+    );
 }
