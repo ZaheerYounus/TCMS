@@ -61,7 +61,6 @@ import {
 } from "@/lib/gapAnalyzer";
 import { parseLetterText, ParsedLetterResult } from "@/lib/letterParser";
 import { runBrowserOCR } from "@/lib/clientOcr";
-import { LetterNavTabs } from "@/components/letters/LetterNavTabs";
 import { SharesDeliveryLetter } from "@/components/letters/SharesDeliveryLetter";
 import { ChequesDeliveryLetter } from "@/components/letters/ChequesDeliveryLetter";
 import { CdsAccountLetter } from "@/components/letters/CdsAccountLetter";
@@ -143,7 +142,7 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
   const [includeStampDutyTable, setIncludeStampDutyTable] = useState(false); // Requirement 18
   const [cdsAccountNo, setCdsAccountNo] = useState("03277-6959");
   const [noFolioComments, setNoFolioComments] = useState("");
-  const [previewLayout, setPreviewLayout] = useState<"normal" | "wide" | "hidden">("normal");
+  const [previewLayout, setPreviewLayout] = useState<"normal" | "wide" | "hidden">("wide");
   const [previewZoom, setPreviewZoom] = useState<number>(100);
 
   // File Upload & Smart Parsing State
@@ -849,25 +848,24 @@ Encl.:  As stated above.`;
   };
 
   return (
-    <div className="space-y-5 max-w-7xl mx-auto pb-12">
-      <div className="no-print">
-        <LetterNavTabs currentType="initial" />
-      </div>
-      {/* Clean Compact Header */}
+    <div className="space-y-4 w-full max-w-screen-2xl mx-auto pb-12">
+      {/* Clean Dedicated Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs no-print">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-lg bg-[#0B2B5E] text-white shadow-xs">
             <FileSignature className="h-5 w-5 text-[#F37021]" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              1st Intimation Letter
+            <h1 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              {mode === "multi" ? "Various Folios 1st Intimation Letter" : "1st Intimation Letter (Single Folio)"}
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-[#D85B10] border border-orange-200">
-                Single &amp; Multi-Folio
+                {mode === "multi" ? "Multi-Folio" : "Single Folio"}
               </span>
             </h1>
             <p className="text-xs text-slate-500">
-              Upload documents to auto-detect details and generate official transmission requirement letters
+              {mode === "multi"
+                ? "Official transmission intimation & statutory requirement requisition for multiple folios / companies"
+                : "Official transmission intimation & statutory requirement requisition for single deceased folio"}
             </p>
           </div>
         </div>
