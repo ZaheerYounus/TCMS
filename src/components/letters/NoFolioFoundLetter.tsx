@@ -489,11 +489,11 @@ ${signatory1}                      ${signatory2}
             className="bg-white border border-slate-300 shadow-md rounded-sm p-10 min-h-[840px] text-slate-900 font-serif leading-relaxed text-[13.5px] relative print:m-0 print:border-none print:shadow-none print:p-0 space-y-5"
           >
             {/* Header Reference & Date */}
-            <div className="flex justify-between items-start border-b border-slate-200 pb-3">
+            <div className="border-b border-slate-200 pb-2 mb-3 space-y-0.5">
               <div className="font-mono text-xs font-bold text-slate-700 tracking-wider">
                 {refNo}
               </div>
-              <div className="text-right text-xs font-sans text-slate-600 font-medium">
+              <div className="text-xs font-sans text-slate-600 font-medium">
                 {date}
               </div>
             </div>

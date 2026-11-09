@@ -9,12 +9,15 @@ import {
   Building, 
   Stamp, 
   SearchX,
-  Sparkles
+  Sparkles,
+  Layers
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type LetterTypeId = 
   | "initial" 
+  | "first-letter"
+  | "various-folios"
   | "shares-delivery" 
   | "cheques-delivery" 
   | "cds-account" 
@@ -32,12 +35,20 @@ export interface LetterTypeInfo {
 
 export const LETTER_TYPES: LetterTypeInfo[] = [
   {
-    id: "initial",
-    title: "1st Intimation Letter",
-    subtitle: "Single & Multi-Folio Scrutiny",
-    desc: "Single & Multi-Folio Transmission Requirements",
-    href: "/letters",
+    id: "first-letter",
+    title: "1st Letter (Single Folio)",
+    subtitle: "Single Folio Scrutiny",
+    desc: "Single Folio Transmission Requirements",
+    href: "/letters/first-letter",
     icon: FileText,
+  },
+  {
+    id: "various-folios",
+    title: "Various Folios 1st Letter",
+    subtitle: "Multi-Company Scrutiny",
+    desc: "Multiple Companies & Folios Transmission Requirements",
+    href: "/letters/various-folios",
+    icon: Layers,
   },
   {
     id: "shares-delivery",
@@ -56,20 +67,20 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
     icon: CreditCard,
   },
   {
-    id: "cds-account",
-    title: "CDS Account Letter",
-    subtitle: "Book-Entry Transmission",
-    desc: "Transmission under CDS Account (Closed / Intra-Report)",
-    href: "/letters/cds-account",
-    icon: Building,
-  },
-  {
     id: "physical-approval",
     title: "Physical Approval",
     subtitle: "Company Sec. Submission",
     desc: "Forwarding registers & certificates to Company Secretary",
     href: "/letters/physical-approval",
     icon: Stamp,
+  },
+  {
+    id: "cds-account",
+    title: "CDS Account Letter",
+    subtitle: "Book-Entry Transmission",
+    desc: "Transmission under CDS Account (Closed / Intra-Report)",
+    href: "/letters/cds-account",
+    icon: Building,
   },
   {
     id: "no-folio-found",
@@ -85,12 +96,14 @@ export function LetterNavTabs({ currentType }: { currentType?: LetterTypeId }) {
   const pathname = usePathname();
 
   const activeId: LetterTypeId = currentType || 
-    (pathname?.includes("shares-delivery") ? "shares-delivery" :
+    (pathname?.includes("various-folios") ? "various-folios" :
+     pathname?.includes("first-letter") ? "first-letter" :
+     pathname?.includes("shares-delivery") ? "shares-delivery" :
      pathname?.includes("cheques-delivery") ? "cheques-delivery" :
      pathname?.includes("cds-account") ? "cds-account" :
      pathname?.includes("physical-approval") ? "physical-approval" :
      pathname?.includes("no-folio-found") ? "no-folio-found" :
-     "initial");
+     "first-letter");
 
   return (
     <div className="w-full bg-white border border-slate-200/80 rounded-xl p-2 shadow-xs mb-6">

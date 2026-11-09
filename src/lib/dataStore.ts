@@ -49,6 +49,8 @@ let localCasesCache: CaseRecord[] | null = null;
 let caseIdMap = new Map<string, CaseRecord>();
 let folioMap = new Map<string, CaseRecord[]>();
 
+const stripZeros = (s: string) => s.replace(/^0+/, '') || '0';
+
 function loadFallbackData(): CaseRecord[] {
   if (localCasesCache) return localCasesCache;
 
@@ -84,6 +86,12 @@ function loadFallbackData(): CaseRecord[] {
       const fKey = String(c.folio).toLowerCase().trim();
       if (!folioMap.has(fKey)) folioMap.set(fKey, []);
       folioMap.get(fKey)!.push(c);
+
+      const fStripped = stripZeros(fKey);
+      if (fStripped !== fKey) {
+        if (!folioMap.has(fStripped)) folioMap.set(fStripped, []);
+        folioMap.get(fStripped)!.push(c);
+      }
     }
   }
 
@@ -144,11 +152,17 @@ export async function searchCases(options: {
 
   // 3. Search Query
   if (cleanQ) {
-    if (exact && folioMap.has(cleanQ)) {
-      filtered = folioMap.get(cleanQ) || [];
+    const cleanQStripped = stripZeros(cleanQ);
+    if (exact && (folioMap.has(cleanQ) || folioMap.has(cleanQStripped))) {
+      filtered = folioMap.get(cleanQ) || folioMap.get(cleanQStripped) || [];
     } else {
       filtered = filtered.filter(c => {
-        const folioStr = String(c.folio || "").toLowerCase();
+        const rawFolio = String(c.folio || "").toLowerCase().trim();
+        const strippedFolio = stripZeros(rawFolio);
+        const folioMatch = rawFolio.includes(cleanQ) || 
+                           strippedFolio.includes(cleanQStripped) || 
+                           cleanQStripped.includes(strippedFolio);
+
         const caseIdStr = String(c.caseId || "").toLowerCase();
         const deceasedStr = String(c.deceased || "").toLowerCase();
         const heirStr = String(c.legalHeir || "").toLowerCase();
@@ -156,7 +170,7 @@ export async function searchCases(options: {
         const remarksStr = String(c.remarks || "").toLowerCase();
 
         return (
-          folioStr.includes(cleanQ) ||
+          folioMatch ||
           caseIdStr.includes(cleanQ) ||
           deceasedStr.includes(cleanQ) ||
           heirStr.includes(cleanQ) ||
@@ -167,14 +181,21 @@ export async function searchCases(options: {
 
       // Smart series sort: exact match first, startsWith next, then numerical
       filtered.sort((a, b) => {
-        const fA = String(a.folio).toLowerCase();
-        const fB = String(b.folio).toLowerCase();
-        if (fA === cleanQ && fB !== cleanQ) return -1;
-        if (fB === cleanQ && fA !== cleanQ) return 1;
-        const aStarts = fA.startsWith(cleanQ);
-        const bStarts = fB.startsWith(cleanQ);
+        const fA = String(a.folio || "").toLowerCase().trim();
+        const fB = String(b.folio || "").toLowerCase().trim();
+        const fAStr = stripZeros(fA);
+        const fBStr = stripZeros(fB);
+
+        const isExactA = fA === cleanQ || fAStr === cleanQStripped;
+        const isExactB = fB === cleanQ || fBStr === cleanQStripped;
+        if (isExactA && !isExactB) return -1;
+        if (!isExactA && isExactB) return 1;
+
+        const aStarts = fA.startsWith(cleanQ) || fAStr.startsWith(cleanQStripped);
+        const bStarts = fB.startsWith(cleanQ) || fBStr.startsWith(cleanQStripped);
         if (aStarts && !bStarts) return -1;
         if (!aStarts && bStarts) return 1;
+
         return fA.localeCompare(fB, undefined, { numeric: true });
       });
     }
@@ -210,7 +231,13 @@ export async function searchCases(options: {
 export async function getCaseByFolio(folio: string): Promise<CaseRecord[]> {
   const all = loadFallbackData();
   const fClean = String(folio).toLowerCase().trim();
-  return folioMap.get(fClean) || all.filter(c => String(c.folio).toLowerCase().trim() === fClean);
+  const fStripped = stripZeros(fClean);
+  const fromMap = folioMap.get(fClean) || folioMap.get(fStripped);
+  if (fromMap && fromMap.length > 0) return fromMap;
+  return all.filter(c => {
+    const cf = String(c.folio).toLowerCase().trim();
+    return cf === fClean || stripZeros(cf) === fStripped;
+  });
 }
 
 export async function getCaseById(caseId: string): Promise<CaseRecord | null> {

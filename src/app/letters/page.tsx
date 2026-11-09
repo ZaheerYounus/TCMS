@@ -82,7 +82,7 @@ interface ScrutinyDocItem {
   objection: string;
 }
 
-function MainLetterGenerator() {
+export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: "single" | "multi" } = {}) {
   const searchParams = useSearchParams();
   const letterStage = "first";
   const [openAccordion, setOpenAccordion] = useState<Record<string, boolean>>({
@@ -132,7 +132,7 @@ function MainLetterGenerator() {
   ]);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const [companySearchQuery, setCompanySearchQuery] = useState("");
-  const [mode, setMode] = useState<"single" | "multi">("single");
+  const [mode, setMode] = useState<"single" | "multi">(initialMode);
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [syncToMis, setSyncToMis] = useState(true);
@@ -358,6 +358,10 @@ function MainLetterGenerator() {
   // Prefill from URL query params (e.g. from Daily Register)
   useEffect(() => {
     if (!searchParams) return;
+    const qMode = searchParams.get("mode");
+    if (qMode === "multi") setMode("multi");
+    else if (qMode === "single") setMode("single");
+
     const qFolio = searchParams.get("folio");
     const qCompany = searchParams.get("company");
     const qHeir = searchParams.get("legalHeir");
@@ -1952,9 +1956,9 @@ Encl.:  As stated above.`;
               <CardContent className="p-5 font-serif text-[12px] leading-relaxed text-slate-800 space-y-3.5 max-h-[750px] overflow-y-auto select-text bg-[#fcfcfc]" style={{ fontSize: `${(12 * previewZoom) / 100}px` }}>
 
               {/* Header Info */}
-              <div className="flex justify-between items-start font-sans font-bold text-xs pb-1 border-b">
-                <span className="text-[#0B2B5E]">{refNo}</span>
-                <span className="text-slate-600">{date}</span>
+              <div className="font-sans text-xs pb-1 border-b space-y-0.5">
+                <div className="font-bold text-[#0B2B5E]">{refNo}</div>
+                <div className="text-slate-600 font-medium">{date}</div>
               </div>
 
               {/* Addressee Info */}

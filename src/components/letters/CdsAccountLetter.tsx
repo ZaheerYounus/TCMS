@@ -544,9 +544,9 @@ Authorized Signatory             Authorized Signatory
           <div className="bg-white border border-slate-300 shadow-md rounded-sm p-10 min-h-[840px] text-slate-900 font-sans text-[13.5px] leading-relaxed relative print:m-0 print:border-none print:shadow-none print:p-0">
             
             {/* Reference & Date */}
-            <div className="flex justify-between items-start mb-6">
-              <div className="font-medium text-slate-900">{refNo}</div>
-              <div className="font-medium text-slate-900">{date}</div>
+            <div className="mb-6 space-y-1">
+              <div className="font-bold text-slate-900">{refNo}</div>
+              <div className="font-medium text-slate-700">{date}</div>
             </div>
 
             {/* Recipient Address */}

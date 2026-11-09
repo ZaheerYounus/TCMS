@@ -39,7 +39,7 @@ const cellBorder = {
   right: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
 };
 
-// Common header: Reference No (Left) and Date (Right)
+// Common header: Reference No (Line 1) and Date directly underneath (Line 2) on the left
 function makeHeaderTable(refNo: string, date: string) {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -48,20 +48,15 @@ function makeHeaderTable(refNo: string, date: string) {
       new TableRow({
         children: [
           new TableCell({
-            width: { size: 60, type: WidthType.PERCENTAGE },
+            width: { size: 100, type: WidthType.PERCENTAGE },
             borders: noBorders,
             children: [
               new Paragraph({
+                spacing: { before: 0, after: 40 },
                 children: [new TextRun({ text: refNo, bold: true, font: "Calibri", size: 21 })],
               }),
-            ],
-          }),
-          new TableCell({
-            width: { size: 40, type: WidthType.PERCENTAGE },
-            borders: noBorders,
-            children: [
               new Paragraph({
-                alignment: AlignmentType.RIGHT,
+                spacing: { before: 0, after: 200 },
                 children: [new TextRun({ text: date, font: "Calibri", size: 21 })],
               }),
             ],

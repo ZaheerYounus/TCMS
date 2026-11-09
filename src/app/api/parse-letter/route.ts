@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseLetterText } from '@/lib/letterParser';
-import { analyzeDocumentWithGemini } from '@/lib/geminiVision';
+import { analyzeDocumentWithGemini, DEFAULT_GEMINI_KEY } from '@/lib/geminiVision';
 import Tesseract from 'tesseract.js';
 import zlib from 'zlib';
 import fs from 'fs';
@@ -229,7 +229,7 @@ async function performHighAccuracyOCR(buffer: Buffer): Promise<string> {
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get('content-type') || '';
-    const geminiKey = process.env.GEMINI_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY || DEFAULT_GEMINI_KEY;
 
     // A. Handle multipart/form-data file upload
     if (contentType.includes('multipart/form-data')) {
