@@ -1,6 +1,7 @@
 import { hashPassword, verifyPassword } from "./auth";
 import fs from "fs";
 import path from "path";
+import seedUsersData from "@/data/users.json";
 
 export interface UserRecord {
   id: string;
@@ -81,33 +82,31 @@ const SEED_PASSWORDS: Record<string, string[]> = {
 async function initializeUsers(): Promise<UserRecord[]> {
   if (cachedUsers && cachedUsers.length > 0) return cachedUsers;
 
+  // 1. Check if dynamically updated in /tmp (serverless writable)
   try {
-    // 1. Try local/project users file
-    if (fs.existsSync(USERS_FILE_PATH)) {
-      const data = fs.readFileSync(USERS_FILE_PATH, "utf-8");
-      cachedUsers = JSON.parse(data);
-      if (cachedUsers && cachedUsers.length > 0) {
-        return cachedUsers;
-      }
-    }
-  } catch (e) {
-    // ignore
-  }
-
-  try {
-    // 2. Try tmp users file (Vercel serverless writable)
     if (fs.existsSync(TMP_USERS_FILE_PATH)) {
       const data = fs.readFileSync(TMP_USERS_FILE_PATH, "utf-8");
       cachedUsers = JSON.parse(data);
-      if (cachedUsers && cachedUsers.length > 0) {
-        return cachedUsers;
-      }
+      if (cachedUsers && cachedUsers.length > 0) return cachedUsers;
     }
-  } catch (e) {
-    // ignore
+  } catch (e) {}
+
+  // 2. Check if local users file exists
+  try {
+    if (fs.existsSync(USERS_FILE_PATH)) {
+      const data = fs.readFileSync(USERS_FILE_PATH, "utf-8");
+      cachedUsers = JSON.parse(data);
+      if (cachedUsers && cachedUsers.length > 0) return cachedUsers;
+    }
+  } catch (e) {}
+
+  // 3. Fallback to bundled JSON data (always embedded in build)
+  if (seedUsersData && Array.isArray(seedUsersData) && seedUsersData.length > 0) {
+    cachedUsers = [...seedUsersData] as UserRecord[];
+    return cachedUsers;
   }
 
-  // 3. Fallback to default seed accounts
+  // 4. Fallback to default seed accounts
   const adminHash = await hashPassword("tcms@cdcsr2026");
   const staff1Hash = await hashPassword("cdcsr@staff1");
   const staff2Hash = await hashPassword("cdcsr@staff2");

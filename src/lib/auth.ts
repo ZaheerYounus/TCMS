@@ -85,6 +85,9 @@ async function getSigningKey(): Promise<CryptoKey> {
 }
 
 function base64UrlEncode(str: string): string {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(str, "utf-8").toString("base64url");
+  }
   const bytes = new TextEncoder().encode(str);
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i++) {
@@ -94,6 +97,9 @@ function base64UrlEncode(str: string): string {
 }
 
 function base64UrlDecode(str: string): string {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(str, "base64url").toString("utf-8");
+  }
   let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
   while (base64.length % 4) {
     base64 += "=";
@@ -122,12 +128,17 @@ export async function createSessionToken(user: SessionUser): Promise<string> {
     new TextEncoder().encode(payloadB64)
   );
 
-  let binarySig = "";
-  const sigArr = new Uint8Array(signatureBytes);
-  for (let i = 0; i < sigArr.byteLength; i++) {
-    binarySig += String.fromCharCode(sigArr[i]);
+  let sigB64: string;
+  if (typeof Buffer !== "undefined") {
+    sigB64 = Buffer.from(signatureBytes).toString("base64url");
+  } else {
+    let binarySig = "";
+    const sigArr = new Uint8Array(signatureBytes);
+    for (let i = 0; i < sigArr.byteLength; i++) {
+      binarySig += String.fromCharCode(sigArr[i]);
+    }
+    sigB64 = btoa(binarySig).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
-  const sigB64 = btoa(binarySig).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
   return `${payloadB64}.${sigB64}`;
 }
@@ -141,20 +152,25 @@ export async function verifySessionToken(token: string): Promise<SessionUser | n
     const [payloadB64, sigB64] = parts;
     const key = await getSigningKey();
 
-    let base64Sig = sigB64.replace(/-/g, "+").replace(/_/g, "/");
-    while (base64Sig.length % 4) {
-      base64Sig += "=";
-    }
-    const binarySig = atob(base64Sig);
-    const sigBytes = new Uint8Array(binarySig.length);
-    for (let i = 0; i < binarySig.length; i++) {
-      sigBytes[i] = binarySig.charCodeAt(i);
+    let sigBytes: Uint8Array;
+    if (typeof Buffer !== "undefined") {
+      sigBytes = new Uint8Array(Buffer.from(sigB64, "base64url"));
+    } else {
+      let base64Sig = sigB64.replace(/-/g, "+").replace(/_/g, "/");
+      while (base64Sig.length % 4) {
+        base64Sig += "=";
+      }
+      const binarySig = atob(base64Sig);
+      sigBytes = new Uint8Array(binarySig.length);
+      for (let i = 0; i < binarySig.length; i++) {
+        sigBytes[i] = binarySig.charCodeAt(i);
+      }
     }
 
     const isValid = await crypto.subtle.verify(
       "HMAC",
       key,
-      sigBytes,
+      sigBytes as any,
       new TextEncoder().encode(payloadB64)
     );
 
