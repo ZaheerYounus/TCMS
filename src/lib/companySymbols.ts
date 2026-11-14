@@ -10,8 +10,8 @@ export const EXACT_SYMBOL_MAP: Record<string, string> = {
   'OGDC': 'Oil & Gas Development Company Limited',
   'AKBL': 'Askari Bank Limited',
   'ABL': 'Allied Bank Limited',
-  'MICL': 'Mughal Iron & Steel Industries Limited',
-  'LTPL': 'Lotte Chemical Pakistan Limited',
+  'MICL': 'Magnum Ice Cream Limited',
+  'LTPL': 'Lipton Tea Pakistan Limited',
   'BIPL': 'BankIslami Pakistan Limited',
   'PNSC': 'Pakistan National Shipping Corporation',
   'PIBT': 'Pakistan International Bulk Terminal Limited',
@@ -85,7 +85,12 @@ export const EXACT_SYMBOL_MAP: Record<string, string> = {
 /**
  * Reverse mapping: Full company name to symbol
  */
-export const FULL_NAME_TO_SYMBOL_MAP: Record<string, string> = {};
+export const FULL_NAME_TO_SYMBOL_MAP: Record<string, string> = {
+  'magnum ice cream limited': 'MICL',
+  'magnum ice cream company limited': 'MICL',
+  'lipton tea pakistan limited': 'LTPL',
+  'lipton pakistan limited': 'LTPL',
+};
 for (const [sym, name] of Object.entries(EXACT_SYMBOL_MAP)) {
   const normName = name.toLowerCase().trim();
   if (!FULL_NAME_TO_SYMBOL_MAP[normName]) {
