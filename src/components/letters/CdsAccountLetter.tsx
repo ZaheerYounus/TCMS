@@ -155,8 +155,8 @@ export function CdsAccountLetter() {
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const json = await res.json();
 
-      if (json.success && json.data) {
-        const d = json.data;
+      if (json.success && (json.parsed || json.data)) {
+        const d = json.parsed || json.data;
         if (d.legalHeir) setRecipientName(d.legalHeir);
         if (d.address) setRecipientAddress(d.address);
         if (d.contactNo) setRecipientContact(d.contactNo);
@@ -239,7 +239,7 @@ Authorized Signatory             Authorized Signatory
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,.pdf"
+                accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png,.webp,image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
                 className="hidden"
                 onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
               />
@@ -255,11 +255,11 @@ Authorized Signatory             Authorized Signatory
                     <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <span>Upload CDS Letter / Request</span>
                       <Badge variant="outline" className="text-[10px] bg-white text-[#F37021] border-orange-200 py-0">
-                        AI Vision
+                        AI Vision &amp; Docx
                       </Badge>
                     </div>
                     <p className="text-[11px] text-slate-500">
-                      {uploading ? "Analyzing document with AI..." : "Drop CDS letter or PDF to auto-fill"}
+                      {uploading ? "Analyzing document..." : "Drop letter (Word .docx/.doc, PDF, or image) to auto-fill details"}
                     </p>
                   </div>
                 </div>

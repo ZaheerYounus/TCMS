@@ -22,60 +22,29 @@ export interface DocumentGapAnalysis {
   summaryText: string;
 }
 
+/**
+ * Clean reference-matched canonical transmission documents list.
+ * Note: FRC is strictly inside the Succession Certificate NADRA sub-option, never a separate line.
+ * IBAN / Affidavit are not in default requirements.
+ */
 export const CANONICAL_TRANSMISSION_DOCS: TransmissionDocRequirement[] = [
   {
-    id: "succession",
-    title: "Succession Certificate / Court Decree",
-    formalText: "Notarized Copy of Succession Certificate Issued by NADRA or Court attested copy of Succession Certificate along with it's petition and Court Order",
-    category: "mandatory_legal",
-    critical: true,
-    notes: "Mandatory for transferring legal title of shares and unpaid dividends.",
-    matchKeywords: ["succession", "succession cert", "court order", "letter of administration", "court decree"]
-  },
-  {
     id: "death_cert",
-    title: "NADRA Computerized Death Certificate",
-    formalText: "Legible notarized copy of death certificate of subject deceased shareholder",
+    title: "Death Certificate",
+    formalText: "Legible notarized copy of death certificate of subject deceased shareholder;",
     category: "mandatory_legal",
     critical: true,
-    notes: "Computerized NADRA QR-code death certificate required.",
-    matchKeywords: ["death certificate", "death cert", "computerized death"]
+    notes: "Computerized NADRA death certificate.",
+    matchKeywords: ["death certificate", "death cert", "computerized death", "nadra death"]
   },
   {
     id: "cnics",
-    title: "Attested CNICs (Deceased & All Legal Heirs)",
-    formalText: "Legible notarized copy of CNICs of subject deceased shareholder & legal heir(s)",
+    title: "Attested CNICs (Deceased & Legal Heirs)",
+    formalText: "Legible notarized copy of CNICs of subject deceased shareholder & legal heir(s);",
     category: "mandatory_legal",
     critical: true,
-    notes: "Valid CNIC copies with clear photos and signatures.",
-    matchKeywords: ["cnic of subject", "cnic of deceased", "cnics", "cnic copy", "attested copy of cnic"]
-  },
-  {
-    id: "frc",
-    title: "Family Registration Certificate (FRC)",
-    formalText: "Family Registration Certificate (FRC) issued by NADRA",
-    category: "mandatory_legal",
-    critical: true,
-    notes: "NADRA, Family tree certificate verifying all surviving heirs.",
-    matchKeywords: ["family registration", "frc", "nadra frc", "family tree"]
-  },
-  {
-    id: "share_certs",
-    title: "Original Physical Share Certificate(s)",
-    formalText: "Original physical share certificate(s)",
-    category: "mandatory_legal",
-    critical: true,
-    notes: "Physical scripts for cancellation and reissuance. If lost, duplicate procedure applies.",
-    matchKeywords: ["original physical", "original share", "physical share certificate", "share certificates enclosed"]
-  },
-  {
-    id: "transmission_deed",
-    title: "Transmission Deed / Indemnity Bond",
-    formalText: "Transmission deed (attached) duly filled and signed by all the legal heir(s) along with witness CNIC",
-    category: "statutory_form",
-    critical: true,
-    notes: "Judicial stamp paper of Rs. 500/- attested by Oath Commissioner.",
-    matchKeywords: ["transmission deed", "indemnity bond", "stamp paper", "affidavit", "sureties"]
+    notes: "Valid CNIC copies of deceased and all legal heirs.",
+    matchKeywords: ["cnic", "cnics", "cnic copy", "attested copy of cnic", "identity card"]
   },
   {
     id: "sif_form",
@@ -83,21 +52,21 @@ export const CANONICAL_TRANSMISSION_DOCS: TransmissionDocRequirement[] = [
     formalText: "Shareholder Information Form (attached) duly filled and signed by all legal heir(s) separately",
     category: "statutory_form",
     critical: true,
-    notes: "Standard KYC–bio-data form signed by each heir.",
-    matchKeywords: ["shareholder information", "sif", "kyc form", "specimen signature"]
+    notes: "Standard KYC form signed by each heir.",
+    matchKeywords: ["shareholder information", "sif", "kyc form"]
   },
   {
-    id: "iban_verification",
-    title: "Bank Account IBAN Verification",
-    formalText: "Bank Account verification (24-digit IBAN certificate) in name of legal heir",
-    category: "financial",
-    critical: false,
-    notes: "Required for electronic credit of withheld and future dividends.",
-    matchKeywords: ["iban", "bank account", "bank certificate", "account maintenance", "bank verification"]
+    id: "transmission_deed",
+    title: "Transmission Deed",
+    formalText: "Transmission deed (attached) duly filled and signed by all the legal heir(s) separately along with Notarized copy of CNIC of the persons witnessing the deed",
+    category: "statutory_form",
+    critical: true,
+    notes: "Prescribed transmission deed attested with witnesses.",
+    matchKeywords: ["transmission deed", "indemnity bond", "deed"]
   },
   {
     id: "transfer_stamps",
-    title: "Share Transfer Stamps (@ 0.25%)",
+    title: "Shares Transfer Stamps",
     formalText: "Shares Transfer stamps of Rs. 25/- (@0.25% of face value of shares)",
     category: "financial",
     critical: false,
@@ -107,11 +76,20 @@ export const CANONICAL_TRANSMISSION_DOCS: TransmissionDocRequirement[] = [
   {
     id: "dividend_warrants",
     title: "Original Dividend Warrants (if any)",
-    formalText: "Original dividend warrants (if any) issued in the name of subject deceased shareholder",
+    formalText: "Original dividend warrants (if any) issued in the name of subject deceased shareholder; and",
     category: "financial",
     critical: false,
     notes: "Physical counterfoils/warrants for re-validation in favor of legal heirs.",
     matchKeywords: ["dividend warrant", "dividend warrants", "unpaid dividend", "unclaimed dividend"]
+  },
+  {
+    id: "succession",
+    title: "Succession Certificate",
+    formalText: "Succession Certificate:\n• Notarized copy of Succession Certificate along with Family Registration Certificate (if issued by NADRA); OR\n• Court attested copy of Succession Certificate along with its Application & Court Order (if issued by Honorable Court).",
+    category: "mandatory_legal",
+    critical: true,
+    notes: "NADRA Digital or Court decree with schedule of securities.",
+    matchKeywords: ["succession", "succession cert", "court order", "letter of administration", "court decree"]
   }
 ];
 
@@ -136,18 +114,24 @@ export function calculateDocumentGap(receivedList: string[] = [], rawText: strin
   const completionPercentage = Math.min(100, Math.round((receivedCount / total) * 100));
   const isComplete = missingDocs.length === 0;
 
-  const mentionsLost = normText.includes("lost") || 
-                       normText.includes("misplace") || 
-                       normText.includes("duplicate") || 
-                       normText.includes("untraceable") ||
-                       normText.includes("not trace");
-  const sharesReceived = CANONICAL_TRANSMISSION_DOCS
-    .find(r => r.id === "share_certs")
-    ?.matchKeywords.some(kw => normText.includes(kw));
+  // IMPORTANT: hasLostShares must be TRUE ONLY if the incoming letter explicitly states
+  // that shares/certificates are reported lost or misplaced.
+  // Missing physical certificates alone NEVER triggers lost status.
+  const mentionsLost = (
+    normText.includes("reported lost") ||
+    normText.includes("is lost") ||
+    normText.includes("are lost") ||
+    normText.includes("shares lost") ||
+    normText.includes("certificate lost") ||
+    normText.includes("lost / misplaced") ||
+    normText.includes("misplaced") ||
+    normText.includes("duplicate share certificate") ||
+    normText.includes("issuance of duplicate")
+  );
 
-  const hasLostShares = Boolean(mentionsLost || (!sharesReceived && (normText.includes("transmission") || receivedCount > 0)));
+  const hasLostShares = Boolean(mentionsLost);
 
-  const hasSuccession = normText.includes("succession") || normText.includes("vourt order");
+  const hasSuccession = normText.includes("succession") || normText.includes("court order");
   const suggestedStage: "first" | "second" = (hasSuccession && receivedCount >= 3) ? "second" : "first";
 
   const summaryText = isComplete

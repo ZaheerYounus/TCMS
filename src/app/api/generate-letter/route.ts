@@ -13,6 +13,8 @@ import {
 } from 'docx';
 
 import { formatDateDDMMYYYY } from '@/lib/dateUtils';
+import { formatCompanyWithSymbol } from '@/lib/companySymbols';
+import { splitAddressIntoThreeLines } from '@/lib/letterParser';
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,8 +23,10 @@ export async function POST(req: NextRequest) {
       refNo = "CDCSR/LTC/GEN/01/26",
       date = new Date().toISOString(),
       legalHeir = "Legal Heir",
+      applicantFather = "",
       shareholder = "Subject Deceased Shareholder",
       address = "Karachi, Pakistan",
+      addressLines = [],
       contactNo = "",
       company = "Client Company Limited", 
       folios = [], 
@@ -136,26 +140,34 @@ export async function POST(req: NextRequest) {
     ];
 
     // 1. FIRST LETTER: Standard Transmission Response & Requisition Letter
+    const addressLinesToUse = (Array.isArray(addressLines) && addressLines.length > 0)
+      ? addressLines
+      : splitAddressIntoThreeLines(address);
+
+    const addressDocxParagraphs = addressLinesToUse.map((line: string) => new Paragraph({
+      children: [
+        new TextRun({ text: line, size: 20, font: "Calibri" }),
+      ],
+    }));
+
     const firstLetterChildren = [
       ...headerRefAndDateParagraphs,
 
-      // 2. Addressee Info (NO CNIC here as per official CDCSR letterhead practice, Requirement 9: Clean Heir Name)
+      // 2. Addressee Info
       new Paragraph({
         children: [
           new TextRun({ text: cleanLegalHeir, bold: true, size: 22, font: "Calibri" }),
         ],
       }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: "F/H: ", bold: true, size: 20, font: "Calibri" }),
-          new TextRun({ text: `${shareholder} (Late)`, size: 20, font: "Calibri" }),
-        ],
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: address, size: 20, font: "Calibri" }),
-        ],
-      }),
+      ...(applicantFather ? [
+        new Paragraph({
+          children: [
+            new TextRun({ text: "F/H: ", bold: true, size: 20, font: "Calibri" }),
+            new TextRun({ text: applicantFather, size: 20, font: "Calibri" }),
+          ],
+        })
+      ] : []),
+      ...addressDocxParagraphs,
       ...(contactNo ? [
         new Paragraph({
           children: [
@@ -176,7 +188,7 @@ export async function POST(req: NextRequest) {
         spacing: { before: 180, after: 140 },
       }),
 
-      // 4. Company & Subject (Refined standard single-line with dashes)
+      // 4. Company & Subject
       ...(multiFolioTable && multiFolioTable.length > 0 ? [
         new Paragraph({
           children: [
@@ -235,17 +247,22 @@ export async function POST(req: NextRequest) {
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Folio #", bold: true, size: 20 })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "# of Certs", bold: true, size: 20 })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "# of Shares", bold: true, size: 20 })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Stamp Duty", bold: true, size: 20 })] })] }),
               ]
             }),
-            ...multiFolioTable.map((item: any, idx: number) => new TableRow({
-              children: [
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(idx + 1), size: 20 })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.company || ''), size: 20 })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.folio || ''), size: 20 })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.certificates || ''), size: 20 })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.shares || ''), size: 20 })] })] }),
-              ]
-            }))
+            ...multiFolioTable.map((item: any, idx: number) => {
+              const compDisplay = formatCompanyWithSymbol(item.company || '').displayName || item.company || '';
+              return new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(idx + 1), size: 20 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: compDisplay, size: 20 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.folio || ''), size: 20 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.certificates || '—'), size: 20 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.shares || '—'), size: 20 })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.stampDuty || '–'), size: 20 })] })] }),
+                ]
+              });
+            })
           ]
         }),
         new Paragraph({
@@ -256,7 +273,18 @@ export async function POST(req: NextRequest) {
               font: "Calibri" 
             }),
           ],
-          spacing: { before: 100, after: 150 },
+          spacing: { before: 100, after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ 
+              text: `Kindly note that the share certificates shall only be forwarded to you upon receipt of our instructions in this regard.`, 
+              bold: true,
+              size: 20, 
+              font: "Calibri" 
+            }),
+          ],
+          spacing: { after: 150 },
         })
       ] : [
         new Paragraph({
