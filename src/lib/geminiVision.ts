@@ -1,4 +1,10 @@
-import { ParsedLetterResult, MultiFolioItem, COMPANY_ALIASES } from './letterParser';
+import { 
+  ParsedLetterResult, 
+  MultiFolioItem, 
+  splitAddressIntoThreeLines, 
+  formatCompanyWithSymbol, 
+  lookupSymbolFromName 
+} from './letterParser';
 import { calculateDocumentGap } from './gapAnalyzer';
 
 export interface GeminiVisionResult {
@@ -28,47 +34,44 @@ export async function analyzeDocumentWithGemini(
   const base64Data = imageBuffer.toString('base64');
 
   const systemPrompt = `You are an expert Pakistani Share Registrar legal document reader (CDC Share Registrar Services).
-Read this transmission application or death reporting form with 100% human-level accuracy.
+Read this transmission application, legal heir letter, or death reporting form with 100% human-level accuracy.
 
-Extract ONLY these exact 6 essential fields:
+CRITICAL RULES:
 1. Deceased Shareholder Name:
-   - Full name of the deceased person who passed away.
-   - Look under 'Deceased Shareholder Title', 'Deceased Shareholder Details', 'Late [Name]', 'Father name: [Name]' (if father passed away).
-   - DO NOT put the applicant's name here!
+   - Extract ONLY from 'Name of deceased: [Name]', 'Deceased: [Name]', or 'Late [Name]'.
+   - NEVER take the deceased name from 'Father name:' or 'F/H:' lines!
 
 2. Applicant / Legal Heir Name:
    - Full name of the living person making this request.
-   - Look under 'Applicant Details -> Name', or bottom signature 'Abdul haseeb (son of share holder)'.
-   - DO NOT put the deceased's name here!
+   - Look under 'Applicant: [Name]' or 'Legal Heir: [Name]'.
 
-3. Relation:
-   - Relationship with deceased (e.g. Son, Sister, Daughter, Brother, Widow, Legal Heir).
+3. Father Name of the Applicant (F/H):
+   - Look under the Applicant section for 'Father name: [Name]' or 'F/H: [Name]'.
+   - This is the applicant's father. DO NOT confuse with deceased person.
 
-4. Legal Heir Address:
-   - Complete postal address of the legal heir / applicant.
-   - CRITICAL RULE: If NO address is written in the letter, return "" (empty string). NEVER make up or guess an address.
+4. Relation:
+   - Look under 'Relation with deceased: [Relation]' (e.g. Brother, Son, Daughter, Wife, Widow, Legal Heir).
 
-5. Legal Heir Mobile / Cell #:
-   - Mobile number (e.g. 0345-5889234, 0332-3129182, 03324829207). If not found, return "".
+5. CNIC:
+   - Extract CNIC number (e.g. 42201-974758-5).
 
-6. Company Name(s) & Folio Number(s):
-   - Check if there is only 1 company/folio OR multiple companies/folios listed:
-   - If multiple companies or folios are listed (e.g., written by pen: 1) cherat cement folio F00965, 2) First Habib Modaraba folio 1658, 3) HBL folio 0268363):
-     Set "mode": "multi"
-     In "companies", list all: [ { "company": "Cherat Cement Company Limited", "folio": "F00965" }, { "company": "First Habib Modaraba", "folio": "1658" }, { "company": "Habib Bank Limited", "folio": "0268363" } ]
-     Set primary "company" to the first company, and primary "folio" to the first folio.
-     NOTE: Share numbers, certificate numbers or quantities written next to company are irrelevant, ignore them.
-   - If single company:
-     Set "mode": "single", "companies": []
-     Set "company": official listed company name (e.g. "Cherat Cement Company Limited", "Sui Southern Gas Company Limited")
-     Set "folio": folio number (e.g. "1892" or "2593")
+6. Legal Heir Address:
+   - Extract ONLY from the 'Address:' line. Never include names, companies, or folios inside address.
+   - Example: 'block 7, house # 4, street # 8, gulistan e johar, karachi'.
 
-Always expand common corporate acronyms:
-- SSGC -> Sui Southern Gas Company Limited
-- HBL -> Habib Bank Limited
-- OGDC -> Oil & Gas Development Company Limited
-- CHCC / Cherat -> Cherat Cement Company Limited
-- PSO -> Pakistan State Oil Company Limited
+7. Legal Heir Contact / Cell #:
+   - Mobile / phone number (e.g. 0300-8638847).
+
+8. Folios and Companies:
+   - Check if folios and companies are listed as comma-separated lists (e.g. "Folio: 655, 43, 564..." and "Company name: OGDC, AKBL, ABL...").
+   - Pair them strictly by position: 1st folio with 1st company, 2nd with 2nd, etc.
+   - If there are more companies than folios, KEEP ALL companies in the list, and set folio to "— Not provided".
+   - If single company: return mode "single".
+   - If multiple companies or folios: return mode "multi".
+
+9. Lost Shares / Certificates:
+   - Set "hasLostShares": true ONLY if the text explicitly states that certificates are lost or misplaced.
+   - Otherwise, set "hasLostShares": false.
 
 Respond ONLY with a valid JSON object matching this schema (no markdown, no backticks, no comments):
 {
@@ -76,10 +79,13 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
   "company": string,
   "folio": string,
   "deceased": string,
-  "legalHeir": string,
+  "applicant": string,
+  "applicantFather": string,
   "relation": string,
+  "cnic": string,
   "address": string,
   "contactNo": string,
+  "hasLostShares": boolean,
   "companies": [
     {
       "company": string,
@@ -108,45 +114,42 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
           body: JSON.stringify({
             contents: [
               {
+                role: 'user',
                 parts: [
                   { text: systemPrompt },
                   {
-                    inline_data: {
-                      mime_type: mimeType,
+                    inlineData: {
+                      mimeType: mimeType,
                       data: base64Data
                     }
                   }
                 ]
               }
-            ]
+            ],
+            generationConfig: {
+              temperature: 0.05,
+              maxOutputTokens: 2048,
+            }
           })
         });
 
         if (res.ok) {
           const data = await res.json();
-          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            candidateText = text;
+          const cand = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (cand && cand.trim().length > 10) {
+            candidateText = cand;
             break;
           }
-        } else {
-          const errText = await res.text();
-          console.warn(`Gemini model ${model} (attempt ${attempt}) status:`, res.status, errText);
-          if (res.status === 503 || res.status === 429) {
-            await new Promise(r => setTimeout(r, 1000 * attempt));
-            continue;
-          }
-          break;
         }
-      } catch (modelErr) {
-        console.warn(`Gemini model ${model} (attempt ${attempt}) request error:`, modelErr);
+      } catch (e) {
+        console.warn(`Gemini model ${model} attempt ${attempt} failed:`, e);
       }
     }
     if (candidateText) break;
   }
 
   if (!candidateText) {
-    return { success: false, error: 'All Gemini vision endpoints failed', source: 'ocr_fallback' };
+    return { success: false, error: 'GEMINI_TIMEOUT_OR_NO_RESPONSE', source: 'ocr_fallback' };
   }
 
   try {
@@ -154,64 +157,65 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
     const cleanJson = jsonMatch ? jsonMatch[0] : candidateText.replace(/^```json/i, '').replace(/^```/i, '').replace(/```$/, '').trim();
     const parsedObj = JSON.parse(cleanJson);
 
-    let resolvedCompany = parsedObj.company || '';
-    let compSymbol = parsedObj.compSymbol || '';
-    const upperComp = resolvedCompany.toUpperCase();
-    for (const [alias, full] of Object.entries(COMPANY_ALIASES)) {
-      if (upperComp === alias || upperComp.includes(alias)) {
-        resolvedCompany = full;
-        compSymbol = alias;
-        break;
-      }
-    }
-
     const multiFolios: MultiFolioItem[] = [];
+    const missingFoliosWarning: string[] = [];
+    const unknownSymbolsWarning: string[] = [];
+
     if (parsedObj.companies && Array.isArray(parsedObj.companies) && parsedObj.companies.length > 0) {
       for (const c of parsedObj.companies) {
-        let compName = c.company || '';
-        const uc = compName.toUpperCase();
-        for (const [alias, full] of Object.entries(COMPANY_ALIASES)) {
-          if (uc === alias || uc.includes(alias)) {
-            compName = full;
-            break;
-          }
+        const compName = (c.company || '').trim();
+        const folioVal = (c.folio || '').trim() || '— Not provided';
+        if (folioVal === '— Not provided') {
+          missingFoliosWarning.push(compName);
         }
+
+        const formatted = formatCompanyWithSymbol(compName);
+        if (!formatted.isFound && compName && compName !== '— Not provided') {
+          unknownSymbolsWarning.push(compName);
+        }
+
         multiFolios.push({
-          company: compName,
-          folio: c.folio || '',
-          shares: '=0=',
-          certificates: '=01=',
-          scripts: ''
-        });
-      }
-    } else if (parsedObj.multiFolios && Array.isArray(parsedObj.multiFolios)) {
-      for (const m of parsedObj.multiFolios) {
-        multiFolios.push({
-          company: m.company || '',
-          folio: m.folio || '',
-          shares: m.shares || '=0=',
-          certificates: m.certificates || '=01=',
-          scripts: m.scripts || ''
+          company: formatted.displayName,
+          folio: folioVal,
+          shares: '—',
+          certificates: '—',
+          stampDuty: '–',
+          isSymbolFound: formatted.isFound
         });
       }
     }
 
     const isMultiMode = parsedObj.mode === 'multi' || multiFolios.length > 1;
+    const rawAddress = (parsedObj.address || '').trim();
+    const addressLines = splitAddressIntoThreeLines(rawAddress);
+
+    let singleComp = parsedObj.company || '';
+    let singleSym = '';
+    if (!isMultiMode && singleComp) {
+      const formatted = formatCompanyWithSymbol(singleComp);
+      singleComp = formatted.fullName || formatted.displayName;
+      singleSym = formatted.symbol || lookupSymbolFromName(singleComp) || '';
+    }
 
     const result: ParsedLetterResult = {
       mode: isMultiMode ? 'multi' : 'single',
-      folio: parsedObj.folio || (multiFolios[0]?.folio || ''),
-      company: resolvedCompany || (multiFolios[0]?.company || ''),
-      compSymbol: compSymbol || (resolvedCompany ? resolvedCompany.split(' ')[0].toUpperCase() : 'COMP'),
+      folio: isMultiMode ? (multiFolios[0]?.folio !== '— Not provided' ? multiFolios[0]?.folio : '') : (parsedObj.folio || ''),
+      company: isMultiMode ? (multiFolios[0]?.company || '') : singleComp,
+      compSymbol: singleSym,
       deceased: (parsedObj.deceased || '').replace(/^Late\s+/i, '').replace(/\s*\(Late\)/i, '').trim(),
-      legalHeir: (parsedObj.legalHeir || '').replace(/\(son of share holder\)/i, '').replace(/^Applicant:\s*/i, '').trim(),
+      applicantFather: (parsedObj.applicantFather || '').replace(/^Late\s+/i, '').replace(/\s*\(Late\)/i, '').trim(),
+      legalHeir: (parsedObj.applicant || parsedObj.legalHeir || '').replace(/^Applicant:\s*/i, '').trim(),
       relation: parsedObj.relation || 'Legal Heir',
-      address: parsedObj.address || '',
+      cnic: parsedObj.cnic || '',
+      address: rawAddress,
+      addressLines: addressLines,
       contactNo: parsedObj.contactNo || '',
-      shares: parsedObj.shares || '=0=',
-      certificates: parsedObj.certificates || '=01=',
+      shares: isMultiMode ? '—' : (parsedObj.shares || ''),
+      certificates: isMultiMode ? '—' : (parsedObj.certificates || ''),
       scripts: '',
       multiFolios: multiFolios,
+      missingFoliosWarning,
+      unknownSymbolsWarning,
       receivedDocs: [
         'Copy of CNIC of subject deceased shareholder and yourself',
         'Written transmission request application'
@@ -220,14 +224,22 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
       gapAnalysis: calculateDocumentGap([
         'Copy of CNIC of subject deceased shareholder and yourself',
         'Written transmission request application'
-      ]),
+      ], candidateText),
+      hasLostShares: Boolean(parsedObj.hasLostShares),
       rawTextPreview: candidateText.slice(0, 500),
       matchSource: 'document_parsed'
     };
 
-    const sym = result.compSymbol || 'COMP';
-    const fol = result.folio || 'FOLIO';
-    result.refNo = `CDCSR/LTC/${sym}/${fol}/26`;
+    if (isMultiMode && multiFolios.length > 0) {
+      const firstRowFormatted = formatCompanyWithSymbol(multiFolios[0].company);
+      const firstSym = firstRowFormatted.symbol || 'KEL';
+      const firstFol = result.folio || '11469';
+      result.refNo = `CDCSR/LTC/GEN/${firstSym}/${firstFol}/26`;
+    } else {
+      const sym = result.compSymbol || 'OGDC';
+      const fol = result.folio || '0000';
+      result.refNo = `CDCSR/LTC/${sym}/${fol}/26`;
+    }
 
     return { success: true, parsed: result, source: 'gemini_vision' };
   } catch (err: any) {

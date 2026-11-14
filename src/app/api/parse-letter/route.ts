@@ -167,30 +167,129 @@ function extractTextFromBuffer(buffer: Buffer, filename: string = ""): string {
   return buffer.toString('utf8');
 }
 
+import { formatCompanyWithSymbol, lookupSymbol } from '@/lib/companySymbols';
+
+let cachedShareholders: any[] | null = null;
+let cachedMisRecords: any[] | null = null;
+
+function getShareholdersData(): any[] {
+  if (cachedShareholders) return cachedShareholders;
+  try {
+    const sPath = path.join(process.cwd(), 'src', 'data', 'shareholdersSample.json');
+    if (fs.existsSync(sPath)) {
+      cachedShareholders = JSON.parse(fs.readFileSync(sPath, 'utf8'));
+      return cachedShareholders || [];
+    }
+  } catch (e) {
+    console.warn("Failed to load shareholdersSample.json:", e);
+  }
+  return [];
+}
+
+function getMisRecordsData(): any[] {
+  if (cachedMisRecords) return cachedMisRecords;
+  try {
+    const rPath = path.join(process.cwd(), 'src', 'data', 'misRecords.json');
+    if (fs.existsSync(rPath)) {
+      cachedMisRecords = JSON.parse(fs.readFileSync(rPath, 'utf8'));
+      return cachedMisRecords || [];
+    }
+  } catch (e) {
+    console.warn("Failed to load misRecords.json:", e);
+  }
+  return [];
+}
+
 /**
- * Automatically cross-reference MIS database to enrich parsed fields if missing
+ * Automatically cross-reference MIS database & shareholders register to enrich parsed fields
  */
 function enrichWithMISDatabase(parsed: any) {
-  if (!parsed || !parsed.folio) return parsed;
+  if (!parsed) return parsed;
   try {
-    const cleanFolio = String(parsed.folio).toLowerCase().trim();
-    const recordsPath = path.join(process.cwd(), 'src', 'data', 'misRecords.json');
-    if (fs.existsSync(recordsPath)) {
-      const records: any[] = JSON.parse(fs.readFileSync(recordsPath, 'utf8'));
-      const match = records.find(r => String(r.folio).toLowerCase().trim() === cleanFolio);
-      if (match) {
-        if (!parsed.company && match.company) {
-          parsed.company = match.company;
-          parsed.compSymbol = match.company.split(' ')[0].toUpperCase();
+    const shareholders = getShareholdersData();
+    const misRecords = getMisRecordsData();
+
+    // 1. Single folio enrichment
+    if (parsed.folio) {
+      const cleanFolio = String(parsed.folio).toLowerCase().trim();
+      const shMatch = shareholders.find(s => String(s.folio).toLowerCase().trim() === cleanFolio);
+      const misMatch = misRecords.find(r => String(r.folio).toLowerCase().trim() === cleanFolio);
+
+      if (shMatch) {
+        if (!parsed.company && shMatch.company) {
+          parsed.company = shMatch.company;
         }
-        if (!parsed.deceased && match.deceased) {
-          parsed.deceased = match.deceased;
+        if (!parsed.deceased && shMatch.name) {
+          parsed.deceased = shMatch.name;
         }
-        if (!parsed.legalHeir && match.legalHeir) {
-          parsed.legalHeir = match.legalHeir;
+        if (shMatch.shares && (!parsed.shares || parsed.shares === '0' || parsed.shares === '—')) {
+          parsed.shares = `=${Number(shMatch.shares).toLocaleString()}=`;
+          if (!parsed.certificates || parsed.certificates === '0' || parsed.certificates === '—') {
+            parsed.certificates = '=01=';
+          }
+        }
+        parsed.matchSource = "shareholders_enriched";
+      } else if (misMatch) {
+        if (!parsed.company && misMatch.company) {
+          parsed.company = misMatch.company;
+        }
+        if (!parsed.deceased && misMatch.deceased) {
+          parsed.deceased = misMatch.deceased;
+        }
+        if (!parsed.legalHeir && misMatch.legalHeir) {
+          parsed.legalHeir = misMatch.legalHeir;
         }
         parsed.matchSource = "mis_enriched";
       }
+
+      if (!parsed.shares || parsed.shares === '0') {
+        parsed.shares = '—';
+        parsed.certificates = '—';
+      }
+    }
+
+    // 2. Multi folios enrichment
+    if (Array.isArray(parsed.multiFolios)) {
+      parsed.multiFolios = parsed.multiFolios.map((item: any) => {
+        const row = { ...item };
+        const cleanF = String(row.folio || '').toLowerCase().trim();
+        const isValidFolio = cleanF && !cleanF.includes('not provided') && cleanF !== 'unknown' && cleanF !== '—';
+
+        if (isValidFolio) {
+          const shMatch = shareholders.find(s => String(s.folio).toLowerCase().trim() === cleanF);
+          if (shMatch && shMatch.shares) {
+            if (!row.shares || row.shares === '0' || row.shares === '—') {
+              row.shares = `=${Number(shMatch.shares).toLocaleString()}=`;
+            }
+            if (!row.certificates || row.certificates === '0' || row.certificates === '—') {
+              row.certificates = '=01=';
+            }
+            if (!row.company && shMatch.company) {
+              row.company = shMatch.company;
+            }
+          } else {
+            if (!row.shares || row.shares === '0') row.shares = '—';
+            if (!row.certificates || row.certificates === '0') row.certificates = '—';
+          }
+        } else {
+          if (!row.shares || row.shares === '0') row.shares = '—';
+          if (!row.certificates || row.certificates === '0') row.certificates = '—';
+        }
+
+        // Format company with symbol
+        if (row.company) {
+          const formatted = formatCompanyWithSymbol(row.company);
+          if (formatted.isFound) {
+            row.company = formatted.displayName;
+          }
+        }
+
+        if (!row.stampDuty) {
+          row.stampDuty = '–';
+        }
+
+        return row;
+      });
     }
   } catch (err) {
     console.warn("MIS auto-enrichment warning:", err);
@@ -264,6 +363,7 @@ export async function POST(req: NextRequest) {
               success: true,
               filename: file.name,
               parsed,
+              data: parsed,
               source: 'gemini_vision',
               textPreview: parsed.rawTextPreview || ''
             });
@@ -295,6 +395,7 @@ export async function POST(req: NextRequest) {
         success: true,
         filename: file.name,
         parsed,
+        data: parsed,
         source: 'ocr_heuristic',
         textPreview: extractedText.slice(0, 600)
       });
@@ -317,6 +418,7 @@ export async function POST(req: NextRequest) {
               success: true,
               filename,
               parsed,
+              data: parsed,
               source: 'gemini_vision',
               textPreview: parsed.rawTextPreview || ''
             });
@@ -338,6 +440,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         parsed: fallbackParsed,
+        data: fallbackParsed,
         textPreview: ""
       });
     }
@@ -348,6 +451,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       parsed,
+      data: parsed,
       textPreview: text.slice(0, 600)
     });
 

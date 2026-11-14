@@ -144,8 +144,8 @@ export function PhysicalApprovalLetter() {
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const json = await res.json();
 
-      if (json.success && json.data) {
-        const d = json.data;
+      if (json.success && (json.parsed || json.data)) {
+        const d = json.parsed || json.data;
         if (d.company) setCompany(d.company);
         if (d.compSymbol) setCompSymbol(d.compSymbol);
         if (d.deceased) {
@@ -232,7 +232,7 @@ Encl.: As stated above.
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,.pdf"
+                accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png,.webp,image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
                 className="hidden"
                 onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
               />
@@ -248,11 +248,11 @@ Encl.: As stated above.
                     <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <span>Upload Approval Letter / Ref</span>
                       <Badge variant="outline" className="text-[10px] bg-white text-[#F37021] border-orange-200 py-0">
-                        AI Vision
+                        AI Vision &amp; Docx
                       </Badge>
                     </div>
                     <p className="text-[11px] text-slate-500">
-                      {uploading ? "Analyzing document with AI..." : "Drop company letter image or PDF"}
+                      {uploading ? "Analyzing document..." : "Drop company letter (Word .docx/.doc, PDF, or image)"}
                     </p>
                   </div>
                 </div>

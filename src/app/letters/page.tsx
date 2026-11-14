@@ -62,7 +62,8 @@ import {
   DocumentGapAnalysis, 
   TransmissionDocRequirement 
 } from "@/lib/gapAnalyzer";
-import { parseLetterText, ParsedLetterResult } from "@/lib/letterParser";
+import { parseLetterText, ParsedLetterResult, splitAddressIntoThreeLines } from "@/lib/letterParser";
+import { formatCompanyWithSymbol, lookupSymbol } from "@/lib/companySymbols";
 import { runBrowserOCR } from "@/lib/clientOcr";
 import { SharesDeliveryLetter } from "@/components/letters/SharesDeliveryLetter";
 import { ChequesDeliveryLetter } from "@/components/letters/ChequesDeliveryLetter";
@@ -75,6 +76,7 @@ interface MultiFolioItem {
   company: string;
   shares: string;
   certificates: string;
+  stampDuty?: string;
   scripts?: string;
 }
 
@@ -198,13 +200,20 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
 
   // Legal Heir Details
   const [legalHeir, setLegalHeir] = useState("Syed Sajjad Imam Jafri");
+  const [applicantFather, setApplicantFather] = useState("Syed Ali Imam Jafri");
   const [relation, setRelation] = useState("Legal Heir / Son");
   const [address, setAddress] = useState("D-231, Street 24, South Navy Housing scheme, Clifton, Karachi.");
   const [contactNo, setContactNo] = useState("0333-3535404");
 
+  // Manual SIF & Transmission Deed Controls (100% staff manual control)
+  const [includeSif, setIncludeSif] = useState(true);
+  const [sifCompanyText, setSifCompanyText] = useState("");
+  const [includeTransmissionDeed, setIncludeTransmissionDeed] = useState(false);
+  const [tdCompanyText, setTdCompanyText] = useState("");
+
   // Reference & Date (Requirement 4: Standard DD/MM/YYYY)
   const [refNo, setRefNo] = useState(() => {
-    return initialMode === "multi" ? "CDCSR/LTC/VAR/1207/26" : "CDCSR/LTC/OGDC/1207/26";
+    return initialMode === "multi" ? "CDCSR/LTC/GEN/KHTC/283/26" : "CDCSR/LTC/OGDC/44058/26";
   });
   const [date, setDate] = useState(() => {
     const d = new Date();
@@ -213,10 +222,10 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
 
   // Multi Folio Rows (No scripts column needed)
   const [multiFolios, setMultiFolios] = useState<MultiFolioItem[]>([
-    { folio: "283", company: "Khyber Tobacco Company Limited", shares: "3", certificates: "02" },
-    { folio: "8053", company: "K-Electric Limited", shares: "113", certificates: "01" },
-    { folio: "14452", company: "PAK Suzuki Motor Company Limited", shares: "39", certificates: "04" },
-    { folio: "I0151", company: "Pakistan International Airlines Corporation Limited", shares: "100", certificates: "01" },
+    { folio: "283", company: "Khyber Tobacco Company Limited (KHTC)", shares: "=3=", certificates: "=02=", stampDuty: "–" },
+    { folio: "8053", company: "K-Electric Limited (KEL)", shares: "=113=", certificates: "=01=", stampDuty: "–" },
+    { folio: "14452", company: "Pak Suzuki Motor Company Limited (PSMC)", shares: "=39=", certificates: "=04=", stampDuty: "–" },
+    { folio: "I0151", company: "Pakistan International Airlines Corporation (PIAC)", shares: "=100=", certificates: "=01=", stampDuty: "–" },
   ]);
 
   // Documents Received (Step 1)
@@ -481,27 +490,41 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
     setExtractedDataSummary(null);
 
     const applyParsedData = (p: ParsedLetterResult) => {
+      const isMulti = initialMode === "multi" || p.mode === "multi" || (p.multiFolios && p.multiFolios.length > 1);
       if (initialMode === "single") {
         setMode("single");
-      } else if (initialMode === "multi") {
+      } else if (isMulti) {
         setMode("multi");
-        if (p.multiFolios && p.multiFolios.length > 0) {
-          setMultiFolios(p.multiFolios);
-        }
-      } else if (p.mode === "multi" && p.multiFolios && p.multiFolios.length > 1) {
-        setMode("multi");
-        setMultiFolios(p.multiFolios);
       } else {
         setMode("single");
       }
 
+      if (p.multiFolios && p.multiFolios.length > 0) {
+        const enriched = p.multiFolios.map(m => {
+          const compInfo = formatCompanyWithSymbol(m.company);
+          return {
+            folio: m.folio || "— Not provided",
+            company: compInfo.isFound ? compInfo.displayName : (m.company || ""),
+            shares: m.shares || "—",
+            certificates: m.certificates || "—",
+            stampDuty: m.stampDuty || "–"
+          };
+        });
+        setMultiFolios(enriched);
+      }
+
       setFolio(p.folio || "");
-      setCompany(p.company || "");
+      if (p.company) setCompany(p.company);
       if (p.compSymbol) setCompSymbol(p.compSymbol);
       setDeceased(p.deceased || "");
       setLegalHeir(p.legalHeir || "");
+      if (p.applicantFather) {
+        setApplicantFather(p.applicantFather);
+      }
       setRelation(p.relation || "Legal Heir");
-      setAddress(p.address || ""); // If no address in document, reset to empty so user sees it is blank
+      if (p.address) {
+        setAddress(p.address);
+      }
       setContactNo(p.contactNo || "");
       if (p.shares) setShares(p.shares);
       if (p.certificates) setCertificates(p.certificates);
@@ -517,10 +540,11 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
       if (gap.missingDocs && gap.missingDocs.length > 0) {
         setRequiredDocs(gap.missingDocs);
       }
-      if (gap.hasLostShares) {
+      if (p.hasLostShares || gap.hasLostShares) {
         setHasLostShares(true);
+      } else {
+        setHasLostShares(false);
       }
-
 
       setExtractedDataSummary({
         folio: p.folio || "",
@@ -826,7 +850,7 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
   };
 
   const addMultiFolioRow = () => {
-    setMultiFolios(prev => [...prev, { folio: "", company: "", shares: "", certificates: "" }]);
+    setMultiFolios(prev => [...prev, { folio: "", company: "", shares: "—", certificates: "=01=", stampDuty: "–" }]);
   };
 
   const removeMultiFolioRow = (index: number) => {
@@ -841,6 +865,50 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
     });
   };
 
+  const getActiveRequiredDocs = () => {
+    const list: string[] = [];
+    if (requiredDocs.some(d => d.toLowerCase().includes("death certificate"))) {
+      list.push("Legible notarized copy of death certificate of subject deceased shareholder");
+    }
+    if (requiredDocs.some(d => d.includes("CNIC"))) {
+      list.push("Legible notarized copy of CNICs of subject deceased shareholder & legal heir(s)");
+    }
+    if (includeSif) {
+      list.push(`Shareholder Information Form (attached) duly filled and signed by all legal heir(s) separately${sifCompanyText.trim() ? ' ' + sifCompanyText.trim() : ''}`);
+    }
+    if (includeTransmissionDeed) {
+      list.push(`Transmission deed (attached) duly filled and signed by all the legal heir(s) along with witness CNIC${tdCompanyText.trim() ? ' ' + tdCompanyText.trim() : ''}`);
+    }
+    if (requiredDocs.some(d => d.toLowerCase().includes("stamp"))) {
+      if (mode === "multi") {
+        list.push("Shares Transfer Stamps for respective amount as mentioned in above table");
+      } else {
+        list.push("Shares Transfer stamps of Rs. 25/- (@0.25% of face value of shares)");
+      }
+    }
+    if (requiredDocs.some(d => d.toLowerCase().includes("dividend"))) {
+      list.push("Original dividend warrants (if any) issued in the name of subject deceased shareholder");
+    }
+    if (requiredDocs.some(d => d.includes("Succession Certificate"))) {
+      list.push("Succession Certificate (NADRA Digital or Civil Court Attested Copy along with Court Order)");
+    }
+    requiredDocs.forEach(d => {
+      if (
+        !d.toLowerCase().includes("death certificate") &&
+        !d.includes("CNIC") &&
+        !d.includes("Shareholder Information Form") &&
+        !d.includes("Transmission deed") &&
+        !d.toLowerCase().includes("stamp") &&
+        !d.toLowerCase().includes("dividend") &&
+        !d.includes("Succession Certificate") &&
+        !d.includes("FRC")
+      ) {
+        list.push(d);
+      }
+    });
+    return list;
+  };
+
   const handleGenerateWord = async () => {
     setDownloading(true);
     try {
@@ -849,8 +917,10 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
         refNo: refNo,
         date,
         legalHeir: cleanHeirNameOnly ? legalHeir : (relation ? `${legalHeir} (${relation})` : legalHeir),
+        applicantFather,
         shareholder: deceased,
         address,
+        addressLines: splitAddressIntoThreeLines(address),
         contactNo: contactNo ? `Contact: ${contactNo}` : "",
         company: mode === "single" ? company : multiFolios.map(m => m.company).join(", "),
         folios: mode === "single" ? [folio] : multiFolios.map(m => m.folio).filter(Boolean),
@@ -859,7 +929,7 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
         scripts,
         multiFolioTable: mode === "multi" ? multiFolios : [],
         receivedDocs,
-        requiredDocs,
+        requiredDocs: getActiveRequiredDocs(),
         scrutinyRemark: includeScrutinyNote ? scrutinyRemark : "",
         scrutinyPosition,
         hasLostShares,
@@ -1437,60 +1507,95 @@ Encl.:  As stated above.`;
                         </Button>
                       </div>
                       <div className="space-y-2">
-                        {multiFolios.map((row, idx) => (
-                          <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
-                            <div className="w-24">
-                              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Folio #</span>
-                              <Input 
-                                placeholder="Folio #" 
-                                value={row.folio} 
-                                onChange={(e) => updateMultiFolioRow(idx, "folio", e.target.value)}
-                                className="h-8 text-xs font-bold"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Company Name</span>
-                              <Input 
-                                placeholder="Company Name" 
-                                value={row.company} 
-                                onChange={(e) => updateMultiFolioRow(idx, "company", e.target.value)}
-                                className="h-8 text-xs font-medium"
-                              />
-                            </div>
-                            <div className="w-24">
-                              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Shares</span>
-                              <Input 
-                                placeholder="Shares" 
-                                value={row.shares} 
-                                onChange={(e) => updateMultiFolioRow(idx, "shares", e.target.value)}
-                                className="h-8 text-xs"
-                              />
-                            </div>
-                            <div className="w-20">
-                              <span className="text-[10px] text-slate-400 font-semibold uppercase block">Certs</span>
-                              <Input 
-                                placeholder="Certs" 
-                                value={row.certificates} 
-                                onChange={(e) => updateMultiFolioRow(idx, "certificates", e.target.value)}
-                                className="h-8 text-xs"
-                              />
-                            </div>
-                            {multiFolios.length > 1 && (
-                              <div className="pt-3">
-                                <Button 
-                                  type="button" 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  onClick={() => removeMultiFolioRow(idx)}
-                                  className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
-                                  title="Remove row"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
+                        {/* Warnings for unrecognized symbols or missing folios */}
+                        {multiFolios.some(m => m.company && !formatCompanyWithSymbol(m.company).isFound) && (
+                          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>
+                              <strong>Unrecognized Symbol:</strong> One or more company symbols (e.g. CCPL) were not found in the official registry. As required, no guess has been made; please verify the company name.
+                            </span>
                           </div>
-                        ))}
+                        )}
+                        {multiFolios.some(m => !m.folio || m.folio.includes('Not provided') || m.folio === '—') && (
+                          <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span>
+                              <strong>Missing Folio:</strong> Some companies had no matching folio in the incoming letter. They are marked with "— Not provided".
+                            </span>
+                          </div>
+                        )}
+
+                        {multiFolios.map((row, idx) => {
+                          const compStatus = formatCompanyWithSymbol(row.company);
+                          return (
+                            <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
+                              <div className="w-24">
+                                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Folio #</span>
+                                <Input 
+                                  placeholder="Folio #" 
+                                  value={row.folio} 
+                                  onChange={(e) => updateMultiFolioRow(idx, "folio", e.target.value)}
+                                  className={`h-8 text-xs font-bold ${row.folio.includes('Not provided') ? 'text-amber-700 bg-amber-50/50' : ''}`}
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] text-slate-400 font-semibold uppercase block">Company Name (SYMBOL)</span>
+                                  {row.company && !compStatus.isFound && (
+                                    <span className="text-[10px] text-rose-600 font-bold">Unknown Symbol</span>
+                                  )}
+                                </div>
+                                <Input 
+                                  placeholder="Company Name (SYMBOL)" 
+                                  value={row.company} 
+                                  onChange={(e) => updateMultiFolioRow(idx, "company", e.target.value)}
+                                  className={`h-8 text-xs font-medium ${row.company && !compStatus.isFound ? 'border-rose-400 bg-rose-50/30' : ''}`}
+                                />
+                              </div>
+                              <div className="w-20">
+                                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Shares</span>
+                                <Input 
+                                  placeholder="Shares" 
+                                  value={row.shares} 
+                                  onChange={(e) => updateMultiFolioRow(idx, "shares", e.target.value)}
+                                  className="h-8 text-xs text-center"
+                                />
+                              </div>
+                              <div className="w-20">
+                                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Certs</span>
+                                <Input 
+                                  placeholder="Certs" 
+                                  value={row.certificates} 
+                                  onChange={(e) => updateMultiFolioRow(idx, "certificates", e.target.value)}
+                                  className="h-8 text-xs text-center"
+                                />
+                              </div>
+                              <div className="w-20">
+                                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Stamp Duty</span>
+                                <Input 
+                                  placeholder="e.g. –" 
+                                  value={row.stampDuty || "–"} 
+                                  onChange={(e) => updateMultiFolioRow(idx, "stampDuty", e.target.value)}
+                                  className="h-8 text-xs text-center font-mono"
+                                />
+                              </div>
+                              {multiFolios.length > 1 && (
+                                <div className="pt-3">
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => removeMultiFolioRow(idx)}
+                                    className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
+                                    title="Remove row"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </>
@@ -1513,7 +1618,7 @@ Encl.:  As stated above.`;
 
                 {/* Legal Heir Details (Name, Contact/Mobile, Mailing Address) */}
                 <div className="pt-2 border-t border-slate-100 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div>
                       <label className="text-xs font-bold text-slate-700 block mb-1">
                         Legal Heir Name <span className="text-rose-500">*</span>
@@ -1523,6 +1628,17 @@ Encl.:  As stated above.`;
                         onChange={(e) => setLegalHeir(e.target.value)}
                         placeholder="e.g. Syed Sajjad Imam Jafri" 
                         className="text-xs h-9 font-bold text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                        Applicant's Father Name (F/H)
+                      </label>
+                      <Input 
+                        value={applicantFather} 
+                        onChange={(e) => setApplicantFather(e.target.value)}
+                        placeholder="e.g. Ahmed" 
+                        className="text-xs h-9 font-medium"
                       />
                     </div>
                     <div>
@@ -1714,6 +1830,59 @@ Encl.:  As stated above.`;
 
                 {openAccordion.documentsRequired && (
                   <div className="p-4 pt-3 border-t border-blue-100 space-y-4 bg-white">
+                    {/* Dedicated Staff Controls for SIF and Transmission Deed (100% manual control) */}
+                    <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                          <CheckSquare className="h-4 w-4 text-[#F37021]" />
+                          SIF &amp; Transmission Deed (Manual Staff Selection)
+                        </span>
+                        <span className="text-[10px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded font-medium">
+                          100% Staff Controlled
+                        </span>
+                      </div>
+                      <div className="space-y-2 text-xs">
+                        {/* SIF */}
+                        <div className="flex items-center gap-2 bg-white p-2 rounded border border-amber-200">
+                          <input 
+                            type="checkbox"
+                            checked={includeSif}
+                            onChange={(e) => setIncludeSif(e.target.checked)}
+                            className="h-4 w-4 rounded text-[#0B2B5E]"
+                            id="sif-checkbox"
+                          />
+                          <label htmlFor="sif-checkbox" className="font-semibold text-slate-800 shrink-0">
+                            Shareholder Information Form (SIF)
+                          </label>
+                          <Input 
+                            placeholder="e.g. (For OGDC & AKBL) or leave blank"
+                            value={sifCompanyText}
+                            onChange={(e) => setSifCompanyText(e.target.value)}
+                            className="h-7 text-xs flex-1"
+                          />
+                        </div>
+                        {/* Transmission Deed */}
+                        <div className="flex items-center gap-2 bg-white p-2 rounded border border-amber-200">
+                          <input 
+                            type="checkbox"
+                            checked={includeTransmissionDeed}
+                            onChange={(e) => setIncludeTransmissionDeed(e.target.checked)}
+                            className="h-4 w-4 rounded text-[#0B2B5E]"
+                            id="td-checkbox"
+                          />
+                          <label htmlFor="td-checkbox" className="font-semibold text-slate-800 shrink-0">
+                            Transmission Deed (TD)
+                          </label>
+                          <Input 
+                            placeholder="e.g. (For BIPL) or leave blank"
+                            value={tdCompanyText}
+                            onChange={(e) => setTdCompanyText(e.target.value)}
+                            className="h-7 text-xs flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[#0B2B5E] flex items-center gap-1.5">
                         <ShieldCheck className="h-3.5 w-3.5 text-[#F37021]" />
@@ -2041,9 +2210,13 @@ Encl.:  As stated above.`;
 
               {/* Addressee Info */}
               <div className="font-sans space-y-0.5 text-xs">
-                <p className="font-bold text-slate-900">{legalHeir} {cleanHeirNameOnly ? '' : (relation ? `(${relation})` : '')}</p>
-                {!cleanHeirNameOnly && <p className="text-slate-600 font-medium">F/H: {deceased} (Late)</p>}
-                <p className="text-slate-700">{address}</p>
+                <p className="font-bold text-slate-900">{cleanHeirNameOnly ? legalHeir : (relation ? `${legalHeir} (${relation})` : legalHeir)}</p>
+                {applicantFather && (
+                  <p className="text-slate-700 font-medium"><strong>F/H: </strong>{applicantFather}</p>
+                )}
+                {splitAddressIntoThreeLines(address).map((line, idx) => (
+                  <p key={idx} className="text-slate-700">{line}</p>
+                ))}
                 {contactNo && <p className="text-slate-600 text-[11px]">Contact: {contactNo}</p>}
               </div>
 
@@ -2067,7 +2240,6 @@ Encl.:  As stated above.`;
                 )}
               </div>
 
-
                   {scrutinyPosition === "top" && includeScrutinyNote && scrutinyRemark.trim() && (
                     <p className="my-2 p-2 rounded bg-blue-50/70 border border-blue-200 text-[#0B2B5E] font-sans">
                       {scrutinyRemark}
@@ -2081,7 +2253,7 @@ Encl.:  As stated above.`;
 
                   {mode === "multi" ? (
                     <p>
-                      Kindly note that following shares are registered in the name of subject deceased shareholder (details of shares attached). In case if share certificate is lost, please intimate us accordingly:
+                      Please note that following shares are registered in the name of subject deceased shareholder:
                     </p>
                   ) : (
                     <p>
@@ -2101,20 +2273,50 @@ Encl.:  As stated above.`;
                             <th className="p-1.5">Folio #</th>
                             <th className="p-1.5"># of Certs</th>
                             <th className="p-1.5"># of Shares</th>
+                            <th className="p-1.5">Stamp Duty</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {multiFolios.map((m, i) => (
-                            <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
-                              <td className="p-1.5 font-bold text-slate-500">{i + 1}</td>
-                              <td className="p-1.5 font-semibold text-[#0B2B5E]">{m.company}</td>
-                              <td className="p-1.5 font-bold">{m.folio}</td>
-                              <td className="p-1.5">{m.certificates}</td>
-                              <td className="p-1.5">{m.shares}</td>
-                            </tr>
-                          ))}
+                          {multiFolios.map((m, i) => {
+                            const compDisplay = formatCompanyWithSymbol(m.company).displayName || m.company;
+                            return (
+                              <tr key={i} className="border-b last:border-0 hover:bg-slate-50">
+                                <td className="p-1.5 font-bold text-slate-500">{i + 1}</td>
+                                <td className="p-1.5 font-semibold text-[#0B2B5E]">{compDisplay}</td>
+                                <td className="p-1.5 font-bold">{m.folio}</td>
+                                <td className="p-1.5">{m.certificates || '—'}</td>
+                                <td className="p-1.5">{m.shares || '—'}</td>
+                                <td className="p-1.5 font-mono text-slate-600">{m.stampDuty || '–'}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
+                    </div>
+                  )}
+
+                  {mode === "multi" && (
+                    <div className="space-y-1 my-2">
+                      <p className="text-[11px] text-slate-700">
+                        For your convenience, we are also attaching complete details of shares. In case if any share certificate(s) is/are lost, please intimate us accordingly.
+                      </p>
+                      <p className="text-[11px] font-bold text-slate-900">
+                        Kindly note that the share certificates shall only be forwarded to you upon receipt of our instructions in this regard.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Duplicate / Lost shares paragraph (Shown ONLY when hasLostShares is true) */}
+                  {hasLostShares && (
+                    <div className="p-3 my-2 bg-amber-50/70 border border-amber-300 rounded font-sans text-xs space-y-1.5 text-amber-950">
+                      <p className="font-bold">
+                        {duplicateIntro.trim() || `Kindly note that as intimated, the subject share certificate(s) ${lostSharesDetail ? `(${lostSharesDetail}) ` : ''}are reported lost / misplaced. In order to process the issuance of duplicate share certificate(s) in favor of legal heir(s), following duplicate formalities are also required:`}
+                      </p>
+                      <ul className="list-disc pl-5 space-y-1 text-[11px]">
+                        {duplicateDocs.map((doc, idx) => (
+                          <li key={idx}>{doc}</li>
+                        ))}
+                      </ul>
                     </div>
                   )}
 
@@ -2130,7 +2332,7 @@ Encl.:  As stated above.`;
 
                   {/* Numbered Required Docs */}
                   <ol className="list-decimal pl-5 space-y-2 text-slate-700">
-                    {requiredDocs.map((item, idx) => {
+                    {getActiveRequiredDocs().map((item, idx) => {
                       const isSuccession = item.includes("Succession Certificate");
                       if (isSuccession) {
                         return (
