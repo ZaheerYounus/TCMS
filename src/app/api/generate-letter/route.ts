@@ -341,13 +341,13 @@ export async function POST(req: NextRequest) {
 
       // 6. Required Documents List (Numbered)
       ...requiredDocs.flatMap((item: string, idx: number) => {
-        const isSuccession = item.toLowerCase().includes('succession certificate');
-        if (isSuccession) {
+        const isCombinedSuccession = item.startsWith('Succession Certificate:\n');
+        if (isCombinedSuccession) {
           return [
             new Paragraph({
               children: [
-                new TextRun({ text: `${idx + 1}. `, bold: true, size: 21, font: "Calibri" }),
-                new TextRun({ text: "Succession Certificate:", bold: true, underline: {}, size: 21, font: "Calibri" }),
+                new TextRun({ text: `${idx + 1}. `, bold: true, size: 22, font: "Calibri" }),
+                new TextRun({ text: "Succession Certificate:", bold: true, underline: {}, size: 22, font: "Calibri" }),
               ],
               spacing: { before: 80, after: 50 },
               indent: { left: 400 },
@@ -355,8 +355,8 @@ export async function POST(req: NextRequest) {
             new Paragraph({
               children: [
                 new TextRun({ 
-                  text: "•  Notarized Copy of Succession Certificate Issued by NADRA;", 
-                  size: 20, 
+                  text: "•  Notarized copy of Succession Certificate along with Family Registration Certificate (FRC) (if issued by NADRA);", 
+                  size: 22, 
                   font: "Calibri" 
                 }),
               ],
@@ -365,7 +365,7 @@ export async function POST(req: NextRequest) {
             }),
             new Paragraph({
               children: [
-                new TextRun({ text: "OR", bold: true, size: 20, font: "Calibri" }),
+                new TextRun({ text: "OR", bold: true, size: 22, font: "Calibri" }),
               ],
               spacing: { after: 30 },
               alignment: AlignmentType.CENTER,
@@ -373,8 +373,8 @@ export async function POST(req: NextRequest) {
             new Paragraph({
               children: [
                 new TextRun({ 
-                  text: "•  Court attested copy of Succession Certificate along with it's petition and Court Order.", 
-                  size: 20, 
+                  text: "•  Court attested copy of Succession Certificate along with notarized copy of its Petition and Court Order (if issued by Honorable Court).", 
+                  size: 22, 
                   font: "Calibri" 
                 }),
               ],
@@ -386,8 +386,8 @@ export async function POST(req: NextRequest) {
         return [
           new Paragraph({
             children: [
-              new TextRun({ text: `${idx + 1}. `, bold: true, size: 20, font: "Calibri" }),
-              new TextRun({ text: item, size: 20, font: "Calibri" }),
+              new TextRun({ text: `${idx + 1}. `, bold: true, size: 22, font: "Calibri" }),
+              new TextRun({ text: item, size: 22, font: "Calibri" }),
             ],
             spacing: { after: 70 },
             indent: { left: 400 },

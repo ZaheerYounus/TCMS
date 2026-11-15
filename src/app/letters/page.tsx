@@ -276,7 +276,8 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
     "Shareholder Information Form (attached) duly filled and signed by all legal heir(s) separately",
     "Shares Transfer stamps of Rs. 25/- (@0.25% of face value of shares)",
     "Original dividend warrants (if any) issued in the name of subject deceased shareholder",
-    "Succession Certificate (NADRA Digital or Civil Court Attested Copy along with Court Order)"
+    "Notarized copy of Succession Certificate along with Family Registration Certificate (FRC) (if issued by NADRA)",
+    "Court attested copy of Succession Certificate along with notarized copy of its Petition and Court Order (if issued by Honorable Court)"
   ]);
 
   const requiredDocOptions = [
@@ -286,8 +287,8 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
     "Transmission deed (attached) duly filled and signed by all the legal heir(s) along with witness CNIC",
     "Shares Transfer stamps of Rs. 25/- (@0.25% of face value of shares)",
     "Original dividend warrants (if any) issued in the name of subject deceased shareholder",
-    "Notarized Copy of Succession Certificate Issued by NADRA or Court attested copy of Succession Certificate along with it's petition and Court Order",
-    "Family Registration Certificate (FRC) issued by NADRA"
+    "Notarized copy of Succession Certificate along with Family Registration Certificate (FRC) (if issued by NADRA)",
+    "Court attested copy of Succession Certificate along with notarized copy of its Petition and Court Order (if issued by Honorable Court)"
   ];
 
   // Custom additions
@@ -889,9 +890,17 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
     if (requiredDocs.some(d => d.toLowerCase().includes("dividend"))) {
       list.push("Original dividend warrants (if any) issued in the name of subject deceased shareholder");
     }
-    if (requiredDocs.some(d => d.includes("Succession Certificate"))) {
-      list.push("Succession Certificate (NADRA Digital or Civil Court Attested Copy along with Court Order)");
+    const hasNadra = requiredDocs.some(d => d.includes("FRC") || d.includes("issued by NADRA") || (d.includes("Succession") && d.includes("NADRA")));
+    const hasCourt = requiredDocs.some(d => d.includes("Court attested") || d.includes("Petition") || (d.includes("Succession") && d.includes("Court")));
+
+    if (hasNadra && hasCourt) {
+      list.push("Succession Certificate:\n• Notarized copy of Succession Certificate along with Family Registration Certificate (FRC) (if issued by NADRA);\nOR\n• Court attested copy of Succession Certificate along with notarized copy of its Petition and Court Order (if issued by Honorable Court).");
+    } else if (hasNadra) {
+      list.push("Notarized copy of Succession Certificate along with Family Registration Certificate (FRC) (if issued by NADRA);");
+    } else if (hasCourt) {
+      list.push("Court attested copy of Succession Certificate along with notarized copy of its Petition and Court Order (if issued by Honorable Court);");
     }
+
     requiredDocs.forEach(d => {
       if (
         !d.toLowerCase().includes("death certificate") &&
@@ -900,8 +909,9 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
         !d.includes("Transmission deed") &&
         !d.toLowerCase().includes("stamp") &&
         !d.toLowerCase().includes("dividend") &&
-        !d.includes("Succession Certificate") &&
-        !d.includes("FRC")
+        !d.includes("Succession") &&
+        !d.includes("FRC") &&
+        !d.includes("Court attested")
       ) {
         list.push(d);
       }
@@ -1194,64 +1204,18 @@ Encl.:  As stated above.`;
                   </div>
                 </div>
 
-                {/* 100% Completed Auto-Reflection Summary Card (The 6 Main Required Items) */}
+                {/* Clean Auto-Reflection Notification */}
                 {extractedDataSummary && (
-                  <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-50 via-white to-teal-50 border border-emerald-300 shadow-xs space-y-2.5">
-                    <div className="flex items-center justify-between pb-2 border-b border-emerald-200">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[11px] font-bold">✓</span>
-                        <div>
-                          <h4 className="text-xs font-bold text-emerald-950">
-                            100% Completed! Data Auto-Reflected into Letter
-                          </h4>
-                          <span className="text-[10px] text-emerald-700">
-                            All document data has been automatically reflected into the letter.
-                          </span>
-                        </div>
-                      </div>
-                      <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
-                        100% Ready
-                      </Badge>
+                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 flex items-center justify-between text-xs text-emerald-950">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span className="font-semibold text-xs">
+                        Particulars automatically extracted &amp; populated into letter below.
+                      </span>
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">1. Folio Number</span>
-                        <span className="font-bold font-mono text-[#0B2B5E] text-xs">
-                          {extractedDataSummary.folio || "N/A"}
-                        </span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">2. Company Name</span>
-                        <span className="font-bold text-slate-800 text-xs line-clamp-1">
-                          {extractedDataSummary.company || "N/A"}
-                        </span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">3. Deceased Name</span>
-                        <span className="font-bold text-rose-700 text-xs line-clamp-1">
-                          {extractedDataSummary.deceased || "N/A"}
-                        </span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">4. Legal Heir Name</span>
-                        <span className="font-bold text-emerald-800 text-xs line-clamp-1">
-                          {extractedDataSummary.legalHeir || "N/A"}
-                        </span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">5. Mobile / Contact</span>
-                        <span className="font-bold font-mono text-slate-800 text-xs">
-                          {extractedDataSummary.contactNo || "N/A"}
-                        </span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-white border border-emerald-200">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">6. Address</span>
-                        <span className="font-medium text-slate-700 text-[11px] line-clamp-1">
-                          {extractedDataSummary.address || "N/A"}
-                        </span>
-                      </div>
-                    </div>
+                    <Badge className="bg-emerald-600 text-white text-[10px] py-0 font-bold">
+                      Auto-Populated
+                    </Badge>
                   </div>
                 )}
 
@@ -2333,18 +2297,18 @@ Encl.:  As stated above.`;
                   {/* Numbered Required Docs */}
                   <ol className="list-decimal pl-5 space-y-2 text-slate-700">
                     {getActiveRequiredDocs().map((item, idx) => {
-                      const isSuccession = item.includes("Succession Certificate");
-                      if (isSuccession) {
+                      const isCombinedSuccession = item.startsWith("Succession Certificate:\n");
+                      if (isCombinedSuccession) {
                         return (
                           <li key={idx} className="leading-snug font-semibold text-slate-900">
                             <span>Succession Certificate:</span>
                             <div className="bg-slate-50 p-2 rounded border border-slate-200 text-[11px] space-y-1 font-normal text-slate-700 mt-1">
                               <p>
-                                &bull; Notarized copy of Succession Certificate along with Family Registration Certificate (if issued by NADRA);
+                                &bull; Notarized copy of Succession Certificate along with Family Registration Certificate (FRC) (if issued by NADRA);
                               </p>
                               <p className="text-center font-bold text-slate-500 text-[10px]">OR</p>
                               <p>
-                                &bull; Court attested copy of Succession Certificate along with its Application &amp; Court Order (if issued by Honorable Court).
+                                &bull; Court attested copy of Succession Certificate along with notarized copy of its Petition and Court Order (if issued by Honorable Court).
                               </p>
                             </div>
                           </li>

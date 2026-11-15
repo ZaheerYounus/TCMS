@@ -11,6 +11,8 @@ import {
   UploadCloud, 
   Sparkles,
   Layers,
+  ChevronDown,
+  ChevronUp,
   Download
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +29,20 @@ export function CdsAccountLetter() {
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
   });
+
+  // Accordion state
+  const [openAccordion, setOpenAccordion] = useState<Record<string, boolean>>({
+    basicDetails: true,
+    recipient: true,
+    companies: true,
+    receivedDocs: true,
+    requiredDocs: true,
+    statusAndSignatories: true,
+  });
+
+  const toggleAccordion = (name: string) => {
+    setOpenAccordion(prev => ({ ...prev, [name]: !prev[name] }));
+  };
 
   // Recipient (Legal Heir)
   const [recipientName, setRecipientName] = useState("Mr. Shahid Qadri");
@@ -279,100 +295,126 @@ ${signatory1}                      ${signatory2}
             </CardContent>
           </Card>
 
-          {/* Form Card */}
-          <Card className="shadow-xs border-slate-200">
-            <CardHeader className="py-3 px-4 bg-slate-50 border-b border-slate-200">
-              <CardTitle className="text-xs font-bold text-[#0B2B5E]">
-                CDS Account Letter Parameters
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3.5 text-xs">
-              
-              {/* Ref No & Date */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Reference #</label>
-                  <Input 
-                    value={refNo} 
-                    onChange={(e) => setRefNo(e.target.value)}
-                    className="h-8 text-xs font-mono"
-                  />
+          {/* Accordion 1: Basic Particulars */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+            <button
+              type="button"
+              onClick={() => toggleAccordion("basicDetails")}
+              className="w-full flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+            >
+              <span className="text-xs font-bold text-[#0B2B5E] uppercase tracking-wide">
+                1. Basic Details (Ref, Date, Folio &amp; CDS A/C)
+              </span>
+              {openAccordion.basicDetails ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+            </button>
+            {openAccordion.basicDetails && (
+              <div className="p-4 pt-3 border-t border-slate-100 space-y-3 text-xs bg-white">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Reference #</label>
+                    <Input 
+                      value={refNo} 
+                      onChange={(e) => setRefNo(e.target.value)}
+                      className="h-8 text-xs font-mono font-bold text-[#0B2B5E]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Letter Date</label>
+                    <Input 
+                      value={date} 
+                      onChange={(e) => setDate(e.target.value)}
+                      className="h-8 text-xs font-normal"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Letter Date</label>
-                  <Input 
-                    value={date} 
-                    onChange={(e) => setDate(e.target.value)}
-                    className="h-8 text-xs"
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Deceased Name</label>
+                    <Input 
+                      value={deceased} 
+                      onChange={(e) => setDeceased(e.target.value)}
+                      className="h-8 text-xs font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Folio #</label>
+                    <Input 
+                      value={folio} 
+                      onChange={(e) => setFolio(e.target.value)}
+                      className="h-8 text-xs font-mono font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-600 mb-1 block">CDS Account #</label>
+                    <Input 
+                      value={cdsAccountNo} 
+                      onChange={(e) => setCdsAccountNo(e.target.value)}
+                      className="h-8 text-xs font-mono font-semibold"
+                    />
+                  </div>
                 </div>
               </div>
+            )}
+          </div>
 
-              {/* Deceased, Folio & CDS A/C */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Deceased Name</label>
-                  <Input 
-                    value={deceased} 
-                    onChange={(e) => setDeceased(e.target.value)}
-                    className="h-8 text-xs font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Folio #</label>
-                  <Input 
-                    value={folio} 
-                    onChange={(e) => setFolio(e.target.value)}
-                    className="h-8 text-xs font-mono font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">CDS Account #</label>
-                  <Input 
-                    value={cdsAccountNo} 
-                    onChange={(e) => setCdsAccountNo(e.target.value)}
-                    className="h-8 text-xs font-mono font-semibold"
-                  />
-                </div>
+          {/* Accordion 2: Recipient / Addressee */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+            <button
+              type="button"
+              onClick={() => toggleAccordion("recipient")}
+              className="w-full flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+            >
+              <span className="text-xs font-bold text-[#0B2B5E] uppercase tracking-wide">
+                2. Addressee / Legal Heir Particulars
+              </span>
+              {openAccordion.recipient ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+            </button>
+            {openAccordion.recipient && (
+              <div className="p-4 pt-3 border-t border-slate-100 space-y-2 text-xs bg-white">
+                <Input 
+                  placeholder="Recipient Name (e.g. Mr. Shahid Qadri)"
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                  className="h-8 text-xs font-medium mb-1.5"
+                />
+                <Input 
+                  placeholder="F/H Name: Mr. Muhammad Asghar Qadri (Late)"
+                  value={fatherHusbandName}
+                  onChange={(e) => setFatherHusbandName(e.target.value)}
+                  className="h-8 text-xs mb-1.5"
+                />
+                <textarea 
+                  rows={3}
+                  placeholder="Complete Postal Address (leave blank if missing)..."
+                  value={recipientAddress}
+                  onChange={(e) => setRecipientAddress(e.target.value)}
+                  className="w-full rounded-md border border-slate-200 p-2 text-xs focus:ring-1 focus:ring-blue-500 bg-white"
+                />
+                <Input 
+                  placeholder="Contact # (e.g. 0301-8284039)"
+                  value={recipientContact}
+                  onChange={(e) => setRecipientContact(e.target.value)}
+                  className="h-8 text-xs font-mono mt-1.5"
+                />
               </div>
+            )}
+          </div>
 
-              {/* Recipient Details */}
-              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                  Addressee Details
-                </span>
-                <div>
-                  <Input 
-                    placeholder="Recipient Name (e.g. Mr. Shahid Qadri)"
-                    value={recipientName}
-                    onChange={(e) => setRecipientName(e.target.value)}
-                    className="h-8 text-xs font-medium mb-1.5"
-                  />
-                  <Input 
-                    placeholder="F/H Name: Mr. Muhammad Asghar Qadri (Late)"
-                    value={fatherHusbandName}
-                    onChange={(e) => setFatherHusbandName(e.target.value)}
-                    className="h-8 text-xs mb-1.5"
-                  />
-                  <textarea 
-                    rows={3}
-                    placeholder="Complete Postal Address (leave blank if missing)..."
-                    value={recipientAddress}
-                    onChange={(e) => setRecipientAddress(e.target.value)}
-                    className="w-full rounded-md border border-slate-200 p-2 text-xs focus:ring-1 focus:ring-blue-500 bg-white"
-                  />
-                  <Input 
-                    placeholder="Contact # (e.g. 0301-8284039)"
-                    value={recipientContact}
-                    onChange={(e) => setRecipientContact(e.target.value)}
-                    className="h-8 text-xs font-mono mt-1.5"
-                  />
-                </div>
-              </div>
-
-              {/* Subject Companies List */}
-              <div className="space-y-2 pt-2 border-t border-slate-100">
-                <span className="text-[11px] font-bold text-slate-700 block">Subject Companies List</span>
+          {/* Accordion 3: Subject Companies List */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+            <button
+              type="button"
+              onClick={() => toggleAccordion("companies")}
+              className="w-full flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+            >
+              <span className="text-xs font-bold text-[#0B2B5E] uppercase tracking-wide">
+                3. Subject Companies List ({companies.length})
+              </span>
+              {openAccordion.companies ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+            </button>
+            {openAccordion.companies && (
+              <div className="p-4 pt-3 border-t border-slate-100 space-y-2 text-xs bg-white">
                 <div className="space-y-1">
                   {companies.map((c, i) => (
                     <div key={i} className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded border border-slate-200 text-xs">
@@ -398,12 +440,23 @@ ${signatory1}                      ${signatory2}
                   </Button>
                 </div>
               </div>
+            )}
+          </div>
 
-              {/* Documents Acknowledged / Received */}
-              <div className="space-y-2 pt-2 border-t border-slate-100">
-                <span className="text-[11px] font-bold text-slate-700 block">
-                  Documents Acknowledged / Received
-                </span>
+          {/* Accordion 4: Documents Acknowledged / Received */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+            <button
+              type="button"
+              onClick={() => toggleAccordion("receivedDocs")}
+              className="w-full flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+            >
+              <span className="text-xs font-bold text-[#0B2B5E] uppercase tracking-wide">
+                4. Documents Acknowledged / Received ({receivedDocs.length})
+              </span>
+              {openAccordion.receivedDocs ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+            </button>
+            {openAccordion.receivedDocs && (
+              <div className="p-4 pt-3 border-t border-slate-100 space-y-2 text-xs bg-white">
                 <div className="space-y-1.5">
                   {receivedDocs.map((doc, idx) => (
                     <div key={idx} className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded border border-slate-200 text-xs">
@@ -431,25 +484,23 @@ ${signatory1}                      ${signatory2}
                   </Button>
                 </div>
               </div>
+            )}
+          </div>
 
-              {/* Status Remarks */}
-              <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                <label className="text-[11px] font-semibold text-slate-600 block">
-                  CDS Account Status Finding
-                </label>
-                <textarea 
-                  rows={2}
-                  className="w-full text-xs rounded-md border border-slate-200 p-2 bg-white"
-                  value={accountStatusRemarks} 
-                  onChange={(e) => setAccountStatusRemarks(e.target.value)} 
-                />
-              </div>
-
-              {/* Pending Documents / Formalities Required */}
-              <div className="space-y-2 pt-2 border-t border-slate-100">
-                <span className="text-[11px] font-bold text-slate-700 block">
-                  Pending Formalities / Documents Required
-                </span>
+          {/* Accordion 5: Pending Formalities Required */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+            <button
+              type="button"
+              onClick={() => toggleAccordion("requiredDocs")}
+              className="w-full flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+            >
+              <span className="text-xs font-bold text-[#0B2B5E] uppercase tracking-wide">
+                5. Pending Formalities / Documents Required ({requiredDocs.length})
+              </span>
+              {openAccordion.requiredDocs ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+            </button>
+            {openAccordion.requiredDocs && (
+              <div className="p-4 pt-3 border-t border-slate-100 space-y-2 text-xs bg-white">
                 <div className="space-y-1.5">
                   {requiredDocs.map((doc, idx) => (
                     <div key={idx} className="flex items-start gap-1.5 bg-slate-50 p-1.5 rounded border border-slate-200 text-xs">
@@ -478,29 +529,55 @@ ${signatory1}                      ${signatory2}
                   </Button>
                 </div>
               </div>
+            )}
+          </div>
 
-              {/* Signatories */}
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+          {/* Accordion 6: Account Status & Signatories */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
+            <button
+              type="button"
+              onClick={() => toggleAccordion("statusAndSignatories")}
+              className="w-full flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+            >
+              <span className="text-xs font-bold text-[#0B2B5E] uppercase tracking-wide">
+                6. Status Finding &amp; Signatories
+              </span>
+              {openAccordion.statusAndSignatories ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+            </button>
+            {openAccordion.statusAndSignatories && (
+              <div className="p-4 pt-3 border-t border-slate-100 space-y-3 text-xs bg-white">
                 <div>
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Signatory 1</label>
-                  <Input 
-                    value={signatory1}
-                    onChange={(e) => setSignatory1(e.target.value)}
-                    className="h-7 text-[11px]"
+                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">
+                    CDS Account Status Finding
+                  </label>
+                  <textarea 
+                    rows={2}
+                    className="w-full text-xs rounded-md border border-slate-200 p-2 bg-white"
+                    value={accountStatusRemarks} 
+                    onChange={(e) => setAccountStatusRemarks(e.target.value)} 
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Signatory 2</label>
-                  <Input 
-                    value={signatory2}
-                    onChange={(e) => setSignatory2(e.target.value)}
-                    className="h-7 text-[11px]"
-                  />
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Signatory 1</label>
+                    <Input 
+                      value={signatory1}
+                      onChange={(e) => setSignatory1(e.target.value)}
+                      className="h-7 text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Signatory 2</label>
+                    <Input 
+                      value={signatory2}
+                      onChange={(e) => setSignatory2(e.target.value)}
+                      className="h-7 text-[11px]"
+                    />
+                  </div>
                 </div>
               </div>
-
-            </CardContent>
-          </Card>
+            )}
+          </div>
         </div>
 
         {/* Right Preview: Official CDCSR A4 Letter Preview (7 cols) */}
@@ -550,7 +627,7 @@ ${signatory1}                      ${signatory2}
             {/* Reference & Date */}
             <div className="mb-6 space-y-1">
               <div className="font-normal text-slate-900">{refNo}</div>
-              <div className="font-medium text-slate-700">{date}</div>
+              <div className="font-normal text-slate-700">{date}</div>
             </div>
 
             {/* Recipient Address */}

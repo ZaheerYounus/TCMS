@@ -212,8 +212,7 @@ ${companyAddress}
 ${salutation}
 
 ${company.toUpperCase()}
-APPROVAL OF TRANSMISSION / TRANSFER OF SHARES
-${deceased} - Folio # ${folio}
+APPROVAL OF TRANSMISSION / TRANSFER OF SHARES – ${deceased.startsWith("Late") ? deceased : `Late ${deceased}`} – Folio # ${folio}
 
 We refer to the transmission case in respect of the above deceased shareholder. In this regard we are pleased to enclose herewith ${certificatesCount} share certificates for ${sharesCount} shares along with the relevant Transfer Register${includeLoss ? ", Loss Register" : ""}${includeSplit ? ", Split Register" : ""} and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.
 
@@ -668,7 +667,7 @@ Encl.: As stated above.
             {/* Reference & Date (Reference unbolded) */}
             <div className="mb-6 space-y-1">
               <div className="font-normal text-slate-900">{refNo}</div>
-              <div className="font-medium text-slate-700">{date}</div>
+              <div className="font-normal text-slate-700">{date}</div>
             </div>
 
             {/* Recipient Address */}
@@ -684,15 +683,12 @@ Encl.: As stated above.
             </div>
 
             {/* Subject */}
-            <div className="mb-6 leading-tight">
+            <div className="mb-6 leading-tight space-y-1">
               <div className="font-bold text-slate-900 uppercase">
                 {company} {compSymbol ? `(${compSymbol})` : ""}
               </div>
-              <div className="font-bold text-slate-900">
-                APPROVAL OF TRANSMISSION / TRANSFER OF SHARES
-              </div>
-              <div className="font-bold text-slate-900">
-                {deceased} - Folio # {folio}
+              <div className="font-bold text-slate-900 underline underline-offset-4">
+                APPROVAL OF TRANSMISSION / TRANSFER OF SHARES – {deceased.startsWith("Late") ? deceased : `Late ${deceased}`} – Folio # {folio}
               </div>
             </div>
 
@@ -789,13 +785,13 @@ Encl.: As stated above.
 
             <div className="grid grid-cols-2 gap-8 pt-10">
               <div>
-                <div className="w-48 border-t border-slate-900 pt-1 font-bold text-xs">
+                <div className="w-56 border-t border-slate-900 pt-1 font-bold text-xs">
                   {signatory1Name}
                 </div>
                 <div className="text-xs text-slate-600">{signatory1Designation}</div>
               </div>
-              <div className="text-right">
-                <div className="w-48 border-t border-slate-900 pt-1 font-bold text-xs ml-auto">
+              <div>
+                <div className="w-56 border-t border-slate-900 pt-1 font-bold text-xs">
                   {signatory2Name}
                 </div>
                 <div className="text-xs text-slate-600">{signatory2Designation}</div>

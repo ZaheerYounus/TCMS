@@ -46,6 +46,7 @@ export function NoFolioFoundLetter() {
   // Deceased Shareholder Details
   const [deceasedName, setDeceasedName] = useState("Late Abdul Rehman Memon");
   const [deceasedCnic, setDeceasedCnic] = useState("42301-0987654-3");
+  const [folio, setFolio] = useState("");
   const [companyName, setCompanyName] = useState("");
 
   // Documents received
@@ -100,6 +101,7 @@ export function NoFolioFoundLetter() {
         recipientContact,
         deceasedName,
         deceasedCnic,
+        folio,
         companyName,
         receivedDocs,
         searchRemarks,
@@ -150,8 +152,8 @@ export function NoFolioFoundLetter() {
         if (d.lawFirm) {
           setLawFirm(d.lawFirm);
         }
-        if (d.deceasedCnic) {
-          setDeceasedCnic(d.deceasedCnic);
+        if (d.folio) {
+          setFolio(d.folio);
         }
         setRecipientAddress(d.address || "");
         if (d.contactNo) {
@@ -188,8 +190,7 @@ ${recipientContact ? "Contact # " + recipientContact : ""}
 
 Dear Sir / Madam,
 
-${companyName ? companyName.toUpperCase() + "\n" : ""}Transmission of Shares
-${deceasedName}${deceasedCnic ? ` (CNIC # ${deceasedCnic})` : ""}
+${companyName ? companyName.toUpperCase() + "\n" : ""}Transmission of Shares – ${deceasedName}${folio ? ` – Folio # ${folio}` : ""}
 
 We refer to your letter regarding the captioned subject and acknowledge the receipt of the following documents:
 ${receivedDocs.map(d => `• ${d}`).join("\n")}
@@ -350,7 +351,7 @@ ${signatory1}                      ${signatory2}
                     className="h-8 text-xs font-medium"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div>
                     <label className="text-[11px] font-semibold text-slate-600 mb-1 block">
                       Deceased Name
@@ -360,6 +361,17 @@ ${signatory1}                      ${signatory2}
                       onChange={(e) => setDeceasedName(e.target.value)} 
                       placeholder="e.g. Late Abdul Rehman Memon"
                       className="h-8 text-xs font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-600 mb-1 block">
+                      Folio # (Optional)
+                    </label>
+                    <Input 
+                      value={folio} 
+                      onChange={(e) => setFolio(e.target.value)} 
+                      placeholder="Leave blank if none"
+                      className="h-8 text-xs font-mono"
                     />
                   </div>
                   <div>
@@ -516,7 +528,7 @@ ${signatory1}                      ${signatory2}
               <div className="font-mono text-xs font-normal text-slate-900 tracking-wider">
                 {refNo}
               </div>
-              <div className="text-xs font-sans text-slate-600 font-medium">
+              <div className="text-xs font-sans text-slate-600 font-normal">
                 {date}
               </div>
             </div>
@@ -553,11 +565,7 @@ ${signatory1}                      ${signatory2}
                 </div>
               )}
               <div className="text-sm font-bold text-slate-950 underline underline-offset-4">
-                TRANSMISSION OF SHARES
-              </div>
-              <div className="text-xs font-bold text-slate-800">
-                {deceasedName}
-                {deceasedCnic && <span className="font-normal text-slate-600"> (CNIC # {deceasedCnic})</span>}
+                TRANSMISSION OF SHARES – {deceasedName}{folio ? ` – Folio # ${folio}` : ""}
               </div>
             </div>
 

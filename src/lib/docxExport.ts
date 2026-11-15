@@ -57,7 +57,7 @@ function makeHeaderTable(refNo: string, date: string) {
               }),
               new Paragraph({
                 spacing: { before: 0, after: 200 },
-                children: [new TextRun({ text: date, font: "Calibri", size: 22 })],
+                children: [new TextRun({ text: date, bold: false, font: "Calibri", size: 22 })],
               }),
             ],
           }),
@@ -169,7 +169,6 @@ function makeOfficerSignatoriesTable(
             borders: noBorders,
             children: [
               new Paragraph({
-                alignment: AlignmentType.RIGHT,
                 spacing: { before: 600, after: 80 },
                 children: [
                   new TextRun({ 
@@ -180,13 +179,11 @@ function makeOfficerSignatoriesTable(
                 ]
               }),
               new Paragraph({
-                alignment: AlignmentType.RIGHT,
                 children: [
                   new TextRun({ text: sig2Name, bold: true, font: "Calibri", size: 22 })
                 ]
               }),
               new Paragraph({
-                alignment: AlignmentType.RIGHT,
                 children: [
                   new TextRun({ text: sig2Title, font: "Calibri", size: 22 })
                 ]
@@ -249,15 +246,15 @@ export async function exportSharesDeliveryDocx(data: {
             ],
           }),
           new Paragraph({
-            spacing: { after: 40 },
-            children: [
-              new TextRun({ text: "TRANSMISSION OF SHARES", bold: true, underline: {}, font: "Calibri", size: 22 }),
-            ],
-          }),
-          new Paragraph({
             spacing: { after: 200 },
             children: [
-              new TextRun({ text: `${data.deceased} - Folio # ${data.folio}`, bold: true, font: "Calibri", size: 21 }),
+              new TextRun({
+                text: `Transmission of Shares & Dividends – Late ${data.deceased.replace(/^Late\s+/i, "")} – Folio # ${data.folio}`,
+                bold: true,
+                underline: {},
+                font: "Calibri",
+                size: 22
+              }),
             ],
           }),
 
@@ -442,15 +439,15 @@ export async function exportChequesDeliveryDocx(data: {
             ],
           }),
           new Paragraph({
-            spacing: { after: 40 },
-            children: [
-              new TextRun({ text: "DELIVERY OF BANKER'S CHEQUES (UNPAID DIVIDENDS)", bold: true, underline: {}, font: "Calibri", size: 22 }),
-            ],
-          }),
-          new Paragraph({
             spacing: { after: 200 },
             children: [
-              new TextRun({ text: `${data.deceased} - Folio # ${data.folio}`, bold: true, font: "Calibri", size: 22 }),
+              new TextRun({
+                text: `Transmission of Shares & Dividends – Late ${data.deceased.replace(/^Late\s+/i, "")} – Folio # ${data.folio}`,
+                bold: true,
+                underline: {},
+                font: "Calibri",
+                size: 22
+              }),
             ],
           }),
 
@@ -646,15 +643,15 @@ export async function exportPhysicalApprovalDocx(data: {
             ],
           }),
           new Paragraph({
-            spacing: { after: 40 },
-            children: [
-              new TextRun({ text: "APPROVAL OF TRANSMISSION / TRANSFER OF SHARES", bold: true, underline: {}, font: "Calibri", size: 22 }),
-            ],
-          }),
-          new Paragraph({
             spacing: { after: 200 },
             children: [
-              new TextRun({ text: `${data.deceased} - Folio # ${data.folio}`, bold: true, font: "Calibri", size: 22 }),
+              new TextRun({
+                text: `APPROVAL OF TRANSMISSION / TRANSFER OF SHARES – ${data.deceased.startsWith("Late") ? data.deceased : `Late ${data.deceased}`} – Folio # ${data.folio}`,
+                bold: true,
+                underline: {},
+                font: "Calibri",
+                size: 22
+              }),
             ],
           }),
 
@@ -976,6 +973,7 @@ export async function exportNoFolioFoundDocx(data: {
   recipientContact?: string;
   deceasedName: string;
   deceasedCnic?: string;
+  folio?: string;
   companyName?: string;
   receivedDocs: string[];
   searchRemarks: string;
@@ -1012,16 +1010,15 @@ export async function exportNoFolioFoundDocx(data: {
           new Paragraph({ spacing: { before: 180, after: 40 }, children: [new TextRun({ text: "Dear Sir / Madam,", font: "Calibri", size: 22 })] }),
           ...(data.companyName ? [new Paragraph({ spacing: { before: 40, after: 20 }, children: [new TextRun({ text: data.companyName.toUpperCase(), bold: true, font: "Calibri", size: 22 })] })] : []),
           new Paragraph({
-            spacing: { before: 40, after: 40 },
+            spacing: { before: 40, after: 200 },
             children: [
-              new TextRun({ text: "TRANSMISSION OF SHARES", bold: true, underline: {}, font: "Calibri", size: 22 }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 200 },
-            children: [
-              new TextRun({ text: data.deceasedName, bold: true, font: "Calibri", size: 22 }),
-              ...(data.deceasedCnic ? [new TextRun({ text: ` (CNIC # ${data.deceasedCnic})`, font: "Calibri", size: 22 })] : []),
+              new TextRun({
+                text: `TRANSMISSION OF SHARES – ${data.deceasedName}${data.folio ? ` – Folio # ${data.folio}` : ""}`,
+                bold: true,
+                underline: {},
+                font: "Calibri",
+                size: 22
+              }),
             ],
           }),
 

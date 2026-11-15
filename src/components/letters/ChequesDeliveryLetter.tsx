@@ -493,7 +493,7 @@ Encl.: As stated above.
             {/* Reference & Date */}
             <div className="mb-6 space-y-1">
               <div className="font-normal text-slate-900">{refNo}</div>
-              <div className="font-medium text-slate-700">{date}</div>
+              <div className="font-normal text-slate-700">{date}</div>
             </div>
 
             {/* Recipient Address */}
@@ -515,7 +515,7 @@ Encl.: As stated above.
               <div className="font-bold text-slate-900 uppercase">
                 {company}
               </div>
-              <div className="font-bold text-slate-900">
+              <div className="font-bold text-slate-900 underline underline-offset-4">
                 Transmission of Shares & Dividends – Late {deceased} – Folio # {folio}
               </div>
             </div>
