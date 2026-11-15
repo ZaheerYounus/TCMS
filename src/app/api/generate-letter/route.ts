@@ -61,6 +61,10 @@ export async function POST(req: NextRequest) {
       deficiencies = [],
       cleanHeirNameOnly = true,
       includeStandardCertLine = false,
+      signatory1Name = "Zaheer Ahmed",
+      signatory1Title = "Senior Officer",
+      signatory2Name = "Azib Yousuf",
+      signatory2Title = "Deputy Manager",
     } = await req.json();
 
     const companyName = Array.isArray(company) ? company.join(' / ') : String(company || 'Company');
@@ -123,17 +127,17 @@ export async function POST(req: NextRequest) {
 
     const formattedDate = formatDateDDMMYYYY(date);
 
-    // 1. Ref & Date below reference section (Requirement 7)
+    // 1. Ref & Date below reference section (Ref is unbolded, normal font, Calibri 11pt)
     const headerRefAndDateParagraphs = [
       new Paragraph({
         children: [
-          new TextRun({ text: refNo, bold: true, size: 22, font: "Calibri" }),
+          new TextRun({ text: refNo, bold: false, size: 22, font: "Calibri" }),
         ],
         spacing: { after: 40 },
       }),
       new Paragraph({
         children: [
-          new TextRun({ text: formattedDate, bold: true, size: 21, font: "Calibri" }),
+          new TextRun({ text: formattedDate, bold: false, size: 22, font: "Calibri" }),
         ],
         spacing: { after: 180 },
       }),
@@ -833,19 +837,25 @@ export async function POST(req: NextRequest) {
       ...((scrutinyPosition === 'bottom' || scrutinyPosition === 'after_required' || scrutinyPosition === 'at_end') ? scrutinyParagraphs : []),
       new Paragraph({
         children: [
-          new TextRun({ text: "Regards,", size: 21, font: "Calibri" }),
+          new TextRun({ text: "Regards,", size: 22, font: "Calibri" }),
         ],
         spacing: { after: 400 },
       }),
       new Paragraph({
         children: [
-          new TextRun({ text: "Authorized Signatory\t\t\t\t\t\tAuthorized Signatory", bold: true, size: 21, font: "Calibri" }),
+          new TextRun({ text: `${signatory1Name}\t\t\t\t\t\t${signatory2Name}`, bold: true, size: 22, font: "Calibri" }),
+        ],
+        spacing: { after: 40 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: `${signatory1Title}\t\t\t\t\t\t${signatory2Title}`, size: 22, font: "Calibri" }),
         ],
         spacing: { after: 120 },
       }),
       new Paragraph({
         children: [
-          new TextRun({ text: "Encl.: As stated above.", size: 20, font: "Calibri" }),
+          new TextRun({ text: "Encl.: As stated above.", size: 22, font: "Calibri" }),
         ],
       }),
     ];

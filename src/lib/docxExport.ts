@@ -39,7 +39,7 @@ const cellBorder = {
   right: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
 };
 
-// Common header: Reference No (Line 1) and Date directly underneath (Line 2) on the left
+// Common header: Reference No (Line 1, unbolded) and Date directly underneath (Line 2) on the left
 function makeHeaderTable(refNo: string, date: string) {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -53,11 +53,11 @@ function makeHeaderTable(refNo: string, date: string) {
             children: [
               new Paragraph({
                 spacing: { before: 0, after: 40 },
-                children: [new TextRun({ text: refNo, bold: true, font: "Calibri", size: 21 })],
+                children: [new TextRun({ text: refNo, bold: false, font: "Calibri", size: 22 })],
               }),
               new Paragraph({
                 spacing: { before: 0, after: 200 },
-                children: [new TextRun({ text: date, font: "Calibri", size: 21 })],
+                children: [new TextRun({ text: date, font: "Calibri", size: 22 })],
               }),
             ],
           }),
@@ -67,7 +67,7 @@ function makeHeaderTable(refNo: string, date: string) {
   });
 }
 
-// Common Dual Signatories footer table
+// Common Dual Signatories footer table (for Legal Heir Letters)
 function makeSignatoriesTable(signatory1 = "Authorized Signatory", signatory2 = "Authorized Signatory") {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -80,7 +80,7 @@ function makeSignatoriesTable(signatory1 = "Authorized Signatory", signatory2 = 
             borders: noBorders,
             children: [
               new Paragraph({
-                spacing: { before: 700, after: 80 },
+                spacing: { before: 600, after: 80 },
                 children: [
                   new TextRun({ 
                     text: "____________________________________", 
@@ -91,7 +91,7 @@ function makeSignatoriesTable(signatory1 = "Authorized Signatory", signatory2 = 
               }),
               new Paragraph({
                 children: [
-                  new TextRun({ text: signatory1, bold: true, font: "Calibri", size: 20 })
+                  new TextRun({ text: signatory1, bold: true, font: "Calibri", size: 22 })
                 ]
               })
             ]
@@ -102,7 +102,7 @@ function makeSignatoriesTable(signatory1 = "Authorized Signatory", signatory2 = 
             children: [
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
-                spacing: { before: 700, after: 80 },
+                spacing: { before: 600, after: 80 },
                 children: [
                   new TextRun({ 
                     text: "____________________________________", 
@@ -114,7 +114,81 @@ function makeSignatoriesTable(signatory1 = "Authorized Signatory", signatory2 = 
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
                 children: [
-                  new TextRun({ text: signatory2, bold: true, font: "Calibri", size: 20 })
+                  new TextRun({ text: signatory2, bold: true, font: "Calibri", size: 22 })
+                ]
+              })
+            ]
+          })
+        ]
+      })
+    ]
+  });
+}
+
+// Officer Signatories footer table (for Company Letters e.g. Physical Approval)
+function makeOfficerSignatoriesTable(
+  sig1Name = "Zaheer Ahmed",
+  sig1Title = "Senior Officer",
+  sig2Name = "Azib Yousuf",
+  sig2Title = "Deputy Manager"
+) {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: noBorders,
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            borders: noBorders,
+            children: [
+              new Paragraph({
+                spacing: { before: 600, after: 80 },
+                children: [
+                  new TextRun({ 
+                    text: "____________________________________", 
+                    color: "64748B",
+                    size: 18
+                  })
+                ]
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({ text: sig1Name, bold: true, font: "Calibri", size: 22 })
+                ]
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({ text: sig1Title, font: "Calibri", size: 22 })
+                ]
+              })
+            ]
+          }),
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            borders: noBorders,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                spacing: { before: 600, after: 80 },
+                children: [
+                  new TextRun({ 
+                    text: "____________________________________", 
+                    color: "64748B",
+                    size: 18
+                  })
+                ]
+              }),
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({ text: sig2Name, bold: true, font: "Calibri", size: 22 })
+                ]
+              }),
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({ text: sig2Title, font: "Calibri", size: 22 })
                 ]
               })
             ]
@@ -194,7 +268,7 @@ export async function exportSharesDeliveryDocx(data: {
               new TextRun({
                 text: `We are pleased to forward herewith ${data.certificatesCount} Share Certificate(s) of ${data.company} totaling ${data.totalShares} shares duly transmitted / transferred in the name of following legal heirs, details are as follows:`,
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -210,25 +284,25 @@ export async function exportSharesDeliveryDocx(data: {
                     width: { size: 10, type: WidthType.PERCENTAGE },
                     borders: cellBorder,
                     shading: { fill: "F1F5F9" },
-                    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "S.No", bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "S.No", bold: true, font: "Calibri", size: 22 })] })],
                   }),
                   new TableCell({
                     width: { size: 25, type: WidthType.PERCENTAGE },
                     borders: cellBorder,
                     shading: { fill: "F1F5F9" },
-                    children: [new Paragraph({ children: [new TextRun({ text: "Folio #", bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: "Folio #", bold: true, font: "Calibri", size: 22 })] })],
                   }),
                   new TableCell({
                     width: { size: 45, type: WidthType.PERCENTAGE },
                     borders: cellBorder,
                     shading: { fill: "F1F5F9" },
-                    children: [new Paragraph({ children: [new TextRun({ text: "Name of Legal Heir", bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: "Name of Legal Heir", bold: true, font: "Calibri", size: 22 })] })],
                   }),
                   new TableCell({
                     width: { size: 20, type: WidthType.PERCENTAGE },
                     borders: cellBorder,
                     shading: { fill: "F1F5F9" },
-                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "No. of Shares", bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "No. of Shares", bold: true, font: "Calibri", size: 22 })] })],
                   }),
                 ],
               }),
@@ -238,22 +312,22 @@ export async function exportSharesDeliveryDocx(data: {
                     new TableCell({
                       width: { size: 10, type: WidthType.PERCENTAGE },
                       borders: cellBorder,
-                      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(idx + 1), font: "Calibri", size: 20 })] })],
+                      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(idx + 1), font: "Calibri", size: 22 })] })],
                     }),
                     new TableCell({
                       width: { size: 25, type: WidthType.PERCENTAGE },
                       borders: cellBorder,
-                      children: [new Paragraph({ children: [new TextRun({ text: row.folio, font: "Calibri", size: 20 })] })],
+                      children: [new Paragraph({ children: [new TextRun({ text: row.folio, font: "Calibri", size: 22 })] })],
                     }),
                     new TableCell({
                       width: { size: 45, type: WidthType.PERCENTAGE },
                       borders: cellBorder,
-                      children: [new Paragraph({ children: [new TextRun({ text: row.name, font: "Calibri", size: 20 })] })],
+                      children: [new Paragraph({ children: [new TextRun({ text: row.name, font: "Calibri", size: 22 })] })],
                     }),
                     new TableCell({
                       width: { size: 20, type: WidthType.PERCENTAGE },
                       borders: cellBorder,
-                      children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: row.shares, font: "Calibri", size: 20 })] })],
+                      children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: row.shares, font: "Calibri", size: 22 })] })],
                     }),
                   ],
                 })
@@ -266,13 +340,13 @@ export async function exportSharesDeliveryDocx(data: {
                     columnSpan: 3,
                     borders: cellBorder,
                     shading: { fill: "F8FAFC" },
-                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Total Shares:", bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Total Shares:", bold: true, font: "Calibri", size: 22 })] })],
                   }),
                   new TableCell({
                     width: { size: 20, type: WidthType.PERCENTAGE },
                     borders: cellBorder,
                     shading: { fill: "F8FAFC" },
-                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: data.totalShares, bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: data.totalShares, bold: true, font: "Calibri", size: 22 })] })],
                   }),
                 ],
               }),
@@ -286,7 +360,7 @@ export async function exportSharesDeliveryDocx(data: {
               new TextRun({
                 text: "Kindly acknowledge receipt of the Share Certificates by signing and returning the duplicate copy of this letter.",
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -296,22 +370,16 @@ export async function exportSharesDeliveryDocx(data: {
               new TextRun({
                 text: "Should you have any queries, feel free to coordinate with us.",
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
 
-          // Signatures
+          // Signatures (Legal Heir Letter: Regards, followed by Authorized Signatories)
           new Paragraph({
-            spacing: { before: 180, after: 40 },
+            spacing: { before: 180, after: 120 },
             children: [
-              new TextRun({ text: "Yours faithfully,", font: "Calibri", size: 21 }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 120 },
-            children: [
-              new TextRun({ text: "For CDC Share Registrar Services Limited", bold: true, font: "Calibri", size: 21 }),
+              new TextRun({ text: "Regards,", font: "Calibri", size: 22 }),
             ],
           }),
 
@@ -361,9 +429,9 @@ export async function exportChequesDeliveryDocx(data: {
           // Recipient Address
           new Paragraph({ spacing: { before: 240, after: 40 }, children: [new TextRun({ text: data.recipientName, bold: true, font: "Calibri", size: 22 })] }),
           ...data.recipientAddress.split("\n").filter(Boolean).map(line => 
-            new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: line, font: "Calibri", size: 21 })] })
+            new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: line, font: "Calibri", size: 22 })] })
           ),
-          ...(data.recipientContact ? [new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: `Contact # ${data.recipientContact}`, font: "Calibri", size: 20, color: "334155" })] })] : []),
+          ...(data.recipientContact ? [new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: `Contact # ${data.recipientContact}`, font: "Calibri", size: 22, color: "334155" })] })] : []),
 
           // Subject Block
           new Paragraph({ spacing: { before: 180, after: 40 }, children: [new TextRun({ text: "Dear Sir / Madam,", font: "Calibri", size: 22 })] }),
@@ -382,7 +450,7 @@ export async function exportChequesDeliveryDocx(data: {
           new Paragraph({
             spacing: { after: 200 },
             children: [
-              new TextRun({ text: `${data.deceased} - Folio # ${data.folio}`, bold: true, font: "Calibri", size: 21 }),
+              new TextRun({ text: `${data.deceased} - Folio # ${data.folio}`, bold: true, font: "Calibri", size: 22 }),
             ],
           }),
 
@@ -393,7 +461,7 @@ export async function exportChequesDeliveryDocx(data: {
               new TextRun({
                 text: `We are pleased to enclose herewith following Banker's Cheque(s) on account of unpaid dividend(s) pertaining to the captioned deceased shareholder, issued in favor of legal heirs as per their entitlement:`,
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -409,25 +477,25 @@ export async function exportChequesDeliveryDocx(data: {
                     width: { size: 10, type: WidthType.PERCENTAGE },
                     borders: cellBorder,
                     shading: { fill: "F1F5F9" },
-                    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "S.No", bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "S.No", bold: true, font: "Calibri", size: 22 })] })],
                   }),
                   new TableCell({
                     width: { size: 40, type: WidthType.PERCENTAGE },
                     borders: cellBorder,
                     shading: { fill: "F1F5F9" },
-                    children: [new Paragraph({ children: [new TextRun({ text: "Beneficiary / Legal Heir Name", bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: "Beneficiary / Legal Heir Name", bold: true, font: "Calibri", size: 22 })] })],
                   }),
                   new TableCell({
                     width: { size: 25, type: WidthType.PERCENTAGE },
                     borders: cellBorder,
                     shading: { fill: "F1F5F9" },
-                    children: [new Paragraph({ children: [new TextRun({ text: "Instrument / Cheque #", bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: "Instrument / Cheque #", bold: true, font: "Calibri", size: 22 })] })],
                   }),
                   new TableCell({
                     width: { size: 25, type: WidthType.PERCENTAGE },
                     borders: cellBorder,
                     shading: { fill: "F1F5F9" },
-                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Amount (PKR)", bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Amount (PKR)", bold: true, font: "Calibri", size: 22 })] })],
                   }),
                 ],
               }),
@@ -437,22 +505,22 @@ export async function exportChequesDeliveryDocx(data: {
                     new TableCell({
                       width: { size: 10, type: WidthType.PERCENTAGE },
                       borders: cellBorder,
-                      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(idx + 1), font: "Calibri", size: 20 })] })],
+                      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(idx + 1), font: "Calibri", size: 22 })] })],
                     }),
                     new TableCell({
                       width: { size: 40, type: WidthType.PERCENTAGE },
                       borders: cellBorder,
-                      children: [new Paragraph({ children: [new TextRun({ text: row.beneficiary, font: "Calibri", size: 20 })] })],
+                      children: [new Paragraph({ children: [new TextRun({ text: row.beneficiary, font: "Calibri", size: 22 })] })],
                     }),
                     new TableCell({
                       width: { size: 25, type: WidthType.PERCENTAGE },
                       borders: cellBorder,
-                      children: [new Paragraph({ children: [new TextRun({ text: row.instrumentNo, font: "Calibri", size: 20 })] })],
+                      children: [new Paragraph({ children: [new TextRun({ text: row.instrumentNo, font: "Calibri", size: 22 })] })],
                     }),
                     new TableCell({
                       width: { size: 25, type: WidthType.PERCENTAGE },
                       borders: cellBorder,
-                      children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: row.amount, font: "Calibri", size: 20 })] })],
+                      children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: row.amount, font: "Calibri", size: 22 })] })],
                     }),
                   ],
                 })
@@ -465,13 +533,13 @@ export async function exportChequesDeliveryDocx(data: {
                     columnSpan: 3,
                     borders: cellBorder,
                     shading: { fill: "F8FAFC" },
-                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Total Dividend Amount (PKR):", bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Total Dividend Amount (PKR):", bold: true, font: "Calibri", size: 22 })] })],
                   }),
                   new TableCell({
                     width: { size: 25, type: WidthType.PERCENTAGE },
                     borders: cellBorder,
                     shading: { fill: "F8FAFC" },
-                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: data.totalAmount, bold: true, font: "Calibri", size: 20 })] })],
+                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: data.totalAmount, bold: true, font: "Calibri", size: 22 })] })],
                   }),
                 ],
               }),
@@ -485,7 +553,7 @@ export async function exportChequesDeliveryDocx(data: {
               new TextRun({
                 text: "Please note that with the dispatch of above banker's cheques, all unpaid dividends lying against the subject folio have been fully settled and paid, and no further dividend remains outstanding.",
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -495,22 +563,16 @@ export async function exportChequesDeliveryDocx(data: {
               new TextRun({
                 text: "Kindly acknowledge receipt by returning the duplicate counterfoil copy of this letter duly signed.",
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
 
-          // Signatures
+          // Signatures (Legal Heir Letter: Regards, followed by Authorized Signatories)
           new Paragraph({
-            spacing: { before: 180, after: 40 },
+            spacing: { before: 180, after: 120 },
             children: [
-              new TextRun({ text: "Yours faithfully,", font: "Calibri", size: 21 }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 120 },
-            children: [
-              new TextRun({ text: "For CDC Share Registrar Services Limited", bold: true, font: "Calibri", size: 21 }),
+              new TextRun({ text: "Regards,", font: "Calibri", size: 22 }),
             ],
           }),
 
@@ -547,6 +609,10 @@ export async function exportPhysicalApprovalDocx(data: {
   approvalRemarks?: string;
   signatory1?: string;
   signatory2?: string;
+  signatory1Name?: string;
+  signatory1Title?: string;
+  signatory2Name?: string;
+  signatory2Title?: string;
 }) {
   const doc = new Document({
     sections: [
@@ -568,7 +634,7 @@ export async function exportPhysicalApprovalDocx(data: {
           new Paragraph({ spacing: { before: 240, after: 40 }, children: [new TextRun({ text: "The Company Secretary", bold: true, font: "Calibri", size: 22 })] }),
           new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: data.company, bold: true, font: "Calibri", size: 22 })] }),
           ...data.companyAddress.split("\n").filter(Boolean).map(line => 
-            new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: line, font: "Calibri", size: 21 })] })
+            new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: line, font: "Calibri", size: 22 })] })
           ),
 
           // Subject Block
@@ -588,7 +654,7 @@ export async function exportPhysicalApprovalDocx(data: {
           new Paragraph({
             spacing: { after: 200 },
             children: [
-              new TextRun({ text: `${data.deceased} - Folio # ${data.folio}`, bold: true, font: "Calibri", size: 21 }),
+              new TextRun({ text: `${data.deceased} - Folio # ${data.folio}`, bold: true, font: "Calibri", size: 22 }),
             ],
           }),
 
@@ -599,7 +665,7 @@ export async function exportPhysicalApprovalDocx(data: {
               new TextRun({
                 text: `We refer to the transmission case in respect of the above deceased shareholder. In this regard, we are pleased to enclose herewith ${data.certificatesCount} Share Certificate(s) for ${data.totalShares} shares along with the relevant Transfer Register${data.includeLoss ? ", Loss Register" : ""}${data.includeSplit ? ", Split Register" : ""} and other supporting documents being forwarded to you for approval of transfers thereon by the Directors / Authorized Signatories.`,
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -608,7 +674,7 @@ export async function exportPhysicalApprovalDocx(data: {
           new Paragraph({
             spacing: { before: 80, after: 60 },
             children: [
-              new TextRun({ text: "The details of transfers and registers sent to you are given below:", bold: true, font: "Calibri", size: 21 }),
+              new TextRun({ text: "The details of transfers and registers sent to you are given below:", bold: true, font: "Calibri", size: 22 }),
             ],
           }),
 
@@ -616,8 +682,8 @@ export async function exportPhysicalApprovalDocx(data: {
           new Paragraph({
             spacing: { after: 40 },
             children: [
-              new TextRun({ text: "• No. of Transfer Receipt(s): ", bold: true, font: "Calibri", size: 21 }),
-              new TextRun({ text: `${String(data.transferReceipts.length).padStart(2, "0")}`, font: "Calibri", size: 21 }),
+              new TextRun({ text: "• No. of Transfer Receipt(s): ", bold: true, font: "Calibri", size: 22 }),
+              new TextRun({ text: `${String(data.transferReceipts.length).padStart(2, "0")}`, font: "Calibri", size: 22 }),
             ],
           }),
           ...data.transferReceipts.map(r => 
@@ -625,16 +691,16 @@ export async function exportPhysicalApprovalDocx(data: {
               indent: { left: convertInchesToTwip(0.3) },
               spacing: { after: 30 },
               children: [
-                new TextRun({ text: `Transfer Receipt # : ${r.receiptNo} `, bold: true, font: "Calibri", size: 20 }),
-                new TextRun({ text: `(in the name of ${r.name})`, font: "Calibri", size: 20 }),
+                new TextRun({ text: `Transfer Receipt # : ${r.receiptNo} `, bold: true, font: "Calibri", size: 22 }),
+                new TextRun({ text: `(in the name of ${r.name})`, font: "Calibri", size: 22 }),
               ],
             })
           ),
           new Paragraph({
             spacing: { before: 60, after: 40 },
             children: [
-              new TextRun({ text: "• Transfer Register Page(s): ", bold: true, font: "Calibri", size: 21 }),
-              new TextRun({ text: data.transferRegisterPages, font: "Calibri", size: 21 }),
+              new TextRun({ text: "• Transfer Register Page(s): ", bold: true, font: "Calibri", size: 22 }),
+              new TextRun({ text: data.transferRegisterPages, font: "Calibri", size: 22 }),
             ],
           }),
 
@@ -643,15 +709,15 @@ export async function exportPhysicalApprovalDocx(data: {
             new Paragraph({
               spacing: { before: 60, after: 40 },
               children: [
-                new TextRun({ text: "• Loss Receipt # : ", bold: true, font: "Calibri", size: 21 }),
-                new TextRun({ text: `${data.lossReceiptNo || "LR-01"}`, font: "Calibri", size: 21 }),
+                new TextRun({ text: "• Loss Receipt # : ", bold: true, font: "Calibri", size: 22 }),
+                new TextRun({ text: `${data.lossReceiptNo || "LR-01"}`, font: "Calibri", size: 22 }),
               ],
             }),
             new Paragraph({
               spacing: { after: 40 },
               children: [
-                new TextRun({ text: "• Loss Register Page(s): ", bold: true, font: "Calibri", size: 21 }),
-                new TextRun({ text: `${data.lossRegisterPages || "02 (02 Copies)"}`, font: "Calibri", size: 21 }),
+                new TextRun({ text: "• Loss Register Page(s): ", bold: true, font: "Calibri", size: 22 }),
+                new TextRun({ text: `${data.lossRegisterPages || "02 (02 Copies)"}`, font: "Calibri", size: 22 }),
               ],
             }),
           ] : []),
@@ -661,15 +727,15 @@ export async function exportPhysicalApprovalDocx(data: {
             new Paragraph({
               spacing: { before: 60, after: 40 },
               children: [
-                new TextRun({ text: "• Split Receipt # : ", bold: true, font: "Calibri", size: 21 }),
-                new TextRun({ text: `${data.splitReceiptNo || "SR-01"}`, font: "Calibri", size: 21 }),
+                new TextRun({ text: "• Split Receipt # : ", bold: true, font: "Calibri", size: 22 }),
+                new TextRun({ text: `${data.splitReceiptNo || "SR-01"}`, font: "Calibri", size: 22 }),
               ],
             }),
             new Paragraph({
               spacing: { after: 40 },
               children: [
-                new TextRun({ text: "• Split Register Page(s): ", bold: true, font: "Calibri", size: 21 }),
-                new TextRun({ text: `${data.splitRegisterPages || "02 (02 Copies)"}`, font: "Calibri", size: 21 }),
+                new TextRun({ text: "• Split Register Page(s): ", bold: true, font: "Calibri", size: 22 }),
+                new TextRun({ text: `${data.splitRegisterPages || "02 (02 Copies)"}`, font: "Calibri", size: 22 }),
               ],
             }),
           ] : []),
@@ -678,27 +744,27 @@ export async function exportPhysicalApprovalDocx(data: {
           new Paragraph({
             spacing: { before: 160, after: 60 },
             children: [
-              new TextRun({ text: "Following actions are requested for approval of the above transmission:", bold: true, font: "Calibri", size: 21 }),
+              new TextRun({ text: "Following actions are requested for approval of the above transmission:", bold: true, font: "Calibri", size: 22 }),
             ],
           }),
           ...(data.includeLoss ? [
             new Paragraph({
               spacing: { after: 40 },
               children: [
-                new TextRun({ text: "1. Authorized Signatory's signatures on the face of duplicate share certificate(s).", font: "Calibri", size: 21 }),
+                new TextRun({ text: "1. Authorized Signatory's signatures on the face of duplicate share certificate(s).", font: "Calibri", size: 22 }),
               ],
             }),
           ] : []),
           new Paragraph({
             spacing: { after: 40 },
             children: [
-              new TextRun({ text: `${data.includeLoss ? "2." : "1."} Authorized Signatory's signatures on the Memorandum of Transfers (on the back of each share certificate).`, font: "Calibri", size: 21 }),
+              new TextRun({ text: `${data.includeLoss ? "2." : "1."} Authorized Signatory's signatures on the Memorandum of Transfers (on the back of each share certificate).`, font: "Calibri", size: 22 }),
             ],
           }),
           new Paragraph({
             spacing: { after: 40 },
             children: [
-              new TextRun({ text: `${data.includeLoss ? "3." : "2."} Authorized Signatory's signature on the Transfer Register${data.includeLoss ? " & Loss Register" : ""}${data.includeSplit ? " & Split Register" : ""}.`, font: "Calibri", size: 21 }),
+              new TextRun({ text: `${data.includeLoss ? "3." : "2."} Authorized Signatory's signature on the Transfer Register${data.includeLoss ? " & Loss Register" : ""}${data.includeSplit ? " & Split Register" : ""}.`, font: "Calibri", size: 22 }),
             ],
           }),
 
@@ -709,7 +775,7 @@ export async function exportPhysicalApprovalDocx(data: {
               new TextRun({
                 text: "After approval of transfer / transmission of shares as requested above, kindly arrange to return transfer registers along with share certificates / documents related to this transmission case to enable us to complete the dispatch.",
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -719,26 +785,25 @@ export async function exportPhysicalApprovalDocx(data: {
               new TextRun({
                 text: "Further, please arrange to check whether any dividend warrant(s) pertaining to above deceased shareholder is/are still unpaid; if so, please arrange to issue cheque(s) / online payment in favor of above legal heirs as per their entitlement.",
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
 
-          // Signatures
+          // Signatures (Company Letter: Regards, followed by designated CDCSR Officer Signatories)
           new Paragraph({
-            spacing: { before: 180, after: 40 },
+            spacing: { before: 180, after: 120 },
             children: [
-              new TextRun({ text: "Yours faithfully,", font: "Calibri", size: 21 }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 120 },
-            children: [
-              new TextRun({ text: "For CDC Share Registrar Services Limited", bold: true, font: "Calibri", size: 21 }),
+              new TextRun({ text: "Regards,", font: "Calibri", size: 22 }),
             ],
           }),
 
-          makeSignatoriesTable(data.signatory1, data.signatory2),
+          makeOfficerSignatoriesTable(
+            data.signatory1Name || data.signatory1 || "Zaheer Ahmed",
+            data.signatory1Title || "Senior Officer",
+            data.signatory2Name || data.signatory2 || "Azib Yousuf",
+            data.signatory2Title || "Deputy Manager"
+          ),
         ],
       },
     ],
@@ -755,10 +820,12 @@ export async function exportCdsAccountDocx(data: {
   refNo: string;
   date: string;
   recipientName: string;
+  fatherHusbandName?: string;
   recipientAddress: string;
   recipientContact?: string;
   company: string;
   deceased: string;
+  folio?: string;
   cdsAccountNo: string;
   receivedDocs: string[];
   requiredDocs: string[];
@@ -784,29 +851,30 @@ export async function exportCdsAccountDocx(data: {
 
           // Recipient Address
           new Paragraph({ spacing: { before: 240, after: 40 }, children: [new TextRun({ text: data.recipientName, bold: true, font: "Calibri", size: 22 })] }),
+          ...(data.fatherHusbandName ? [new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: `F/H Name: ${data.fatherHusbandName}`, font: "Calibri", size: 22 })] })] : []),
           ...data.recipientAddress.split("\n").filter(Boolean).map(line => 
-            new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: line, font: "Calibri", size: 21 })] })
+            new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: line, font: "Calibri", size: 22 })] })
           ),
-          ...(data.recipientContact ? [new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: `Contact # ${data.recipientContact}`, font: "Calibri", size: 20, color: "334155" })] })] : []),
+          ...(data.recipientContact ? [new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: `Contact: ${data.recipientContact}`, font: "Calibri", size: 22, color: "334155" })] })] : []),
 
-          // Subject Block
+          // Subject Block: Immediate company name followed directly by transmission subject
           new Paragraph({ spacing: { before: 180, after: 40 }, children: [new TextRun({ text: "Dear Sir / Madam,", font: "Calibri", size: 22 })] }),
           new Paragraph({
-            spacing: { before: 80, after: 60 },
+            spacing: { before: 40, after: 20 },
             children: [
               new TextRun({ text: data.company.toUpperCase(), bold: true, font: "Calibri", size: 22 }),
             ],
           }),
           new Paragraph({
-            spacing: { after: 40 },
+            spacing: { after: 180 },
             children: [
-              new TextRun({ text: "TRANSMISSION OF SHARES UNDER CDS ACCOUNT", bold: true, underline: {}, font: "Calibri", size: 22 }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 200 },
-            children: [
-              new TextRun({ text: `${data.deceased} - CDS Account # ${data.cdsAccountNo}`, bold: true, font: "Calibri", size: 21 }),
+              new TextRun({
+                text: `Transmission of Dividends – Late ${data.deceased} – Folio # ${data.folio || "N/A"} / CDS Account # ${data.cdsAccountNo}`,
+                bold: true,
+                underline: {},
+                font: "Calibri",
+                size: 22
+              }),
             ],
           }),
 
@@ -817,7 +885,7 @@ export async function exportCdsAccountDocx(data: {
               new TextRun({
                 text: "We refer to your application regarding the captioned subject and acknowledge the receipt of the following documents submitted by you:",
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -826,7 +894,7 @@ export async function exportCdsAccountDocx(data: {
               indent: { left: convertInchesToTwip(0.3) },
               spacing: { after: 40 },
               children: [
-                new TextRun({ text: `• ${docItem}`, font: "Calibri", size: 21 }),
+                new TextRun({ text: `• ${docItem}`, font: "Calibri", size: 22 }),
               ],
             })
           ),
@@ -838,7 +906,7 @@ export async function exportCdsAccountDocx(data: {
               new TextRun({
                 text: data.accountStatusRemarks,
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -851,7 +919,7 @@ export async function exportCdsAccountDocx(data: {
                 text: "In order to proceed with the transmission of book-entry securities under the Central Depository System (CDS), following formalities are still required:",
                 bold: true,
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -860,7 +928,7 @@ export async function exportCdsAccountDocx(data: {
               indent: { left: convertInchesToTwip(0.3) },
               spacing: { after: 40 },
               children: [
-                new TextRun({ text: `${i + 1}. ${reqItem}`, font: "Calibri", size: 21 }),
+                new TextRun({ text: `${i + 1}. ${reqItem}`, font: "Calibri", size: 22 }),
               ],
             })
           ),
@@ -872,22 +940,16 @@ export async function exportCdsAccountDocx(data: {
               new TextRun({
                 text: "Should you have any queries or require further guidance, feel free to coordinate with us.",
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
 
-          // Signatures
+          // Signatures (Legal Heir Letter: Regards, followed by Authorized Signatories)
           new Paragraph({
-            spacing: { before: 180, after: 40 },
+            spacing: { before: 180, after: 120 },
             children: [
-              new TextRun({ text: "Yours faithfully,", font: "Calibri", size: 21 }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 120 },
-            children: [
-              new TextRun({ text: "For CDC Share Registrar Services Limited", bold: true, font: "Calibri", size: 21 }),
+              new TextRun({ text: "Regards,", font: "Calibri", size: 22 }),
             ],
           }),
 
@@ -908,11 +970,13 @@ export async function exportNoFolioFoundDocx(data: {
   refNo: string;
   date: string;
   recipientName: string;
+  applicantFather?: string;
   lawFirm?: string;
   recipientAddress: string;
   recipientContact?: string;
   deceasedName: string;
   deceasedCnic?: string;
+  companyName?: string;
   receivedDocs: string[];
   searchRemarks: string;
   evidenceRequest: string;
@@ -937,16 +1001,18 @@ export async function exportNoFolioFoundDocx(data: {
 
           // Recipient Address
           new Paragraph({ spacing: { before: 240, after: 40 }, children: [new TextRun({ text: data.recipientName, bold: true, font: "Calibri", size: 22 })] }),
-          ...(data.lawFirm ? [new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: data.lawFirm, bold: true, font: "Calibri", size: 21 })] })] : []),
+          ...(data.applicantFather ? [new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: `F/H: ${data.applicantFather}`, font: "Calibri", size: 22 })] })] : []),
+          ...(data.lawFirm ? [new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: data.lawFirm, bold: true, font: "Calibri", size: 22 })] })] : []),
           ...data.recipientAddress.split("\n").filter(Boolean).map(line => 
-            new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: line, font: "Calibri", size: 21 })] })
+            new Paragraph({ spacing: { after: 30 }, children: [new TextRun({ text: line, font: "Calibri", size: 22 })] })
           ),
-          ...(data.recipientContact ? [new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: `Contact # ${data.recipientContact}`, font: "Calibri", size: 20, color: "334155" })] })] : []),
+          ...(data.recipientContact ? [new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: `Contact # ${data.recipientContact}`, font: "Calibri", size: 22, color: "334155" })] })] : []),
 
           // Subject Block
           new Paragraph({ spacing: { before: 180, after: 40 }, children: [new TextRun({ text: "Dear Sir / Madam,", font: "Calibri", size: 22 })] }),
+          ...(data.companyName ? [new Paragraph({ spacing: { before: 40, after: 20 }, children: [new TextRun({ text: data.companyName.toUpperCase(), bold: true, font: "Calibri", size: 22 })] })] : []),
           new Paragraph({
-            spacing: { before: 80, after: 60 },
+            spacing: { before: 40, after: 40 },
             children: [
               new TextRun({ text: "TRANSMISSION OF SHARES", bold: true, underline: {}, font: "Calibri", size: 22 }),
             ],
@@ -954,8 +1020,8 @@ export async function exportNoFolioFoundDocx(data: {
           new Paragraph({
             spacing: { after: 200 },
             children: [
-              new TextRun({ text: data.deceasedName, bold: true, font: "Calibri", size: 21 }),
-              ...(data.deceasedCnic ? [new TextRun({ text: ` (CNIC # ${data.deceasedCnic})`, font: "Calibri", size: 20 })] : []),
+              new TextRun({ text: data.deceasedName, bold: true, font: "Calibri", size: 22 }),
+              ...(data.deceasedCnic ? [new TextRun({ text: ` (CNIC # ${data.deceasedCnic})`, font: "Calibri", size: 22 })] : []),
             ],
           }),
 
@@ -966,7 +1032,7 @@ export async function exportNoFolioFoundDocx(data: {
               new TextRun({
                 text: "We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents:",
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -975,7 +1041,7 @@ export async function exportNoFolioFoundDocx(data: {
               indent: { left: convertInchesToTwip(0.3) },
               spacing: { after: 40 },
               children: [
-                new TextRun({ text: `• ${docItem}`, font: "Calibri", size: 21 }),
+                new TextRun({ text: `• ${docItem}`, font: "Calibri", size: 22 }),
               ],
             })
           ),
@@ -987,7 +1053,7 @@ export async function exportNoFolioFoundDocx(data: {
               new TextRun({
                 text: data.searchRemarks,
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -999,7 +1065,7 @@ export async function exportNoFolioFoundDocx(data: {
               new TextRun({
                 text: data.evidenceRequest,
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
@@ -1011,22 +1077,16 @@ export async function exportNoFolioFoundDocx(data: {
               new TextRun({
                 text: "Should you have any query, feel free to coordinate with us.",
                 font: "Calibri",
-                size: 21,
+                size: 22,
               }),
             ],
           }),
 
-          // Signatures
+          // Signatures (Legal Heir Letter: Regards, followed by Authorized Signatories)
           new Paragraph({
-            spacing: { before: 180, after: 40 },
+            spacing: { before: 180, after: 120 },
             children: [
-              new TextRun({ text: "Yours faithfully,", font: "Calibri", size: 21 }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 120 },
-            children: [
-              new TextRun({ text: "For CDC Share Registrar Services Limited", bold: true, font: "Calibri", size: 21 }),
+              new TextRun({ text: "Regards,", font: "Calibri", size: 22 }),
             ],
           }),
 

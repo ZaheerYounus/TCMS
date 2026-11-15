@@ -2204,7 +2204,7 @@ Encl.:  As stated above.`;
 
               {/* Header Info */}
               <div className="font-sans text-xs pb-1 border-b space-y-0.5">
-                <div className="font-bold text-[#0B2B5E]">{refNo}</div>
+                <div className="font-normal text-slate-900">{refNo}</div>
                 <div className="text-slate-600 font-medium">{date}</div>
               </div>
 

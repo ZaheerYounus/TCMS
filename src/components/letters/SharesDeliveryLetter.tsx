@@ -181,8 +181,12 @@ export function SharesDeliveryLetter() {
         if (d.shares) {
           setTotalShares(d.shares);
         }
+        if (d.heirRows && Array.isArray(d.heirRows) && d.heirRows.length > 0) {
+          setHeirRows(d.heirRows);
+          updateTotalFromRows(d.heirRows);
+        }
 
-        setUploadSuccess("Document analyzed successfully. Letter fields updated.");
+        setUploadSuccess("Company covering letter analyzed successfully. Shares allocation updated.");
         setTimeout(() => setUploadSuccess(""), 4000);
       } else {
         throw new Error(json.error || "Failed to parse document");
@@ -513,7 +517,7 @@ Encl.: As stated above.
             
             {/* Top Reference & Date Header */}
             <div className="mb-6 space-y-1">
-              <div className="font-bold text-slate-900">{refNo}</div>
+              <div className="font-normal text-slate-900">{refNo}</div>
               <div className="font-medium text-slate-700">{date}</div>
             </div>
 

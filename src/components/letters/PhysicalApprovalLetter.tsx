@@ -68,11 +68,11 @@ export function PhysicalApprovalLetter() {
   const [splitReceiptNo, setSplitReceiptNo] = useState("403");
   const [splitRegisterPages, setSplitRegisterPages] = useState("02 (02 Copies)");
 
-  // Signatories
-  const [signatory1Name, setSignatory1Name] = useState("Authorized Signatory");
+  // Signatories (Default CDCSR Staff Officers for Company Letters)
+  const [signatory1Name, setSignatory1Name] = useState("Zaheer Ahmed");
   const [signatory1Designation, setSignatory1Designation] = useState("Senior Officer");
-  const [signatory2Name, setSignatory2Name] = useState("Authorized Signatory");
-  const [signatory2Designation, setSignatory2Designation] = useState("Assistant Manager");
+  const [signatory2Name, setSignatory2Name] = useState("Azib Yousuf");
+  const [signatory2Designation, setSignatory2Designation] = useState("Deputy Manager");
 
   // UI States
   const [copied, setCopied] = useState(false);
@@ -116,8 +116,10 @@ export function PhysicalApprovalLetter() {
         includeSplit,
         splitReceiptNo,
         splitRegisterPages,
-        signatory1: signatory1Name,
-        signatory2: signatory2Name,
+        signatory1Name,
+        signatory1Title: signatory1Designation,
+        signatory2Name,
+        signatory2Title: signatory2Designation,
       });
     } catch (err) {
       console.error("Failed to generate docx:", err);
@@ -159,7 +161,33 @@ export function PhysicalApprovalLetter() {
         if (d.shares) setSharesCount(d.shares);
         if (d.certificates) setCertificatesCount(d.certificates);
 
-        setUploadSuccess("Document analyzed successfully. Letter fields updated.");
+        // Auto-populate Transfer Receipts & Pages from register
+        if (d.transferReceipts && Array.isArray(d.transferReceipts) && d.transferReceipts.length > 0) {
+          setTransferReceipts(d.transferReceipts);
+        }
+        if (d.transferPages) {
+          setTransferPages(d.transferPages);
+        }
+
+        // Auto-populate Loss Register if detected
+        if (d.lossReceiptNo) {
+          setLossReceiptNo(d.lossReceiptNo);
+          setIncludeLoss(true);
+        }
+        if (d.lossRegisterPages) {
+          setLossRegisterPages(d.lossRegisterPages);
+        }
+
+        // Auto-populate Split Register if detected
+        if (d.splitReceiptNo) {
+          setSplitReceiptNo(d.splitReceiptNo);
+          setIncludeSplit(true);
+        }
+        if (d.splitRegisterPages) {
+          setSplitRegisterPages(d.splitRegisterPages);
+        }
+
+        setUploadSuccess("Transfer Register analyzed successfully. Letter fields updated.");
         setTimeout(() => setUploadSuccess(""), 4000);
       } else {
         throw new Error(json.error || "Could not extract data");
@@ -520,33 +548,72 @@ Encl.: As stated above.
                 )}
               </div>
 
-              {/* Signatories */}
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Signatory 1</label>
-                  <Input 
-                    value={signatory1Name}
-                    onChange={(e) => setSignatory1Name(e.target.value)}
-                    className="h-7 text-[11px] font-medium mb-1"
-                  />
-                  <Input 
-                    value={signatory1Designation}
-                    onChange={(e) => setSignatory1Designation(e.target.value)}
-                    className="h-7 text-[10px] text-slate-600"
-                  />
+              {/* Signatories (Designated CDCSR Officers for Company Letters) */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-700">Company Signatories (CDCSR Officers)</label>
+                  <span className="text-[10px] text-slate-500">Quick Presets:</span>
                 </div>
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Signatory 2</label>
-                  <Input 
-                    value={signatory2Name}
-                    onChange={(e) => setSignatory2Name(e.target.value)}
-                    className="h-7 text-[11px] font-medium mb-1"
-                  />
-                  <Input 
-                    value={signatory2Designation}
-                    onChange={(e) => setSignatory2Designation(e.target.value)}
-                    className="h-7 text-[10px] text-slate-600"
-                  />
+                
+                {/* Quick Presets */}
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignatory1Name("Zaheer Ahmed");
+                      setSignatory1Designation("Senior Officer");
+                      setSignatory2Name("Azib Yousuf");
+                      setSignatory2Designation("Deputy Manager");
+                    }}
+                    className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-medium transition-colors"
+                  >
+                    Zaheer Ahmed & Azib Yousuf
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignatory1Name("Muqaddas Sharif");
+                      setSignatory1Designation("Assistant Manager");
+                      setSignatory2Name("Zohaib Jamal");
+                      setSignatory2Designation("Senior Officer");
+                    }}
+                    className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-medium transition-colors"
+                  >
+                    Muqaddas Sharif & Zohaib Jamal
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Officer 1 (Left)</label>
+                    <Input 
+                      value={signatory1Name}
+                      onChange={(e) => setSignatory1Name(e.target.value)}
+                      className="h-7 text-[11px] font-medium mb-1"
+                      placeholder="e.g. Zaheer Ahmed"
+                    />
+                    <Input 
+                      value={signatory1Designation}
+                      onChange={(e) => setSignatory1Designation(e.target.value)}
+                      className="h-7 text-[10px] text-slate-600"
+                      placeholder="e.g. Senior Officer"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Officer 2 (Right)</label>
+                    <Input 
+                      value={signatory2Name}
+                      onChange={(e) => setSignatory2Name(e.target.value)}
+                      className="h-7 text-[11px] font-medium mb-1"
+                      placeholder="e.g. Azib Yousuf"
+                    />
+                    <Input 
+                      value={signatory2Designation}
+                      onChange={(e) => setSignatory2Designation(e.target.value)}
+                      className="h-7 text-[10px] text-slate-600"
+                      placeholder="e.g. Deputy Manager"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -598,9 +665,9 @@ Encl.: As stated above.
           {/* Letter Paper Preview Sheet */}
           <div className="bg-white border border-slate-300 shadow-md rounded-sm p-10 min-h-[840px] text-slate-900 font-sans text-[13.5px] leading-relaxed relative print:m-0 print:border-none print:shadow-none print:p-0">
             
-            {/* Reference & Date */}
+            {/* Reference & Date (Reference unbolded) */}
             <div className="mb-6 space-y-1">
-              <div className="font-bold text-slate-900">{refNo}</div>
+              <div className="font-normal text-slate-900">{refNo}</div>
               <div className="font-medium text-slate-700">{date}</div>
             </div>
 
@@ -717,8 +784,7 @@ Encl.: As stated above.
 
             {/* Signatures */}
             <div className="mb-4">
-              Yours faithfully,
-              <div className="font-bold mt-1">For CDC Share Registrar Services Limited</div>
+              Regards,
             </div>
 
             <div className="grid grid-cols-2 gap-8 pt-10">

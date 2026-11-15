@@ -34,12 +34,13 @@ export async function analyzeDocumentWithGemini(
   const base64Data = imageBuffer.toString('base64');
 
   const systemPrompt = `You are an expert Pakistani Share Registrar legal document reader (CDC Share Registrar Services).
-Read this transmission application, legal heir letter, or death reporting form with 100% human-level accuracy.
+Read this share transmission document, legal heir application, company covering letter, or transfer register with 100% human-level accuracy.
 
 CRITICAL RULES:
 1. Deceased Shareholder Name:
    - Extract ONLY from 'Name of deceased: [Name]', 'Deceased: [Name]', or 'Late [Name]'.
    - NEVER take the deceased name from 'Father name:' or 'F/H:' lines!
+   - Look for deceased CNIC if stated.
 
 2. Applicant / Legal Heir Name:
    - Full name of the living person making this request.
@@ -73,12 +74,32 @@ CRITICAL RULES:
    - Set "hasLostShares": true ONLY if the text explicitly states that certificates are lost or misplaced.
    - Otherwise, set "hasLostShares": false.
 
+10. Company Covering Letter for Cheques Delivery:
+   - If this document lists dividend cheques / banker's cheques issued to legal heirs:
+     Extract "cheques": [ { "beneficiary": string, "instrumentNo": string, "amount": string } ]
+     Extract "totalAmount": string
+
+11. Company Covering Letter for Shares Delivery:
+   - If this document lists share certificates transferred / delivered to legal heirs:
+     Extract "heirRows": [ { "name": string, "folio": string, "shares": string } ]
+     Extract "certificatesCount": string
+     Extract "totalShares": string
+
+12. Transfer Register & Approval Documents:
+   - Extract "transferReceipts": [ { "receiptNo": string, "heirName": string } ]
+   - Extract "transferPages": string (e.g. "06 (02 Copies)")
+   - Extract "lossReceiptNo": string (e.g. "295" or "LR-2026/089")
+   - Extract "lossRegisterPages": string (e.g. "02 (02 Copies)")
+   - Extract "splitReceiptNo": string (e.g. "403" or "SR-...")
+   - Extract "splitRegisterPages": string (e.g. "02 (02 Copies)")
+
 Respond ONLY with a valid JSON object matching this schema (no markdown, no backticks, no comments):
 {
   "mode": "single" | "multi",
   "company": string,
   "folio": string,
   "deceased": string,
+  "deceasedCnic": string,
   "applicant": string,
   "applicantFather": string,
   "relation": string,
@@ -86,12 +107,40 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
   "address": string,
   "contactNo": string,
   "hasLostShares": boolean,
+  "certificatesCount": string,
+  "totalShares": string,
+  "totalAmount": string,
   "companies": [
     {
       "company": string,
       "folio": string
     }
-  ]
+  ],
+  "cheques": [
+    {
+      "beneficiary": string,
+      "instrumentNo": string,
+      "amount": string
+    }
+  ],
+  "heirRows": [
+    {
+      "name": string,
+      "folio": string,
+      "shares": string
+    }
+  ],
+  "transferReceipts": [
+    {
+      "receiptNo": string,
+      "heirName": string
+    }
+  ],
+  "transferPages": string,
+  "lossReceiptNo": string,
+  "lossRegisterPages": string,
+  "splitReceiptNo": string,
+  "splitRegisterPages": string
 }
 `;
 
@@ -226,9 +275,26 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
         'Written transmission request application'
       ], candidateText),
       hasLostShares: Boolean(parsedObj.hasLostShares),
+      deceasedCnic: parsedObj.deceasedCnic || '',
+      chequeRows: Array.isArray(parsedObj.cheques) && parsedObj.cheques.length > 0 ? parsedObj.cheques : undefined,
+      totalAmount: parsedObj.totalAmount || '',
+      heirRows: Array.isArray(parsedObj.heirRows) && parsedObj.heirRows.length > 0 ? parsedObj.heirRows : undefined,
+      transferReceipts: Array.isArray(parsedObj.transferReceipts) && parsedObj.transferReceipts.length > 0 ? parsedObj.transferReceipts : undefined,
+      transferPages: parsedObj.transferPages || '',
+      lossReceiptNo: parsedObj.lossReceiptNo || '',
+      lossRegisterPages: parsedObj.lossRegisterPages || '',
+      splitReceiptNo: parsedObj.splitReceiptNo || '',
+      splitRegisterPages: parsedObj.splitRegisterPages || '',
       rawTextPreview: candidateText.slice(0, 500),
       matchSource: 'document_parsed'
     };
+
+    if (parsedObj.certificatesCount) {
+      result.certificates = parsedObj.certificatesCount;
+    }
+    if (parsedObj.totalShares) {
+      result.shares = parsedObj.totalShares;
+    }
 
     if (isMultiMode && multiFolios.length > 0) {
       const firstRowFormatted = formatCompanyWithSymbol(multiFolios[0].company);

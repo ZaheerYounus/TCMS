@@ -19,8 +19,10 @@ export interface ParsedLetterResult {
   company?: string;
   compSymbol?: string;
   deceased?: string;
+  deceasedCnic?: string;
   applicantFather?: string; // Father name of the applicant (for F/H line)
   legalHeir?: string;
+  lawFirm?: string;
   relation?: string;
   address?: string;
   addressLines?: string[]; // 3-line split address
@@ -40,6 +42,20 @@ export interface ParsedLetterResult {
   refNo?: string;
   rawTextPreview: string;
   matchSource: "document_parsed" | "mis_enriched" | "manual";
+
+  // Document types & specialized extractions
+  docType?: "transmission_request" | "cheques_delivery" | "shares_delivery" | "transfer_register" | "loss_register" | "split_register";
+  chequeRows?: Array<{ beneficiary: string; instrumentNo: string; amount: string; folio?: string }>;
+  totalAmount?: string;
+  heirRows?: Array<{ folio: string; name: string; shares: string }>;
+  transferReceipts?: Array<{ receiptNo: string; heirName: string }>;
+  transferees?: Array<{ name: string; cnic: string; shares: string; folio: string }>;
+  transferPages?: string;
+  lossReceiptNo?: string;
+  lossRegisterPages?: string;
+  splitReceiptNo?: string;
+  splitRegisterPages?: string;
+  duplicateCertsCount?: string;
 }
 
 /**
@@ -376,12 +392,143 @@ export function parseLetterText(text: string): ParsedLetterResult {
     }
   }
 
-  result.receivedDocs = actualReceivedDocs;
+  // 13. DECEASED CNIC & LAW FIRM DETECTION
+  const deceasedCnicMatch = normalized.match(/(?:Deceased(?:\s*Shareholder)?\s*CNIC|CNIC\s*of\s*deceased)[:\s]*([0-9]{5}-[0-9]{7}-[0-9])/i);
+  if (deceasedCnicMatch) {
+    result.deceasedCnic = deceasedCnicMatch[1].trim();
+  }
 
-  // Gap analysis
-  const gap = calculateDocumentGap(actualReceivedDocs, normalized);
-  result.gapAnalysis = gap;
-  result.hasLostShares = gap.hasLostShares;
+  const lawFirmMatch = normalized.match(/(?:(?:Law\s*Firm|Advocate|Solicitor|Chambers)[:\s]+([^\r\n,]+))|([A-Za-z\s.]+Law\s*Associates|[A-Za-z\s.]+Advocate[s]?|[A-Za-z\s.]+Chambers)/i);
+  if (lawFirmMatch) {
+    result.lawFirm = (lawFirmMatch[1] || lawFirmMatch[2]).trim();
+  }
+
+  // 14. CHEQUES DELIVERY DETECTION
+  const hasChequeKeywords = lower.includes("banker's cheque") || lower.includes("dividend cheque") || lower.includes("instrument #") || lower.includes("unpaid dividend");
+  if (hasChequeKeywords) {
+    result.docType = "cheques_delivery";
+    const detectedCheques: Array<{ beneficiary: string; instrumentNo: string; amount: string; folio?: string }> = [];
+    const chequeLineRegex = /(?:(\d+)\s+)?([A-Z][A-Za-z\s.]+?)\s+([0-9]{6,12})\s+(?:PKR\s*)?([0-9,]+(?:\.[0-9]{2})?)/g;
+    let chqMatch;
+    while ((chqMatch = chequeLineRegex.exec(normalized)) !== null) {
+      const bName = chqMatch[2].trim();
+      const instNo = chqMatch[3].trim();
+      const amt = chqMatch[4].trim();
+      if (!['total', 'dividend', 'cheque', 'amount', 'instrument'].includes(bName.toLowerCase())) {
+        detectedCheques.push({
+          beneficiary: bName,
+          instrumentNo: instNo,
+          amount: amt
+        });
+      }
+    }
+    if (detectedCheques.length > 0) {
+      result.chequeRows = detectedCheques;
+    }
+
+    const totalAmtMatch = normalized.match(/(?:Total(?:\s*Dividend)?(?:\s*Amount)?[:\s]+(?:PKR\s*)?)([0-9,]+(?:\.[0-9]{2})?)/i);
+    if (totalAmtMatch) {
+      result.totalAmount = totalAmtMatch[1].trim();
+    }
+  }
+
+  // 15. SHARES DELIVERY DETECTION
+  const hasSharesDeliveryKeywords = lower.includes("forward herewith") && (lower.includes("shares certificates") || lower.includes("share certificate") || lower.includes("duly transmitted"));
+  if (hasSharesDeliveryKeywords) {
+    result.docType = "shares_delivery";
+    const certsMatch = normalized.match(/(?:forward\s*herewith\s*|enclosed\s*|herewith\s*)(\d+)\s*(?:shares?\s*certificates?|share\s*certs?)/i);
+    if (certsMatch) {
+      result.certificates = certsMatch[1].trim();
+    }
+
+    const totalSharesMatch = normalized.match(/(?:for|totaling|totalling)\s*([0-9,]+)\s*shares/i);
+    if (totalSharesMatch) {
+      result.shares = totalSharesMatch[1].trim();
+    }
+
+    const detectedHeirRows: Array<{ folio: string; name: string; shares: string }> = [];
+    const heirRowRegex = /(?:([0-9A-Za-z/-]{3,10})\s+)?([A-Z][A-Za-z\s.]{2,40}?)\s+([0-9,]{2,10})(?:\s*shares)?/g;
+    let hrMatch;
+    while ((hrMatch = heirRowRegex.exec(normalized)) !== null) {
+      const fNum = hrMatch[1] || "";
+      const hName = hrMatch[2].trim();
+      const sNum = hrMatch[3].trim();
+      if (fNum && !['total', 'shares', 'folio', 'number', 'certificates', 'details'].includes(hName.toLowerCase())) {
+        detectedHeirRows.push({
+          folio: fNum,
+          name: hName,
+          shares: sNum
+        });
+      }
+    }
+    if (detectedHeirRows.length > 0) {
+      result.heirRows = detectedHeirRows;
+    }
+  }
+
+  // 16. TRANSFER / LOSS / SPLIT REGISTER DETECTION (Physical Approval)
+  const hasTransferKeywords = lower.includes("transfer register") || lower.includes("approval of transfer") || lower.includes("transfer receipt") || lower.includes("رسید نمبر");
+  if (hasTransferKeywords) {
+    result.docType = "transfer_register";
+    const receipts: Array<{ receiptNo: string; heirName: string }> = [];
+    const trRegex = /(?:Transfer\s*receipt(?:\(s\))?\s*#?|Receipt\s*#?|رسید\s*نمبر)[:\s]*([0-9A-Za-z/-]+)(?:\s*(?:\(in the name of|\bin\s*favo[u]?r\s*of|\bto)\s*([A-Za-z\s.]+?)\)?)?/gi;
+    let rMatch;
+    while ((rMatch = trRegex.exec(normalized)) !== null) {
+      const rNo = rMatch[1].trim();
+      const hName = (rMatch[2] || "").trim().replace(/\)$/, '');
+      if (rNo && !['no', 'number', 'details'].includes(rNo.toLowerCase())) {
+        receipts.push({
+          receiptNo: rNo,
+          heirName: hName
+        });
+      }
+    }
+    if (receipts.length > 0) {
+      result.transferReceipts = receipts;
+    }
+
+    // Transfer register pages
+    const tpMatch = normalized.match(/Transfer\s*register\s*[-–:]\s*no\.?\s*of\s*page\(s\)[:\s]*([0-9A-Za-z\s()]+?)(?=\n|$)/i);
+    if (tpMatch) {
+      result.transferPages = tpMatch[1].trim();
+    }
+
+    // Loss register receipt & pages
+    const lrMatch = normalized.match(/(?:Loss\s*receipt(?:\(s\))?\s*#?|LR\s*#?)[:\s]*([0-9A-Za-z/-]+)/i);
+    if (lrMatch) {
+      result.lossReceiptNo = lrMatch[1].trim();
+    }
+    const lpMatch = normalized.match(/Loss\s*register\s*[-–:]\s*no\.?\s*of\s*page\(s\)[:\s]*([0-9A-Za-z\s()]+?)(?=\n|$)/i);
+    if (lpMatch) {
+      result.lossRegisterPages = lpMatch[1].trim();
+    }
+
+    // Split register receipt & pages
+    const srMatch = normalized.match(/(?:Split\s*receipt(?:\(s\))?\s*#?|SR\s*#?)[:\s]*([0-9A-Za-z/-]+)/i);
+    if (srMatch) {
+      result.splitReceiptNo = srMatch[1].trim();
+    }
+    const spMatch = normalized.match(/Split\s*register\s*[-–:]\s*no\.?\s*of\s*page\(s\)[:\s]*([0-9A-Za-z\s()]+?)(?=\n|$)/i);
+    if (spMatch) {
+      result.splitRegisterPages = spMatch[1].trim();
+    }
+
+    // Transferees table detection: Name, CNIC, Shares, Folio
+    const transferees: Array<{ name: string; cnic: string; shares: string; folio: string }> = [];
+    const transfereeRegex = /([A-Z][A-Za-z\s.]{2,35})\s+([0-9]{5}-[0-9]{7}-[0-9])\s+([0-9,]+)\s+([0-9A-Za-z/-]{3,10})/g;
+    let tMatch;
+    while ((tMatch = transfereeRegex.exec(normalized)) !== null) {
+      transferees.push({
+        name: tMatch[1].trim(),
+        cnic: tMatch[2].trim(),
+        shares: tMatch[3].trim(),
+        folio: tMatch[4].trim()
+      });
+    }
+    if (transferees.length > 0) {
+      result.transferees = transferees;
+    }
+  }
 
   return result;
 }

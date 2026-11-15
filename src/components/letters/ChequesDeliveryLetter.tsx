@@ -162,8 +162,15 @@ export function ChequesDeliveryLetter() {
         if (d.folio) {
           setFolio(d.folio);
         }
+        if (d.chequeRows && Array.isArray(d.chequeRows) && d.chequeRows.length > 0) {
+          setChequeRows(d.chequeRows);
+          updateTotalAmount(d.chequeRows);
+        }
+        if (d.totalAmount) {
+          setTotalAmount(d.totalAmount);
+        }
 
-        setUploadSuccess("Document analyzed successfully. Letter fields updated.");
+        setUploadSuccess("Company covering letter analyzed successfully. Cheque details updated.");
         setTimeout(() => setUploadSuccess(""), 4000);
       } else {
         throw new Error(json.error || "Failed to parse document");
@@ -485,7 +492,7 @@ Encl.: As stated above.
             
             {/* Reference & Date */}
             <div className="mb-6 space-y-1">
-              <div className="font-bold text-slate-900">{refNo}</div>
+              <div className="font-normal text-slate-900">{refNo}</div>
               <div className="font-medium text-slate-700">{date}</div>
             </div>
 
@@ -557,8 +564,7 @@ Encl.: As stated above.
 
             {/* Signatures */}
             <div className="mb-4">
-              Yours faithfully,
-              <div className="font-bold mt-1">For CDC Share Registrar Services Limited</div>
+              Regards,
             </div>
 
             <div className="grid grid-cols-2 gap-8 pt-8">

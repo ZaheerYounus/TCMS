@@ -36,6 +36,7 @@ export function NoFolioFoundLetter() {
 
   // Recipient (Advocate / Legal Heir Representative)
   const [recipientName, setRecipientName] = useState("Mr. Abdul Majeed Perhyar");
+  const [applicantFather, setApplicantFather] = useState("");
   const [lawFirm, setLawFirm] = useState("Majeed Haroon Law Associates");
   const [recipientAddress, setRecipientAddress] = useState(
     "Office No M8, Mezzanine Floor,\nAl Fatima Chambers, Near Passport Office,\nSaddar,\nKarachi."
@@ -93,11 +94,13 @@ export function NoFolioFoundLetter() {
         refNo,
         date,
         recipientName,
+        applicantFather,
         lawFirm,
         recipientAddress,
         recipientContact,
         deceasedName,
         deceasedCnic,
+        companyName,
         receivedDocs,
         searchRemarks,
         evidenceRequest,
@@ -141,6 +144,15 @@ export function NoFolioFoundLetter() {
         if (d.legalHeir) {
           setRecipientName(d.legalHeir);
         }
+        if (d.applicantFather) {
+          setApplicantFather(d.applicantFather);
+        }
+        if (d.lawFirm) {
+          setLawFirm(d.lawFirm);
+        }
+        if (d.deceasedCnic) {
+          setDeceasedCnic(d.deceasedCnic);
+        }
         setRecipientAddress(d.address || "");
         if (d.contactNo) {
           setRecipientContact(d.contactNo);
@@ -171,13 +183,13 @@ ${refNo}
 ${date}
 
 ${recipientName}
-${lawFirm ? lawFirm + "\n" : ""}${recipientAddress}
+${applicantFather ? `F/H: ${applicantFather}\n` : ""}${lawFirm ? lawFirm + "\n" : ""}${recipientAddress}
 ${recipientContact ? "Contact # " + recipientContact : ""}
 
 Dear Sir / Madam,
 
-Transmission of Shares
-${deceasedName}
+${companyName ? companyName.toUpperCase() + "\n" : ""}Transmission of Shares
+${deceasedName}${deceasedCnic ? ` (CNIC # ${deceasedCnic})` : ""}
 
 We refer to your letter regarding the captioned subject and acknowledge the receipt of the following documents:
 ${receivedDocs.map(d => `• ${d}`).join("\n")}
@@ -188,8 +200,7 @@ ${evidenceRequest}
 
 Should you have any query, feel free to coordinate with us.
 
-Yours faithfully,
-For CDC Share Registrar Services Limited
+Regards,
 
 ${signatory1}                      ${signatory2}
 `.trim();
@@ -299,6 +310,12 @@ ${signatory1}                      ${signatory2}
                     className="h-8 text-xs font-medium mb-1.5"
                   />
                   <Input 
+                    placeholder="Applicant Father / Husband Name (F/H: ...)"
+                    value={applicantFather} 
+                    onChange={(e) => setApplicantFather(e.target.value)} 
+                    className="h-8 text-xs mb-1.5"
+                  />
+                  <Input 
                     placeholder="Law Firm / Organization (Optional)"
                     value={lawFirm} 
                     onChange={(e) => setLawFirm(e.target.value)} 
@@ -320,29 +337,42 @@ ${signatory1}                      ${signatory2}
                 </div>
               </div>
 
-              {/* Deceased Shareholder Searched */}
-              <div className="grid grid-cols-2 gap-2">
+              {/* Company & Deceased Shareholder Searched */}
+              <div className="space-y-2">
                 <div>
                   <label className="text-[11px] font-semibold text-slate-600 mb-1 block">
-                    Deceased Name
+                    Company Name (Optional)
                   </label>
                   <Input 
-                    value={deceasedName} 
-                    onChange={(e) => setDeceasedName(e.target.value)} 
-                    placeholder="e.g. Late Abdul Rehman Memon"
+                    value={companyName} 
+                    onChange={(e) => setCompanyName(e.target.value)} 
+                    placeholder="e.g. Lucky Core Industries Limited"
                     className="h-8 text-xs font-medium"
                   />
                 </div>
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">
-                    Deceased CNIC #
-                  </label>
-                  <Input 
-                    value={deceasedCnic} 
-                    onChange={(e) => setDeceasedCnic(e.target.value)} 
-                    placeholder="e.g. 42301-0987654-3"
-                    className="h-8 text-xs font-mono"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-600 mb-1 block">
+                      Deceased Name
+                    </label>
+                    <Input 
+                      value={deceasedName} 
+                      onChange={(e) => setDeceasedName(e.target.value)} 
+                      placeholder="e.g. Late Abdul Rehman Memon"
+                      className="h-8 text-xs font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-600 mb-1 block">
+                      Deceased CNIC #
+                    </label>
+                    <Input 
+                      value={deceasedCnic} 
+                      onChange={(e) => setDeceasedCnic(e.target.value)} 
+                      placeholder="e.g. 42301-0987654-3"
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -483,7 +513,7 @@ ${signatory1}                      ${signatory2}
           >
             {/* Header Reference & Date */}
             <div className="border-b border-slate-200 pb-2 mb-3 space-y-0.5">
-              <div className="font-mono text-xs font-bold text-slate-700 tracking-wider">
+              <div className="font-mono text-xs font-normal text-slate-900 tracking-wider">
                 {refNo}
               </div>
               <div className="text-xs font-sans text-slate-600 font-medium">
@@ -494,6 +524,7 @@ ${signatory1}                      ${signatory2}
             {/* Recipient Block */}
             <div className="space-y-0.5 font-sans text-xs text-slate-800">
               <div className="font-bold text-[13px] text-slate-950">{recipientName}</div>
+              {applicantFather && <div className="text-slate-700">F/H: {applicantFather}</div>}
               {lawFirm && <div className="font-semibold text-slate-700">{lawFirm}</div>}
               {recipientAddress ? (
                 <div className="whitespace-pre-line text-slate-600 leading-snug">
@@ -516,6 +547,11 @@ ${signatory1}                      ${signatory2}
               <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">
                 Subject:
               </div>
+              {companyName && (
+                <div className="text-xs font-bold text-slate-900 tracking-wide uppercase">
+                  {companyName}
+                </div>
+              )}
               <div className="text-sm font-bold text-slate-950 underline underline-offset-4">
                 TRANSMISSION OF SHARES
               </div>
@@ -555,15 +591,12 @@ ${signatory1}                      ${signatory2}
             </div>
 
             {/* Signatures */}
-            <div className="pt-8 space-y-10">
+            <div className="pt-8 space-y-8">
               <div className="text-xs font-sans text-slate-700">
-                Yours faithfully,
-                <div className="font-bold text-slate-900 mt-1">
-                  For CDC Share Registrar Services Limited
-                </div>
+                Regards,
               </div>
 
-              <div className="grid grid-cols-2 gap-8 pt-6">
+              <div className="grid grid-cols-2 gap-8 pt-4">
                 <div>
                   <div className="w-48 border-t border-slate-900 pt-1 text-center font-sans text-xs font-bold text-slate-800">
                     {signatory1}

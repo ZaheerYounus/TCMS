@@ -38,6 +38,7 @@ export function CdsAccountLetter() {
 
   // Deceased & CDS Account
   const [deceased, setDeceased] = useState("Late Muhammad Asghar Qadri");
+  const [folio, setFolio] = useState("0000");
   const [cdsAccountNo, setCdsAccountNo] = useState("03277-6959");
 
   // Companies List
@@ -119,10 +120,12 @@ export function CdsAccountLetter() {
         refNo,
         date,
         recipientName,
+        fatherHusbandName,
         recipientAddress,
         recipientContact,
         company: companies.join(" / "),
         deceased,
+        folio,
         cdsAccountNo,
         receivedDocs,
         requiredDocs,
@@ -158,6 +161,7 @@ export function CdsAccountLetter() {
       if (json.success && (json.parsed || json.data)) {
         const d = json.parsed || json.data;
         if (d.legalHeir) setRecipientName(d.legalHeir);
+        if (d.applicantFather) setFatherHusbandName(d.applicantFather);
         if (d.address) setRecipientAddress(d.address);
         if (d.contactNo) setRecipientContact(d.contactNo);
         if (d.deceased) {
@@ -166,7 +170,10 @@ export function CdsAccountLetter() {
             : `Late ${d.deceased}`;
           setDeceased(cleanDeceased);
         }
-        if (d.folio) setCdsAccountNo(d.folio);
+        if (d.folio) {
+          setFolio(d.folio);
+          setCdsAccountNo(d.folio);
+        }
         if (d.refNo) setRefNo(d.refNo);
         if (d.company) {
           setCompanies([d.company]);
@@ -191,16 +198,13 @@ ${refNo}
 ${date}
 
 ${recipientName}
-F/H Name: ${fatherHusbandName}
-${recipientAddress}
+${fatherHusbandName ? `F/H Name: ${fatherHusbandName}\n` : ""}${recipientAddress}
 ${recipientContact ? `Contact: ${recipientContact}` : ""}
 
 Dear Sir / Madam,
 
-${companies.join("\n")}
-
-Transmission of Shares
-${deceased} - CDS Account # ${cdsAccountNo}
+${companies.map(c => c.toUpperCase()).join("\n")}
+Transmission of Dividends – ${deceased} – Folio # ${folio || "N/A"} / CDS Account # ${cdsAccountNo}
 
 We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents:
 ${receivedDocs.map(d => `• ${d}`).join("\n")}
@@ -212,11 +216,9 @@ ${requiredDocs.map((r, i) => `${i + 1}. ${r}`).join("\n")}
 
 Should you have any query, feel free to coordinate with us.
 
-Yours faithfully,
-For CDC Share Registrar Services Limited
+Regards,
 
 ${signatory1}                      ${signatory2}
-Authorized Signatory             Authorized Signatory
     `.trim();
 
     navigator.clipboard.writeText(text);
@@ -306,14 +308,22 @@ Authorized Signatory             Authorized Signatory
                 </div>
               </div>
 
-              {/* Deceased & CDS A/C */}
-              <div className="grid grid-cols-2 gap-2">
+              {/* Deceased, Folio & CDS A/C */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 <div>
                   <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Deceased Name</label>
                   <Input 
                     value={deceased} 
                     onChange={(e) => setDeceased(e.target.value)}
                     className="h-8 text-xs font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Folio #</label>
+                  <Input 
+                    value={folio} 
+                    onChange={(e) => setFolio(e.target.value)}
+                    className="h-8 text-xs font-mono font-semibold"
                   />
                 </div>
                 <div>
@@ -539,7 +549,7 @@ Authorized Signatory             Authorized Signatory
             
             {/* Reference & Date */}
             <div className="mb-6 space-y-1">
-              <div className="font-bold text-slate-900">{refNo}</div>
+              <div className="font-normal text-slate-900">{refNo}</div>
               <div className="font-medium text-slate-700">{date}</div>
             </div>
 
@@ -561,7 +571,7 @@ Authorized Signatory             Authorized Signatory
             </div>
 
             {/* Subject Companies */}
-            <div className="mb-4 font-bold text-slate-900 leading-tight space-y-0.5">
+            <div className="mb-2 font-bold text-slate-900 leading-tight space-y-0.5 uppercase">
               {companies.map((c, i) => (
                 <div key={i}>{c}</div>
               ))}
@@ -569,11 +579,8 @@ Authorized Signatory             Authorized Signatory
 
             {/* Subject Line */}
             <div className="mb-6 leading-tight">
-              <div className="font-bold text-slate-900">
-                Transmission of Shares
-              </div>
-              <div className="font-bold text-slate-900">
-                {deceased} - CDS Account # {cdsAccountNo}
+              <div className="font-bold text-slate-900 underline underline-offset-4">
+                Transmission of Dividends – {deceased} – Folio # {folio || "N/A"} / CDS Account # {cdsAccountNo}
               </div>
             </div>
 
@@ -611,12 +618,11 @@ Authorized Signatory             Authorized Signatory
             </div>
 
             {/* Signatures */}
-            <div className="mb-4">
-              Yours faithfully,
-              <div className="font-bold mt-1">For CDC Share Registrar Services Limited</div>
+            <div className="mb-4 text-slate-900">
+              Regards,
             </div>
 
-            <div className="grid grid-cols-2 gap-8 pt-12">
+            <div className="grid grid-cols-2 gap-8 pt-8">
               <div>
                 <div className="w-48 border-t border-slate-900 pt-1 font-bold text-xs">
                   {signatory1}
