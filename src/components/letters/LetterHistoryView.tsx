@@ -4,16 +4,15 @@ import { useState, useEffect, useCallback } from "react";
 import { 
   History, 
   Search, 
-  Download, 
   Edit3, 
   Trash2, 
   RefreshCw, 
   FileText, 
-  User, 
-  Calendar, 
   Building2,
-  ExternalLink,
-  Clock
+  Calendar,
+  Eye,
+  CheckCircle2,
+  X
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -30,13 +29,13 @@ export function LetterHistoryView({ open, onOpenChange, onLoadLetter }: LetterHi
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedType, setSelectedType] = useState("ALL");
-  const [showAllUsers, setShowAllUsers] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [previewLog, setPreviewLog] = useState<any | null>(null);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const url = `/api/letters/history?q=${encodeURIComponent(searchQuery)}&type=${selectedType}&all=${showAllUsers}`;
+      const url = `/api/letters/history?q=${encodeURIComponent(searchQuery)}&all=true`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.logs) {
@@ -47,25 +46,23 @@ export function LetterHistoryView({ open, onOpenChange, onLoadLetter }: LetterHi
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, selectedType, showAllUsers]);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (open) {
       fetchLogs();
+      setDeletingId(null);
+      setPreviewLog(null);
     }
   }, [open, fetchLogs]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchLogs();
-  };
-
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to remove this record from history?")) return;
     try {
       await fetch(`/api/letters/history?id=${id}`, { method: "DELETE" });
-      setLogs(logs.filter((l) => l.id !== id));
+      setLogs(prev => prev.filter((l) => l.id !== id));
+      setDeletingId(null);
+      if (previewLog?.id === id) setPreviewLog(null);
     } catch (e) {
       console.error(e);
     }
@@ -73,157 +70,153 @@ export function LetterHistoryView({ open, onOpenChange, onLoadLetter }: LetterHi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col p-0 overflow-hidden border-t-4 border-t-[#F37021]">
+      <DialogContent 
+        className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden border-t-4 border-t-[#0B2B5E] shadow-2xl"
+      >
         {/* Header */}
-        <div className="p-4 bg-slate-50 border-b flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="p-4 bg-slate-50 border-b flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-[#F37021] text-white rounded-lg">
-              <History className="h-5 w-5" />
+            <div className="p-2 bg-[#0B2B5E] text-white rounded-lg shadow-xs">
+              <History className="h-5 w-5 text-amber-300" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-[#0B2B5E] flex items-center gap-2">
-                My Prepared Letters & Activity Log
+              <DialogTitle className="text-base font-bold text-[#0B2B5E]">
+                Letter History (تیار کردہ لیٹرز)
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
-                Log of letters generated across all categories with ability to view, reload, and re-download
+                پہلے سے تیار شدہ خطوط کو دوبارہ دیکھیں، ایڈٹ کریں یا ڈیلیٹ کریں
               </DialogDescription>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-slate-600 flex items-center gap-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showAllUsers}
-                onChange={(e) => setShowAllUsers(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-slate-300 text-[#0B2B5E]"
-              />
-              Show Team Letters
-            </label>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={fetchLogs}
-              disabled={loading}
-              className="text-xs gap-1.5 h-8"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={fetchLogs}
+            disabled={loading}
+            className="text-xs gap-1.5 h-8 border-slate-300"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+
+        {/* Clean Search Input */}
+        <div className="p-3 bg-white border-b">
+          <div className="relative">
+            <Search className="h-4 w-4 absolute left-3 top-2.5 text-slate-400" />
+            <Input
+              name="history_search_query"
+              autoComplete="off"
+              data-lpignore="true"
+              data-form-type="other"
+              placeholder="Search by Deceased name, Folio #, Company, or Ref #..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 text-xs h-9 bg-slate-50/70 border-slate-300 focus:bg-white"
+            />
           </div>
         </div>
 
-        {/* Filters & Search */}
-        <div className="p-3 bg-white border-b flex flex-col sm:flex-row items-center gap-2">
-          <form onSubmit={handleSearchSubmit} className="flex-1 flex gap-2 w-full">
-            <div className="relative flex-1">
-              <Search className="h-3.5 w-3.5 absolute left-3 top-2.5 text-slate-400" />
-              <Input
-                placeholder="Search by Deceased, Folio, Ref #, Company, or Officer..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 text-xs h-8"
-              />
-            </div>
-            <Button type="submit" size="sm" className="h-8 text-xs bg-[#0B2B5E]">
-              Search
-            </Button>
-          </form>
-
-          <select
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="text-xs p-1.5 rounded-lg border border-slate-300 bg-white font-medium text-slate-800"
-          >
-            <option value="ALL">All Categories</option>
-            <option value="First Letter">1st Intimation Letter</option>
-            <option value="Various Folios">Multiple Folios</option>
-            <option value="Physical Approval">Physical Approval</option>
-            <option value="CDS Account">CDS Account</option>
-            <option value="Shares Delivery">Delivery of Shares</option>
-            <option value="Cheques Delivery">Delivery of Cheques</option>
-            <option value="No Folio Found">No Folio Found</option>
-          </select>
-        </div>
-
-        {/* Logs Table / List */}
-        <div className="flex-1 overflow-y-auto p-4 max-h-[60vh] space-y-2">
+        {/* Logs List */}
+        <div className="flex-1 overflow-y-auto p-4 max-h-[58vh] space-y-2.5 bg-slate-50/40">
           {logs.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 space-y-2">
-              <History className="h-10 w-10 mx-auto text-slate-300 stroke-[1.5]" />
-              <p className="text-sm font-medium">No letter activity found</p>
-              <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Letters prepared or downloaded will be automatically recorded here.
+            <div className="text-center py-16 text-slate-400 space-y-2 bg-white rounded-xl border border-dashed border-slate-200">
+              <FileText className="h-10 w-10 mx-auto text-slate-300 stroke-[1.5]" />
+              <p className="text-sm font-semibold text-slate-600">No letters in history yet</p>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                Any letters generated or downloaded will automatically be saved here for easy editing and re-use.
               </p>
             </div>
           ) : (
-            logs.map((log) => (
-              <div
-                key={log.id}
-                className="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs transition-all text-xs flex flex-col md:flex-row md:items-center justify-between gap-3"
-              >
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[10px] uppercase font-bold text-[#0B2B5E] border-blue-200 bg-blue-50/50">
-                      {log.letterType}
-                    </Badge>
-                    <span className="font-mono text-slate-500 text-[11px]">{log.refNo}</span>
-                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                      <Clock className="h-2.5 w-2.5" />
-                      {new Date(log.createdAt).toLocaleString([], {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-
-                  <div className="font-bold text-slate-800 text-sm">
-                    {log.deceasedName}
-                    {log.folio ? <span className="font-mono font-normal text-slate-600 text-xs ml-2">(Folio # {log.folio})</span> : null}
-                  </div>
-
-                  <div className="flex items-center gap-4 text-slate-500 text-[11px]">
-                    <span className="flex items-center gap-1">
-                      <Building2 className="h-3 w-3 text-slate-400" />
-                      {log.company}
-                    </span>
-                    {log.legalHeir && (
-                      <span className="flex items-center gap-1">
-                        <User className="h-3 w-3 text-slate-400" />
-                        Heir: {log.legalHeir}
+            logs.map((log) => {
+              const isDeleting = deletingId === log.id;
+              return (
+                <div
+                  key={log.id}
+                  className="p-3.5 rounded-xl border border-slate-200/90 bg-white hover:border-[#0B2B5E]/40 hover:shadow-sm transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  {/* Left Column: Primary Info */}
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-sm text-slate-900 truncate">
+                        {log.deceasedName || "Deceased Shareholder"}
                       </span>
+                      {log.folio && (
+                        <Badge variant="outline" className="text-[11px] font-mono font-bold text-[#0B2B5E] bg-blue-50/80 border-blue-200">
+                          Folio # {log.folio}
+                        </Badge>
+                      )}
+                      <Badge className="text-[10px] font-semibold bg-slate-100 text-slate-700 hover:bg-slate-100">
+                        {log.letterType || "Letter"}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+                      <span className="flex items-center gap-1 font-medium text-slate-700 truncate max-w-xs">
+                        <Building2 className="h-3 w-3 text-[#F37021] shrink-0" />
+                        {log.company || "Company"}
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="font-mono text-[11px] text-slate-500 truncate">
+                        {log.refNo}
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                        <Calendar className="h-3 w-3 text-slate-400" />
+                        {log.date || new Date(log.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right Column: 2 Simple Actions */}
+                  <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                    {/* Action 1: Edit & Load into Generator */}
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        onLoadLetter(log);
+                        onOpenChange(false);
+                      }}
+                      className="text-xs h-8 bg-[#0B2B5E] hover:bg-[#103a7a] text-white font-bold px-3 gap-1.5 shadow-2xs"
+                    >
+                      <Edit3 className="h-3.5 w-3.5 text-amber-300" />
+                      Edit Letter (ایڈٹ کریں)
+                    </Button>
+
+                    {/* Action 2: Clean Delete without browser confirm */}
+                    {isDeleting ? (
+                      <div className="flex items-center gap-1 bg-rose-50 border border-rose-200 p-0.5 rounded-lg">
+                        <Button
+                          size="sm"
+                          onClick={(e) => handleDelete(log.id, e)}
+                          className="text-[10px] h-7 bg-rose-600 hover:bg-rose-700 text-white font-bold px-2"
+                        >
+                          Confirm
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setDeletingId(null)}
+                          className="text-[10px] h-7 text-slate-500 hover:text-slate-800 px-1.5"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setDeletingId(log.id)}
+                        className="text-xs h-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2"
+                        title="Delete from history"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     )}
-                    <span className="text-slate-400">
-                      Prepared by: <strong className="text-slate-700">{log.userName}</strong>
-                    </span>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      onLoadLetter(log);
-                      onOpenChange(false);
-                    }}
-                    className="text-xs h-8 border-blue-200 text-[#0B2B5E] hover:bg-blue-50"
-                  >
-                    <Edit3 className="h-3.5 w-3.5 mr-1" />
-                    Reload & Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => handleDelete(log.id, e)}
-                    className="text-xs h-8 text-rose-600 hover:bg-rose-50 px-2"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </DialogContent>

@@ -1119,6 +1119,16 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
     if (fd.includeScrutinyNote !== undefined) setIncludeScrutinyNote(fd.includeScrutinyNote);
     if (fd.hasLostShares !== undefined) setHasLostShares(fd.hasLostShares);
     if (fd.lostSharesDetail) setLostSharesDetail(fd.lostSharesDetail);
+
+    setExtractedDataSummary({
+      folio: fd.folio || folio,
+      company: fd.company || company,
+      deceased: fd.deceased || deceased,
+      legalHeir: fd.legalHeir || legalHeir,
+      contactNo: fd.contactNo || contactNo,
+      address: fd.address || address
+    });
+    setUploadSuccessMsg(`Restored letter from History: ${entry.deceasedName || fd.deceased} (Folio: ${entry.folio || fd.folio || 'N/A'}) - Ready for editing.`);
   };
 
   const handleLoadFromMobileScan = async (scan: any) => {
@@ -1796,6 +1806,10 @@ Encl.:  As stated above.`;
                       <div>
                         <label className="text-xs font-semibold text-slate-700 block mb-1">Folio Number</label>
                         <Input 
+                          name="tcms_share_folio"
+                          autoComplete="off"
+                          data-lpignore="true"
+                          data-form-type="other"
                           value={folio} 
                           onChange={(e) => {
                             setFolio(e.target.value);
@@ -1808,6 +1822,10 @@ Encl.:  As stated above.`;
                       <div>
                         <label className="text-xs font-semibold text-slate-700 block mb-1">Deceased Shareholder</label>
                         <Input 
+                          name="tcms_deceased_name"
+                          autoComplete="off"
+                          data-lpignore="true"
+                          data-form-type="other"
                           value={deceased} 
                           onChange={(e) => setDeceased(e.target.value)}
                           placeholder="e.g. Saiyed Ali Imam Jafri" 
