@@ -121,6 +121,43 @@ export function PhysicalApprovalLetter() {
         signatory2Name,
         signatory2Title: signatory2Designation,
       });
+
+      // Auto-record to Letter History
+      fetch("/api/letters/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          letterType: "Physical Approval",
+          refNo,
+          date,
+          company,
+          deceasedName: deceased,
+          folio: folio || "",
+          legalHeir: transferReceipts.map(t => t.heirName).filter(Boolean).join(", "),
+          formData: {
+            refNo,
+            date,
+            company,
+            companyAddress,
+            deceased,
+            folio,
+            certificatesCount,
+            sharesCount,
+            transferPages,
+            transferReceipts,
+            includeLoss,
+            lossReceiptNo,
+            lossRegisterPages,
+            includeSplit,
+            splitReceiptNo,
+            splitRegisterPages,
+            signatory1Name,
+            signatory1Designation,
+            signatory2Name,
+            signatory2Designation,
+          },
+        }),
+      }).catch(() => {});
     } catch (err) {
       console.error("Failed to generate docx:", err);
       alert("Failed to generate Word document. Please verify inputs.");

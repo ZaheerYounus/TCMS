@@ -114,6 +114,35 @@ export function ChequesDeliveryLetter() {
         signatory1,
         signatory2
       });
+
+      // Auto-record to Letter History
+      fetch("/api/letters/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          letterType: "Delivery of Cheques",
+          refNo,
+          date,
+          company,
+          deceasedName: deceased,
+          folio: folio || "",
+          legalHeir: recipientName,
+          formData: {
+            refNo,
+            date,
+            recipientName,
+            recipientAddress,
+            recipientContact,
+            company,
+            deceased,
+            folio,
+            totalAmount,
+            chequeRows,
+            signatory1,
+            signatory2,
+          },
+        }),
+      }).catch(() => {});
     } catch (err) {
       console.error("Failed to generate docx:", err);
       alert("Failed to generate Word document. Please verify inputs.");

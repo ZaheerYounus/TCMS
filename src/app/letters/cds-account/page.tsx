@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { CdsAccountLetter } from "@/components/letters/CdsAccountLetter";
+import { LetterNavTabs } from "@/components/letters/LetterNavTabs";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -10,7 +11,10 @@ export const metadata: Metadata = {
 export default function CdsAccountPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading CDS Account Letter...</div>}>
-      <CdsAccountLetter />
+      <div className="w-full max-w-screen-2xl mx-auto pb-12">
+        <LetterNavTabs currentType="cds-account" />
+        <CdsAccountLetter />
+      </div>
     </Suspense>
   );
 }

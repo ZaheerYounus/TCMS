@@ -875,46 +875,46 @@ export async function exportCdsAccountDocx(data: {
             ],
           }),
 
-          // Paragraph 1: Acknowledged Documents Received
-          new Paragraph({
-            spacing: { after: 80 },
-            children: [
-              new TextRun({
-                text: "We refer to your application regarding the captioned subject and acknowledge the receipt of the following documents submitted by you:",
-                font: "Calibri",
-                size: 22,
-              }),
-            ],
-          }),
-          ...data.receivedDocs.map(docItem =>
+          // Paragraph 1: Opening (optional doc acknowledgment)
+          ...(data.receivedDocs && data.receivedDocs.length > 0 ? [
             new Paragraph({
-              indent: { left: convertInchesToTwip(0.3) },
-              spacing: { after: 40 },
+              spacing: { after: 80 },
               children: [
-                new TextRun({ text: `• ${docItem}`, font: "Calibri", size: 22 }),
+                new TextRun({
+                  text: "We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents:",
+                  font: "Calibri",
+                  size: 22,
+                }),
               ],
-            })
-          ),
+            }),
+            ...data.receivedDocs.map(docItem =>
+              new Paragraph({
+                indent: { left: convertInchesToTwip(0.3) },
+                spacing: { after: 40 },
+                children: [
+                  new TextRun({ text: `• ${docItem}`, font: "Calibri", size: 22 }),
+                ],
+              })
+            ),
+          ] : [
+            new Paragraph({
+              spacing: { after: 80 },
+              children: [
+                new TextRun({
+                  text: "We refer to your letter regarding the captioned subject.",
+                  font: "Calibri",
+                  size: 22,
+                }),
+              ],
+            }),
+          ]),
 
-          // CDS Status Remarks
+          // Documents Required / Pending Formalities Lead-in
           new Paragraph({
-            spacing: { before: 120, after: 120 },
+            spacing: { before: 120, after: 80 },
             children: [
               new TextRun({
-                text: data.accountStatusRemarks,
-                font: "Calibri",
-                size: 22,
-              }),
-            ],
-          }),
-
-          // Documents Required / Pending Formalities
-          new Paragraph({
-            spacing: { before: 80, after: 60 },
-            children: [
-              new TextRun({
-                text: "In order to proceed with the transmission of book-entry securities under the Central Depository System (CDS), following formalities are still required:",
-                bold: true,
+                text: "In order to enable us to proceed with the transmission of unpaid dividends, if any, of the subject deceased shareholder, please arrange to furnish us following required documents:",
                 font: "Calibri",
                 size: 22,
               }),
@@ -925,17 +925,30 @@ export async function exportCdsAccountDocx(data: {
               indent: { left: convertInchesToTwip(0.3) },
               spacing: { after: 40 },
               children: [
-                new TextRun({ text: `${i + 1}. ${reqItem}`, font: "Calibri", size: 22 }),
+                new TextRun({ text: `${i + 1}. `, bold: true, font: "Calibri", size: 22 }),
+                new TextRun({ text: reqItem, font: "Calibri", size: 22 }),
               ],
             })
           ),
 
-          // Standard Closing
+          // Closing Note 1
           new Paragraph({
-            spacing: { before: 160, after: 140 },
+            spacing: { before: 140, after: 60 },
             children: [
               new TextRun({
-                text: "Should you have any queries or require further guidance, feel free to coordinate with us.",
+                text: "Upon receipt of above documents in order, we shall proceed further accordingly.",
+                font: "Calibri",
+                size: 22,
+              }),
+            ],
+          }),
+
+          // Closing Note 2
+          new Paragraph({
+            spacing: { before: 40, after: 140 },
+            children: [
+              new TextRun({
+                text: "Should you have any query or concerns, please feel free to contact us.",
                 font: "Calibri",
                 size: 22,
               }),

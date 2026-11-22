@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
@@ -9,10 +10,13 @@ import {
   Building, 
   Stamp, 
   SearchX,
-  Sparkles,
-  Layers
+  Sparkles, 
+  Layers,
+  Smartphone,
+  History
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 export type LetterTypeId = 
   | "initial" 
@@ -36,7 +40,7 @@ export interface LetterTypeInfo {
 export const LETTER_TYPES: LetterTypeInfo[] = [
   {
     id: "first-letter",
-    title: "1st Letter (Single Folio)",
+    title: "1st Letter (Single)",
     subtitle: "Single Folio Scrutiny",
     desc: "Single Folio Transmission Requirements",
     href: "/letters/first-letter",
@@ -44,7 +48,7 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
   },
   {
     id: "various-folios",
-    title: "Various Folios 1st Letter",
+    title: "Various Folios",
     subtitle: "Multi-Company Scrutiny",
     desc: "Multiple Companies & Folios Transmission Requirements",
     href: "/letters/various-folios",
@@ -53,7 +57,7 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
   {
     id: "shares-delivery",
     title: "Delivery of Shares",
-    subtitle: "Physical Share Certificates",
+    subtitle: "Physical Shares",
     desc: "Forwarding physical transmitted shares to legal heirs",
     href: "/letters/shares-delivery",
     icon: Send,
@@ -61,7 +65,7 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
   {
     id: "cheques-delivery",
     title: "Delivery of Cheques",
-    subtitle: "Unpaid Dividend Cheques",
+    subtitle: "Dividend Cheques",
     desc: "Forwarding banker's cheques for unpaid dividends",
     href: "/letters/cheques-delivery",
     icon: CreditCard,
@@ -69,14 +73,14 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
   {
     id: "physical-approval",
     title: "Physical Approval",
-    subtitle: "Company Sec. Submission",
+    subtitle: "Company Secretary",
     desc: "Forwarding registers & certificates to Company Secretary",
     href: "/letters/physical-approval",
     icon: Stamp,
   },
   {
     id: "cds-account",
-    title: "CDS Account Letter",
+    title: "CDS Account",
     subtitle: "Book-Entry Transmission",
     desc: "Transmission under CDS Account (Closed / Intra-Report)",
     href: "/letters/cds-account",
@@ -85,15 +89,31 @@ export const LETTER_TYPES: LetterTypeInfo[] = [
   {
     id: "no-folio-found",
     title: "No Folio Found",
-    subtitle: "Physical Records Notice",
+    subtitle: "Records Notice",
     desc: "Intimation of no records found against CNIC/Name",
     href: "/letters/no-folio-found",
     icon: SearchX,
   },
 ];
 
-export function LetterNavTabs({ currentType }: { currentType?: LetterTypeId }) {
+interface LetterNavTabsProps {
+  currentType?: LetterTypeId;
+  onOpenMobileInbox?: () => void;
+  onOpenHistory?: () => void;
+}
+
+export function LetterNavTabs({ currentType, onOpenMobileInbox, onOpenHistory }: LetterNavTabsProps) {
   const pathname = usePathname();
+  const [pendingScanCount, setPendingScanCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/letters/mobile-uploads?status=PENDING")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.uploads) setPendingScanCount(d.uploads.length);
+      })
+      .catch(() => {});
+  }, []);
 
   const activeId: LetterTypeId = currentType || 
     (pathname?.includes("various-folios") ? "various-folios" :
@@ -106,21 +126,55 @@ export function LetterNavTabs({ currentType }: { currentType?: LetterTypeId }) {
      "first-letter");
 
   return (
-    <div className="w-full bg-white border border-slate-200/80 rounded-xl p-2 shadow-xs mb-6">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 mb-2">
+    <div className="w-full bg-white border border-slate-200/80 rounded-xl p-2.5 shadow-xs mb-6 space-y-2.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 pt-1 gap-2">
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-[#F37021]" />
           <h2 className="text-xs font-bold tracking-wider uppercase text-slate-700">
             Dedicated Letter Templates
           </h2>
         </div>
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
-          <Sparkles className="h-3 w-3 text-[#F37021]" />
-          <span>Select template to open dedicated workspace</span>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Mobile Upload direct link */}
+          <Link
+            href="/letters/mobile-upload"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-[#0B2B5E] border border-blue-200 hover:bg-blue-100 transition-colors"
+          >
+            <Smartphone className="h-3.5 w-3.5 text-[#F37021]" />
+            <span>Upload Scan from Mobile</span>
+          </Link>
+
+          {/* Desktop Inbox trigger */}
+          {onOpenMobileInbox && (
+            <button
+              onClick={onOpenMobileInbox}
+              className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-800 hover:bg-slate-200 transition-colors"
+            >
+              <Smartphone className="h-3.5 w-3.5 text-slate-600" />
+              <span>Mobile Scans Inbox</span>
+              {pendingScanCount > 0 && (
+                <span className="h-4 min-w-4 px-1 rounded-full bg-[#F37021] text-white text-[10px] font-bold flex items-center justify-center">
+                  {pendingScanCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Letter History trigger */}
+          {onOpenHistory && (
+            <button
+              onClick={onOpenHistory}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-800 hover:bg-slate-200 transition-colors"
+            >
+              <History className="h-3.5 w-3.5 text-slate-600" />
+              <span>Letter History</span>
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
         {LETTER_TYPES.map((tab) => {
           const isActive = activeId === tab.id;
           const Icon = tab.icon;

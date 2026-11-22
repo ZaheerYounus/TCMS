@@ -109,6 +109,39 @@ export function NoFolioFoundLetter() {
         signatory1,
         signatory2
       });
+
+      // Auto-record to Letter History
+      fetch("/api/letters/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          letterType: "No Folio Found",
+          refNo,
+          date,
+          company: companyName,
+          deceasedName,
+          folio: folio || "",
+          legalHeir: recipientName,
+          formData: {
+            refNo,
+            date,
+            recipientName,
+            applicantFather,
+            lawFirm,
+            recipientAddress,
+            recipientContact,
+            deceasedName,
+            deceasedCnic,
+            folio,
+            companyName,
+            receivedDocs,
+            searchRemarks,
+            evidenceRequest,
+            signatory1,
+            signatory2,
+          },
+        }),
+      }).catch(() => {});
     } catch (err) {
       console.error("Failed to generate docx:", err);
       alert("Failed to generate Word document. Please verify inputs.");

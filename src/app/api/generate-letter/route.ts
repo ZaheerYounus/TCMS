@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
       deliveryNotes = "",
       deficiencies = [],
       cleanHeirNameOnly = true,
+      includeDocAcknowledgment = true,
       includeStandardCertLine = false,
       signatory1Name = "Zaheer Ahmed",
       signatory1Title = "Senior Officer",
@@ -123,9 +124,42 @@ export async function POST(req: NextRequest) {
       }))
     ] : [];
 
-    const cleanLegalHeir = String(legalHeir || 'Legal Heir').replace(/\s*\([^)]*\)\s*$/, '').trim();
+    const formatDateEnglish = (dateInput: string): string => {
+      if (!dateInput) return "";
+      const str = String(dateInput).trim();
+      const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      
+      for (const m of months) {
+        if (str.toLowerCase().includes(m.toLowerCase())) return str;
+      }
 
-    const formattedDate = formatDateDDMMYYYY(date);
+      const dmyMatch = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+      if (dmyMatch) {
+        const [_, d, m, y] = dmyMatch;
+        const mIdx = parseInt(m, 10) - 1;
+        if (mIdx >= 0 && mIdx < 12) {
+          return `${months[mIdx]} ${parseInt(d, 10)}, ${y}`;
+        }
+      }
+
+      const ymdMatch = str.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
+      if (ymdMatch) {
+        const [_, y, m, d] = ymdMatch;
+        const mIdx = parseInt(m, 10) - 1;
+        if (mIdx >= 0 && mIdx < 12) {
+          return `${months[mIdx]} ${parseInt(d, 10)}, ${y}`;
+        }
+      }
+
+      const dObj = new Date(str);
+      if (!isNaN(dObj.getTime())) {
+        return `${months[dObj.getMonth()]} ${dObj.getDate()}, ${dObj.getFullYear()}`;
+      }
+
+      return str;
+    }
+
+    const formattedDate = formatDateEnglish(date);
 
     // 1. Ref & Date below reference section (Ref is unbolded, normal font, Calibri 11pt)
     const headerRefAndDateParagraphs = [
@@ -153,6 +187,8 @@ export async function POST(req: NextRequest) {
         new TextRun({ text: line, size: 20, font: "Calibri" }),
       ],
     }));
+
+    const cleanLegalHeir = String(legalHeir || '').trim();
 
     const firstLetterChildren = [
       ...headerRefAndDateParagraphs,
@@ -218,12 +254,14 @@ export async function POST(req: NextRequest) {
         })
       ]),
 
-      // 5. Opening Body acknowledging receipt
+      // 5. Opening Body acknowledging receipt (Optional doc acknowledgment)
       new Paragraph({
         children: [
           new TextRun({ 
-            text: `We refer to your letter regarding the captioned subject and acknowledge the receipt of: ${receivedDocs.length > 0 ? receivedDocs.join(", ") : "documents submitted"}.`, 
-            size: 21, 
+            text: includeDocAcknowledgment && receivedDocs && receivedDocs.length > 0
+              ? `We refer to your letter regarding the captioned subject and acknowledge the receipt of: ${receivedDocs.join(", ")}.`
+              : `We refer to your letter regarding the captioned subject.`, 
+            size: 22, 
             font: "Calibri" 
           }),
         ],
@@ -235,7 +273,7 @@ export async function POST(req: NextRequest) {
           children: [
             new TextRun({ 
               text: `Please note that following shares are registered in the name of subject deceased shareholder:`, 
-              size: 21, 
+              size: 22, 
               font: "Calibri" 
             }),
           ],
@@ -272,51 +310,35 @@ export async function POST(req: NextRequest) {
         new Paragraph({
           children: [
             new TextRun({ 
-              text: `For your convenience, we are also attaching complete details of shares. In case if any share certificate(s) is/are lost, please intimate us accordingly.`, 
-              size: 20, 
+              text: `For your convenience, we are attaching complete details of shares. Kindly examine the attached share details against the physical share certificate(s) in your possession. In case any share certificate(s) are found missing or misplaced from the attached details, please intimate us along with the respective certificate numbers and share details accordingly.`, 
+              size: 22, 
               font: "Calibri" 
             }),
           ],
-          spacing: { before: 100, after: 100 },
+          spacing: { before: 100, after: 140 },
         }),
-        new Paragraph({
-          children: [
-            new TextRun({ 
-              text: `Kindly note that the share certificates shall only be forwarded to you upon receipt of our instructions in this regard.`, 
-              bold: true,
-              size: 20, 
-              font: "Calibri" 
-            }),
-          ],
-          spacing: { after: 150 },
-        })
       ] : [
         new Paragraph({
           children: [
             new TextRun({ 
               text: `Kindly note that as per company's record total, ${shareCertificates} share certificate for ${noOfShares} shares under folio of ${companyName} is registered in the name of subject deceased shareholder (details of shares attached).`, 
-              size: 21, 
+              size: 22, 
               font: "Calibri" 
             }),
           ],
-          spacing: { after: 180 },
-        })
-      ]),
-
-      // Standard cert line only if explicitly enabled
-      ...(includeStandardCertLine ? [
+          spacing: { after: 70 },
+        }),
         new Paragraph({
           children: [
             new TextRun({ 
-              text: "Share certificates shall be sent upon our further instructions.", 
-              bold: true,
-              size: 20, 
+              text: `Kindly examine the attached share details against the physical share certificate(s) in your possession. In case any share certificate(s) are found missing or misplaced from the attached details, please intimate us along with the respective certificate numbers and share details accordingly.`, 
+              size: 22, 
               font: "Calibri" 
             }),
           ],
-          spacing: { after: 120 },
-        })
-      ] : []),
+          spacing: { after: 140 },
+        }),
+      ]),
 
       // Position A: After Received Documents
       ...(scrutinyPosition === 'after_received' ? scrutinyParagraphs : []),
@@ -401,16 +423,36 @@ export async function POST(req: NextRequest) {
       // Lost Share Formalities (Position: after_required)
       ...(duplicatePosition === 'after_required' ? duplicateShareParagraphs : []),
 
-      // 7. Closing Clarification Note
+      // 7. Closing Clarification Notes (Succession Note, Physical Share Certs Note, Query Note)
       new Paragraph({
         children: [
           new TextRun({ 
-            text: "Please ensure that details such as company name, folio number and number of shares are clearly mentioned on the Succession Certificate. Should you have any query, feel free to coordinate with us.", 
-            size: 20, 
+            text: "Please ensure that details such as company name, folio number and number of shares are clearly mentioned on the Succession Certificate.", 
+            size: 22, 
             font: "Calibri" 
           }),
         ],
-        spacing: { before: 140, after: 250 },
+        spacing: { before: 140, after: 70 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "Furthermore, please note that the original physical share certificate(s) should be submitted to us only upon our further instruction / advice.", 
+            size: 22, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 70 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "Should you have any query or concern, please feel free to contact us.", 
+            size: 22, 
+            font: "Calibri" 
+          }),
+        ],
+        spacing: { after: 250 },
       }),
 
       // Position D: At End Before Signatures

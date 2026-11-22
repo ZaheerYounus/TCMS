@@ -70,6 +70,9 @@ import { ChequesDeliveryLetter } from "@/components/letters/ChequesDeliveryLette
 import { CdsAccountLetter } from "@/components/letters/CdsAccountLetter";
 import { PhysicalApprovalLetter } from "@/components/letters/PhysicalApprovalLetter";
 import { NoFolioFoundLetter } from "@/components/letters/NoFolioFoundLetter";
+import { LetterNavTabs } from "@/components/letters/LetterNavTabs";
+import { MobileScansInbox } from "@/components/letters/MobileScansInbox";
+import { LetterHistoryView } from "@/components/letters/LetterHistoryView";
 
 interface MultiFolioItem {
   folio: string;
@@ -211,14 +214,19 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
   const [includeTransmissionDeed, setIncludeTransmissionDeed] = useState(false);
   const [tdCompanyText, setTdCompanyText] = useState("");
 
-  // Reference & Date (Requirement 4: Standard DD/MM/YYYY)
+  // Reference & Date (English Format Month DD, YYYY)
   const [refNo, setRefNo] = useState(() => {
     return initialMode === "multi" ? "CDCSR/LTC/GEN/KHTC/283/26" : "CDCSR/LTC/OGDC/44058/26";
   });
   const [date, setDate] = useState(() => {
     const d = new Date();
-    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
   });
+
+  // Cross-device sync & history dialog states
+  const [showMobileInbox, setShowMobileInbox] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Multi Folio Rows (No scripts column needed)
   const [multiFolios, setMultiFolios] = useState<MultiFolioItem[]>([
@@ -229,6 +237,7 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
   ]);
 
   // Documents Received (Step 1)
+  const [includeDocAcknowledgment, setIncludeDocAcknowledgment] = useState(true);
   const [receivedDocs, setReceivedDocs] = useState<string[]>([
     "Copy of CNIC of subject deceased shareholder and yourself",
     "Written transmission request application"
@@ -957,6 +966,7 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
         hasSplitRegister,
         splitReceiptNo,
         approvalCoveringNotes,
+        includeDocAcknowledgment: includeDocAcknowledgment && receivedDocs.length > 0,
         // Delivery parameters
         deliveryMode,
         dispatchTrackingNo,
@@ -982,6 +992,8 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
+      recordToHistory();
+
       if (syncToMis && mode === "single" && folio) {
         try {
           await fetch("/api/mis", {
@@ -1005,18 +1017,104 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
     }
   };
 
+  const recordToHistory = async () => {
+    try {
+      await fetch("/api/letters/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          letterType: mode === "multi" ? "Various Folios" : "First Letter",
+          refNo,
+          date,
+          company: mode === "single" ? company : multiFolios.map(m => m.company).join(", "),
+          deceasedName: deceased,
+          folio: mode === "single" ? folio : multiFolios.map(m => m.folio).filter(Boolean).join(", "),
+          legalHeir,
+          formData: {
+            mode,
+            refNo,
+            date,
+            legalHeir,
+            applicantFather,
+            deceased,
+            address,
+            contactNo,
+            company,
+            compSymbol,
+            folio,
+            certificates,
+            shares,
+            multiFolios,
+            includeDocAcknowledgment,
+            receivedDocs,
+            requiredDocs,
+            scrutinyRemark,
+            includeScrutinyNote,
+            hasLostShares,
+            lostSharesDetail,
+          },
+        }),
+      });
+    } catch (e) {
+      console.warn("History save note:", e);
+    }
+  };
+
+  const handleLoadFromHistory = (entry: any) => {
+    if (!entry.formData) return;
+    const fd = entry.formData;
+    if (fd.mode) setMode(fd.mode);
+    if (fd.refNo) setRefNo(fd.refNo);
+    if (fd.date) setDate(fd.date);
+    if (fd.legalHeir) setLegalHeir(fd.legalHeir);
+    if (fd.applicantFather) setApplicantFather(fd.applicantFather);
+    if (fd.deceased) setDeceased(fd.deceased);
+    if (fd.address) setAddress(fd.address);
+    if (fd.contactNo) setContactNo(fd.contactNo);
+    if (fd.company) setCompany(fd.company);
+    if (fd.compSymbol) setCompSymbol(fd.compSymbol);
+    if (fd.folio) setFolio(fd.folio);
+    if (fd.certificates) setCertificates(fd.certificates);
+    if (fd.shares) setShares(fd.shares);
+    if (fd.multiFolios) setMultiFolios(fd.multiFolios);
+    if (fd.includeDocAcknowledgment !== undefined) setIncludeDocAcknowledgment(fd.includeDocAcknowledgment);
+    if (fd.receivedDocs) setReceivedDocs(fd.receivedDocs);
+    if (fd.requiredDocs) setRequiredDocs(fd.requiredDocs);
+    if (fd.scrutinyRemark) setScrutinyRemark(fd.scrutinyRemark);
+    if (fd.includeScrutinyNote !== undefined) setIncludeScrutinyNote(fd.includeScrutinyNote);
+    if (fd.hasLostShares !== undefined) setHasLostShares(fd.hasLostShares);
+    if (fd.lostSharesDetail) setLostSharesDetail(fd.lostSharesDetail);
+  };
+
+  const handleLoadFromMobileScan = (scan: any) => {
+    if (!scan) return;
+    if (scan.extractedData) {
+      const ed = scan.extractedData;
+      if (ed.deceased) setDeceased(ed.deceased);
+      if (ed.legalHeir) setLegalHeir(ed.legalHeir);
+      if (ed.applicantFather) setApplicantFather(ed.applicantFather);
+      if (ed.address) setAddress(ed.address);
+      if (ed.contactNo) setContactNo(ed.contactNo);
+      if (ed.company) setCompany(ed.company);
+      if (ed.folio) setFolio(ed.folio);
+      if (ed.shares) setShares(ed.shares);
+      if (ed.certificates) setCertificates(ed.certificates);
+    }
+  };
+
   const handleCopyText = () => {
     let plainRemark = "";
     if (includeScrutinyNote && scrutinyRemark.trim()) {
       plainRemark = `\n${scrutinyRemark}\n`;
     }
 
-    let duplicateText = "";
-    if (hasLostShares) {
-      const intro = duplicateIntro || `Kindly note that as intimated, the subject share certificate(s) (${lostSharesDetail}) are reported lost / misplaced. In order to process issuance of duplicate share certificates, following duplicate formalities are required:`;
-      const docsList = duplicateDocs.map((d, i) => `   ${i + 1}. ${d}`).join('\n');
-      duplicateText = `\n${intro}\n${docsList}\n`;
-    }
+    const openingText = includeDocAcknowledgment && receivedDocs.length > 0
+      ? `We refer to your letter regarding the captioned subject and acknowledge the receipt of:\n${receivedDocs.map(d => '- ' + d).join('\n')}`
+      : `We refer to your letter regarding the captioned subject.`;
+
+    const singleFolioShareText = `Kindly note that as per company's record total, ${certificates} share certificate for ${shares} shares under folio of ${company} is registered in name of deceased shareholder (details of shares attached).\n\nKindly examine the attached share details against the physical share certificate(s) in your possession. In case any share certificate(s) are found missing or misplaced from the attached details, please intimate us along with the respective certificate numbers and share details accordingly.`;
+
+    const multiFolioShareText = `Kindly note that following shares are registered in the name of subject deceased shareholder (details of shares attached):\n` + multiFolios.map((m, idx) => `   ${idx + 1}. Folio #${m.folio} | ${m.company} | Certs: ${m.certificates} | Shares: ${m.shares}`).join('\n') + `\n\nFor your convenience, we are attaching complete details of shares. Kindly examine the attached share details against the physical share certificate(s) in your possession. In case any share certificate(s) are found missing or misplaced from the attached details, please intimate us along with the respective certificate numbers and share details accordingly.`;
 
     const bodyText = `${refNo}              ${date}
 
@@ -1028,18 +1126,18 @@ Dear Concern,
 
 ${mode === "single" ? `${company}\nTransmission of Shares and Dividends – Late ${deceased} – Folio # ${folio}` : `Transmission of Shares & Dividends – Late ${deceased}`}
 
-${scrutinyPosition === 'top' && plainRemark ? plainRemark + '\n' : ''}We refer to your letter regarding the captioned subject and acknowledge the receipt of:
-${receivedDocs.map(d => '- ' + d).join('\n')}
+${scrutinyPosition === 'top' && plainRemark ? plainRemark + '\n' : ''}${openingText}
 
-${mode === "multi" 
-  ? `Kindly note that following shares are registered in the name of subject deceased shareholder (details of shares attached):\n` + multiFolios.map((m, idx) => `   ${idx + 1}. Folio #${m.folio} | ${m.company} | Certs: ${m.certificates} | Shares: ${m.shares}`).join('\n')
-  : `Kindly note that as per company's record total, ${certificates} share certificate for ${shares} shares under folio of ${company} is registered in name of deceased shareholder (details of shares attached).`
-}${includeStandardCertLine ? '\n\nShare certificates shall be sent upon our further instructions.' : ''}${hasLostShares ? '\n\n' + duplicateIntro + '\n' + duplicateDocs.map((d, i) => '• ' + d).join('\n') : ''}
+${mode === "multi" ? multiFolioShareText : singleFolioShareText}${hasLostShares ? '\n\n' + duplicateIntro + '\n' + duplicateDocs.map((d, i) => '• ' + d).join('\n') : ''}
 ${scrutinyPosition === 'middle' && plainRemark ? plainRemark + '\n' : ''}
 In order to enable us to process transmission of shares and dividends in favor of legal heir(s), following documents are required:
-${requiredDocs.map((d, i) => `${i + 1}. ${d}`).join('\n')}
+${getActiveRequiredDocs().map((d, i) => `${i + 1}. ${d}`).join('\n')}
 ${scrutinyPosition === 'bottom' && plainRemark ? plainRemark + '\n' : ''}
-Please ensure details are clearly mentioned on the Succession Certificate. Should you have any query, feel free to coordinate with us.
+Please ensure that details such as company name, folio number and number of shares are clearly mentioned on the Succession Certificate.
+
+Furthermore, please note that the original physical share certificate(s) should be submitted to us only upon our further instruction / advice.
+
+Should you have any query or concern, please feel free to contact us.
 
 Regards,
 
@@ -1048,11 +1146,33 @@ Encl.:  As stated above.`;
 
     navigator.clipboard.writeText(bodyText);
     setCopied(true);
+    recordToHistory();
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <div className="w-full max-w-screen-2xl mx-auto pb-12">
+      {/* Template Navigation, Mobile Upload, and History Bar */}
+      <LetterNavTabs 
+        currentType={mode === "multi" ? "various-folios" : "first-letter"}
+        onOpenMobileInbox={() => setShowMobileInbox(true)}
+        onOpenHistory={() => setShowHistory(true)}
+      />
+
+      {/* Mobile Scans Inbox Dialog */}
+      <MobileScansInbox 
+        open={showMobileInbox}
+        onOpenChange={setShowMobileInbox}
+        onSelectScan={handleLoadFromMobileScan}
+      />
+
+      {/* Letter History Dialog */}
+      <LetterHistoryView 
+        open={showHistory}
+        onOpenChange={setShowHistory}
+        onLoadLetter={handleLoadFromHistory}
+      />
+
       {/* Restore Banner if Preview is Hidden */}
       {previewLayout === "hidden" && (
         <div className="mb-4 flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 px-4 shadow-xs no-print">
@@ -1685,6 +1805,17 @@ Encl.:  As stated above.`;
 
                 {openAccordion.documentsReceived && (
                   <div className="p-4 pt-3 border-t border-emerald-100 space-y-3 bg-white">
+                    <label className="flex items-center gap-2 pb-2 text-xs font-semibold text-slate-800 cursor-pointer border-b border-slate-100">
+                      <input
+                        type="checkbox"
+                        checked={includeDocAcknowledgment}
+                        onChange={(e) => setIncludeDocAcknowledgment(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-[#0B2B5E] focus:ring-[#0B2B5E]"
+                      />
+                      <span>Acknowledge documents in opening paragraph</span>
+                      <span className="text-[10px] text-slate-400 font-normal">(Uncheck if closing directly without acknowledging documents)</span>
+                    </label>
+
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
@@ -2210,20 +2341,31 @@ Encl.:  As stated above.`;
                     </p>
                   )}
 
-                  <p>
-                    We refer to your letter regarding the captioned subject and acknowledge the receipt of:{" "}
-                    <strong>{receivedDocs.length > 0 ? receivedDocs.join(", ") : "documents submitted"}</strong>.
-                  </p>
+                  {includeDocAcknowledgment && receivedDocs.length > 0 ? (
+                    <p>
+                      We refer to your letter regarding the captioned subject and acknowledge the receipt of:{" "}
+                      <strong>{receivedDocs.join(", ")}</strong>.
+                    </p>
+                  ) : (
+                    <p>
+                      We refer to your letter regarding the captioned subject.
+                    </p>
+                  )}
 
                   {mode === "multi" ? (
                     <p>
                       Please note that following shares are registered in the name of subject deceased shareholder:
                     </p>
                   ) : (
-                    <p>
-                      Kindly note that as per company's record total, <strong>{certificates}</strong> share certificate for{" "}
-                      <strong>{shares}</strong> shares under folio of <strong>{company}</strong> is registered in the name of subject deceased shareholder (details of shares attached). In case if share certificate is lost, please intimate us accordingly.
-                    </p>
+                    <div className="space-y-1">
+                      <p>
+                        Kindly note that as per company's record total, <strong>{certificates}</strong> share certificate for{" "}
+                        <strong>{shares}</strong> shares under folio of <strong>{company}</strong> is registered in the name of subject deceased shareholder (details of shares attached).
+                      </p>
+                      <p>
+                        Kindly examine the attached share details against the physical share certificate(s) in your possession. In case any share certificate(s) are found missing or misplaced from the attached details, please intimate us along with the respective certificate numbers and share details accordingly.
+                      </p>
+                    </div>
                   )}
 
                   {/* Multi Folio Table in preview if active */}
@@ -2262,10 +2404,7 @@ Encl.:  As stated above.`;
                   {mode === "multi" && (
                     <div className="space-y-1 my-2">
                       <p className="text-[11px] text-slate-700">
-                        For your convenience, we are also attaching complete details of shares. In case if any share certificate(s) is/are lost, please intimate us accordingly.
-                      </p>
-                      <p className="text-[11px] font-bold text-slate-900">
-                        Kindly note that the share certificates shall only be forwarded to you upon receipt of our instructions in this regard.
+                        For your convenience, we are attaching complete details of shares. Kindly examine the attached share details against the physical share certificate(s) in your possession. In case any share certificate(s) are found missing or misplaced from the attached details, please intimate us along with the respective certificate numbers and share details accordingly.
                       </p>
                     </div>
                   )}
@@ -2328,9 +2467,17 @@ Encl.:  As stated above.`;
                     </p>
                   )}
 
-                  <p className="text-[11px] text-slate-600 pt-1">
-                    Please ensure that details such as company name, folio number and number of shares are clearly mentioned on the Succession Certificate. Should you have any query, feel free to coordinate with us.
-                  </p>
+                  <div className="space-y-1.5 pt-1 text-[11px] text-slate-700">
+                    <p>
+                      Please ensure that details such as company name, folio number and number of shares are clearly mentioned on the Succession Certificate.
+                    </p>
+                    <p>
+                      Furthermore, please note that the original physical share certificate(s) should be submitted to us only upon our further instruction / advice.
+                    </p>
+                    <p className="pt-0.5">
+                      Should you have any query or concern, please feel free to coordinate with us.
+                    </p>
+                  </div>
 
               {/* Signatures */}
               <div className="pt-4 font-sans space-y-1 border-t">

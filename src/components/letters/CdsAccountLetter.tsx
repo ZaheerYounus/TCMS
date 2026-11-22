@@ -67,17 +67,13 @@ export function CdsAccountLetter() {
   const [newCompanyInput, setNewCompanyInput] = useState("");
 
   // Documents Received Checklist (Fully Editable)
+  const [includeReceivedDocs, setIncludeReceivedDocs] = useState(true);
   const [receivedDocs, setReceivedDocs] = useState<string[]>([
     "Notarized copy of death certificate of deceased shareholder;",
     "Notarized copy of CNICs of the deceased shareholder & yourself;",
     "Shareholder Information Form filled and signed by yourself."
   ]);
   const [newReceivedInput, setNewReceivedInput] = useState("");
-
-  // Account Status Remarks
-  const [accountStatusRemarks, setAccountStatusRemarks] = useState(
-    `Kindly note that as per CDC records, subject CDS Account # ${cdsAccountNo} of deceased shareholder is still active / open with book-entry securities.`
-  );
 
   // Documents Required / Pending Formalities (Fully Editable)
   const [requiredDocs, setRequiredDocs] = useState<string[]>([
@@ -128,6 +124,44 @@ export function CdsAccountLetter() {
     setRequiredDocs(requiredDocs.filter((_, i) => i !== idx));
   };
 
+  // Auto-record to Letter History
+  const recordToHistory = async () => {
+    try {
+      await fetch("/api/letters/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          letterType: "CDS Account",
+          refNo,
+          date,
+          company: companies.join(" / "),
+          deceasedName: deceased,
+          folio: folio || "",
+          legalHeir: recipientName,
+          formData: {
+            refNo,
+            date,
+            recipientName,
+            fatherHusbandName,
+            recipientAddress,
+            recipientContact,
+            companies,
+            deceased,
+            folio,
+            cdsAccountNo,
+            includeReceivedDocs,
+            receivedDocs,
+            requiredDocs,
+            signatory1,
+            signatory2,
+          },
+        }),
+      });
+    } catch (e) {
+      console.warn("Letter history logging note:", e);
+    }
+  };
+
   // Word Document (.docx) Export
   const handleDownloadDocx = async () => {
     setDownloading(true);
@@ -143,12 +177,13 @@ export function CdsAccountLetter() {
         deceased,
         folio,
         cdsAccountNo,
-        receivedDocs,
+        receivedDocs: includeReceivedDocs ? receivedDocs : [],
         requiredDocs,
-        accountStatusRemarks,
+        accountStatusRemarks: "",
         signatory1,
         signatory2
       });
+      recordToHistory();
     } catch (err) {
       console.error("Failed to generate docx:", err);
       alert("Failed to generate Word document. Please verify inputs.");
@@ -209,6 +244,10 @@ export function CdsAccountLetter() {
   };
 
   const handleCopyText = () => {
+    const openingText = includeReceivedDocs && receivedDocs.length > 0
+      ? `We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents:\n${receivedDocs.map(d => `• ${d}`).join("\n")}`
+      : `We refer to your letter regarding the captioned subject.`;
+
     const text = `
 ${refNo}
 ${date}
@@ -222,23 +261,23 @@ Dear Sir / Madam,
 ${companies.map(c => c.toUpperCase()).join("\n")}
 Transmission of Dividends – ${deceased} – Folio # ${folio || "N/A"} / CDS Account # ${cdsAccountNo}
 
-We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents:
-${receivedDocs.map(d => `• ${d}`).join("\n")}
+${openingText}
 
-${accountStatusRemarks}
-
-In order to proceed further, following formalities / documents are still required:
+In order to enable us to proceed with the transmission of unpaid dividends, if any, of the subject deceased shareholder, please arrange to furnish us following required documents:
 ${requiredDocs.map((r, i) => `${i + 1}. ${r}`).join("\n")}
 
-Should you have any query, feel free to coordinate with us.
+Upon receipt of above documents in order, we shall proceed further accordingly.
+
+Should you have any query or concerns, please feel free to contact us.
 
 Regards,
 
-${signatory1}                      ${signatory2}
+Authorized Signatory                    Authorized Signatory
     `.trim();
 
     navigator.clipboard.writeText(text);
     setCopied(true);
+    recordToHistory();
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -457,6 +496,16 @@ ${signatory1}                      ${signatory2}
             </button>
             {openAccordion.receivedDocs && (
               <div className="p-4 pt-3 border-t border-slate-100 space-y-2 text-xs bg-white">
+                <label className="flex items-center gap-2 pb-1 text-[11px] font-semibold text-slate-700 cursor-pointer border-b border-slate-100">
+                  <input
+                    type="checkbox"
+                    checked={includeReceivedDocs}
+                    onChange={(e) => setIncludeReceivedDocs(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-[#0B2B5E]"
+                  />
+                  Acknowledge Received Documents in Opening Paragraph
+                </label>
+
                 <div className="space-y-1.5">
                   {receivedDocs.map((doc, idx) => (
                     <div key={idx} className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded border border-slate-200 text-xs">
@@ -532,7 +581,7 @@ ${signatory1}                      ${signatory2}
             )}
           </div>
 
-          {/* Accordion 6: Account Status & Signatories */}
+          {/* Accordion 6: Signatories */}
           <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white transition-all">
             <button
               type="button"
@@ -540,24 +589,13 @@ ${signatory1}                      ${signatory2}
               className="w-full flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
             >
               <span className="text-xs font-bold text-[#0B2B5E] uppercase tracking-wide">
-                6. Status Finding &amp; Signatories
+                6. Signatories
               </span>
               {openAccordion.statusAndSignatories ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
             </button>
             {openAccordion.statusAndSignatories && (
               <div className="p-4 pt-3 border-t border-slate-100 space-y-3 text-xs bg-white">
-                <div>
-                  <label className="text-[11px] font-semibold text-slate-600 mb-1 block">
-                    CDS Account Status Finding
-                  </label>
-                  <textarea 
-                    rows={2}
-                    className="w-full text-xs rounded-md border border-slate-200 p-2 bg-white"
-                    value={accountStatusRemarks} 
-                    onChange={(e) => setAccountStatusRemarks(e.target.value)} 
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Signatory 1</label>
                     <Input 
@@ -662,25 +700,26 @@ ${signatory1}                      ${signatory2}
             </div>
 
             {/* Opening Paragraph */}
-            <div className="mb-3 text-justify">
-              We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents:
-            </div>
+            {includeReceivedDocs && receivedDocs.length > 0 ? (
+              <>
+                <div className="mb-3 text-justify">
+                  We refer to your letter regarding the captioned subject and acknowledge the receipt of following documents:
+                </div>
+                <ul className="list-disc pl-6 mb-4 space-y-1 text-justify">
+                  {receivedDocs.map((doc, idx) => (
+                    <li key={idx}>{doc}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <div className="mb-4 text-justify">
+                We refer to your letter regarding the captioned subject.
+              </div>
+            )}
 
-            {/* Documents List */}
-            <ul className="list-disc pl-6 mb-4 space-y-1 text-justify">
-              {receivedDocs.map((doc, idx) => (
-                <li key={idx}>{doc}</li>
-              ))}
-            </ul>
-
-            {/* Status Remark */}
-            <div className="mb-4 text-justify">
-              {accountStatusRemarks}
-            </div>
-
-            {/* Required Formalities */}
-            <div className="mb-3 font-semibold">
-              In order to proceed further, following formalities / documents are still required:
+            {/* Required Formalities Lead-in */}
+            <div className="mb-3 text-justify font-normal">
+              In order to enable us to proceed with the transmission of unpaid dividends, if any, of the subject deceased shareholder, please arrange to furnish us following required documents:
             </div>
 
             <ol className="list-decimal pl-6 mb-6 space-y-2 text-justify">
@@ -689,9 +728,13 @@ ${signatory1}                      ${signatory2}
               ))}
             </ol>
 
-            {/* Closing Note */}
+            {/* Closing Notes */}
+            <div className="mb-3 text-justify">
+              Upon receipt of above documents in order, we shall proceed further accordingly.
+            </div>
+
             <div className="mb-8 text-justify">
-              Should you have any query, feel free to coordinate with us.
+              Should you have any query or concerns, please feel free to contact us.
             </div>
 
             {/* Signatures */}
@@ -705,8 +748,8 @@ ${signatory1}                      ${signatory2}
                   {signatory1}
                 </div>
               </div>
-              <div className="text-right">
-                <div className="w-48 border-t border-slate-900 pt-1 font-bold text-xs ml-auto">
+              <div>
+                <div className="w-48 border-t border-slate-900 pt-1 font-bold text-xs">
                   {signatory2}
                 </div>
               </div>
