@@ -95,11 +95,12 @@ export async function POST(req: NextRequest) {
     // Attempt AI extraction using Gemini Vision
     let extractedData: Record<string, any> | undefined = undefined;
     try {
-      // Clean base64 string
+      // Clean base64 string and convert to Buffer
       const cleanB64 = imageBase64.replace(/^data:[^;]+;base64,/, "");
-      const aiResult = await analyzeDocumentWithGemini(cleanB64, mimeType);
-      if (aiResult) {
-        extractedData = aiResult;
+      const buffer = Buffer.from(cleanB64, "base64");
+      const aiResult = await analyzeDocumentWithGemini(buffer, mimeType);
+      if (aiResult && aiResult.success && aiResult.parsed) {
+        extractedData = aiResult.parsed;
       }
     } catch (ocrErr) {
       console.warn("AI extraction during mobile upload warning:", ocrErr);

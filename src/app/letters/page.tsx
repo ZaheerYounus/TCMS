@@ -1121,54 +1121,10 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
     if (fd.lostSharesDetail) setLostSharesDetail(fd.lostSharesDetail);
   };
 
-  const handleLoadFromMobileScan = (scan: any) => {
+  const handleLoadFromMobileScan = async (scan: any) => {
     if (!scan) return;
     setActiveLoadedScan(scan);
     setNewScanAlert(null);
-
-    const ed = scan.extractedData || {};
-    if (ed.deceased) setDeceased(ed.deceased);
-    if (ed.legalHeir) setLegalHeir(ed.legalHeir);
-    if (ed.applicantFather) setApplicantFather(ed.applicantFather);
-    if (ed.address) setAddress(ed.address);
-    if (ed.contactNo) setContactNo(ed.contactNo);
-    if (ed.company) {
-      setCompany(ed.company);
-      const sym = lookupSymbol(ed.company) || ed.compSymbol || "COMP";
-      setCompSymbol(sym);
-      if (ed.folio) {
-        setRefNo(`CDCSR/LTC/${sym}/${ed.folio}/26`);
-      }
-    }
-    if (ed.folio) {
-      setFolio(ed.folio);
-      if (!ed.company && compSymbol) {
-        setRefNo(`CDCSR/LTC/${compSymbol}/${ed.folio}/26`);
-      }
-    }
-    if (ed.shares) setShares(ed.shares);
-    if (ed.certificates) setCertificates(ed.certificates);
-    if (ed.scripts) setScripts(ed.scripts);
-
-    if (ed.receivedDocs && Array.isArray(ed.receivedDocs) && ed.receivedDocs.length > 0) {
-      setReceivedDocs(ed.receivedDocs);
-      const gap = calculateDocumentGap(ed.receivedDocs);
-      setGapAnalysis(gap);
-      if (gap.missingDocs.length > 0) {
-        setRequiredDocs(gap.missingDocs);
-      }
-    }
-
-    setExtractedDataSummary({
-      folio: ed.folio || folio,
-      company: ed.company || company,
-      deceased: ed.deceased || deceased,
-      legalHeir: ed.legalHeir || legalHeir,
-      contactNo: ed.contactNo || contactNo,
-      address: ed.address || address
-    });
-
-    setUploadSuccessMsg(`Mobile letter scan loaded! Particulars for ${ed.deceased || 'deceased'} automatically populated into letter.`);
 
     // Mark as processed in background
     fetch("/api/letters/mobile-uploads", {
@@ -1176,6 +1132,72 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: scan.id, status: "PROCESSED" }),
     }).catch(() => {});
+
+    // Fast-path: If scan.extractedData is already available, apply it immediately
+    const ed = scan.extractedData || {};
+    if (ed.deceased || ed.folio || ed.company || ed.legalHeir) {
+      if (ed.deceased) setDeceased(ed.deceased);
+      if (ed.legalHeir) setLegalHeir(ed.legalHeir);
+      if (ed.applicantFather) setApplicantFather(ed.applicantFather);
+      if (ed.address) setAddress(ed.address);
+      if (ed.contactNo) setContactNo(ed.contactNo);
+      if (ed.company) {
+        setCompany(ed.company);
+        const sym = lookupSymbol(ed.company) || ed.compSymbol || "COMP";
+        setCompSymbol(sym);
+        if (ed.folio) {
+          setRefNo(`CDCSR/LTC/${sym}/${ed.folio}/26`);
+        }
+      }
+      if (ed.folio) {
+        setFolio(ed.folio);
+        if (!ed.company && compSymbol) {
+          setRefNo(`CDCSR/LTC/${compSymbol}/${ed.folio}/26`);
+        }
+      }
+      if (ed.shares) setShares(ed.shares);
+      if (ed.certificates) setCertificates(ed.certificates);
+      if (ed.scripts) setScripts(ed.scripts);
+
+      if (ed.receivedDocs && Array.isArray(ed.receivedDocs) && ed.receivedDocs.length > 0) {
+        setReceivedDocs(ed.receivedDocs);
+        const gap = calculateDocumentGap(ed.receivedDocs);
+        setGapAnalysis(gap);
+        if (gap.missingDocs.length > 0) {
+          setRequiredDocs(gap.missingDocs);
+        }
+      }
+
+      setExtractedDataSummary({
+        folio: ed.folio || folio,
+        company: ed.company || company,
+        deceased: ed.deceased || deceased,
+        legalHeir: ed.legalHeir || legalHeir,
+        contactNo: ed.contactNo || contactNo,
+        address: ed.address || address
+      });
+
+      setUploadSuccessMsg(`Mobile letter scan loaded! Particulars for ${ed.deceased || 'deceased'} automatically populated into letter.`);
+    }
+
+    // Comprehensive path: If scan has imageBase64, always run through full handleFileUpload pipeline
+    // to guarantee 100% deep extraction identical to standard file upload!
+    if (scan.imageBase64) {
+      try {
+        const parts = scan.imageBase64.split(",");
+        const b64 = parts.length > 1 ? parts[1] : parts[0];
+        const mime = parts.length > 1 ? parts[0].split(":")[1]?.split(";")[0] : (scan.mimeType || "image/jpeg");
+        const binaryString = atob(b64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const file = new File([bytes], `mobile_scan_${scan.id}.jpg`, { type: mime || "image/jpeg" });
+        await handleFileUpload(file);
+      } catch (convErr) {
+        console.warn("Base64 to file conversion fallback:", convErr);
+      }
+    }
   };
 
   const handleCopyText = () => {
