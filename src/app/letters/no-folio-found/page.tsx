@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { NoFolioFoundLetter } from "@/components/letters/NoFolioFoundLetter";
-import { LetterNavTabs } from "@/components/letters/LetterNavTabs";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -11,10 +10,7 @@ export const metadata: Metadata = {
 export default function NoFolioFoundPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading No Folio Found Letter...</div>}>
-      <div className="w-full max-w-screen-2xl mx-auto pb-12">
-        <LetterNavTabs currentType="no-folio-found" />
-        <NoFolioFoundLetter />
-      </div>
+      <NoFolioFoundLetter />
     </Suspense>
   );
 }

@@ -23,7 +23,8 @@ import {
   CreditCard,
   Stamp,
   Building,
-  SearchX
+  SearchX,
+  Smartphone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ const letterSubItems = [
   { name: "Physical Approval", href: "/letters/physical-approval", icon: Stamp },
   { name: "CDS Account Letter", href: "/letters/cds-account", icon: Building },
   { name: "No Folio Found", href: "/letters/no-folio-found", icon: SearchX },
+  { name: "Mobile Camera Scan", href: "/letters/mobile-upload", icon: Smartphone },
 ];
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {

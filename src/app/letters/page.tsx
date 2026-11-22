@@ -52,7 +52,11 @@ import {
   Maximize2,
   Camera,
   SwitchCamera,
-  RefreshCw
+  RefreshCw,
+  Smartphone,
+  History,
+  QrCode,
+  Image as ImageIcon
 } from "lucide-react";
 import companiesList from "@/data/companiesList.json";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -227,6 +231,37 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
   // Cross-device sync & history dialog states
   const [showMobileInbox, setShowMobileInbox] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [mobileScansList, setMobileScansList] = useState<any[]>([]);
+  const [activeLoadedScan, setActiveLoadedScan] = useState<any | null>(null);
+  const [viewingScanImage, setViewingScanImage] = useState<string | null>(null);
+  const [newScanAlert, setNewScanAlert] = useState<any | null>(null);
+
+  // Live polling for newly uploaded mobile scans every 5 seconds
+  const fetchRecentMobileScans = async () => {
+    try {
+      const res = await fetch("/api/letters/mobile-uploads?status=ALL");
+      const data = await res.json();
+      if (data?.uploads && Array.isArray(data.uploads)) {
+        setMobileScansList(prev => {
+          if (prev.length > 0 && data.uploads.length > prev.length) {
+            const newest = data.uploads[0];
+            if (newest && newest.id !== prev[0]?.id && newest.status === "PENDING") {
+              setNewScanAlert(newest);
+            }
+          }
+          return data.uploads;
+        });
+      }
+    } catch (e) {
+      // silent
+    }
+  };
+
+  useEffect(() => {
+    fetchRecentMobileScans();
+    const timer = setInterval(fetchRecentMobileScans, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Multi Folio Rows (No scripts column needed)
   const [multiFolios, setMultiFolios] = useState<MultiFolioItem[]>([
@@ -1088,18 +1123,59 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
 
   const handleLoadFromMobileScan = (scan: any) => {
     if (!scan) return;
-    if (scan.extractedData) {
-      const ed = scan.extractedData;
-      if (ed.deceased) setDeceased(ed.deceased);
-      if (ed.legalHeir) setLegalHeir(ed.legalHeir);
-      if (ed.applicantFather) setApplicantFather(ed.applicantFather);
-      if (ed.address) setAddress(ed.address);
-      if (ed.contactNo) setContactNo(ed.contactNo);
-      if (ed.company) setCompany(ed.company);
-      if (ed.folio) setFolio(ed.folio);
-      if (ed.shares) setShares(ed.shares);
-      if (ed.certificates) setCertificates(ed.certificates);
+    setActiveLoadedScan(scan);
+    setNewScanAlert(null);
+
+    const ed = scan.extractedData || {};
+    if (ed.deceased) setDeceased(ed.deceased);
+    if (ed.legalHeir) setLegalHeir(ed.legalHeir);
+    if (ed.applicantFather) setApplicantFather(ed.applicantFather);
+    if (ed.address) setAddress(ed.address);
+    if (ed.contactNo) setContactNo(ed.contactNo);
+    if (ed.company) {
+      setCompany(ed.company);
+      const sym = lookupSymbol(ed.company) || ed.compSymbol || "COMP";
+      setCompSymbol(sym);
+      if (ed.folio) {
+        setRefNo(`CDCSR/LTC/${sym}/${ed.folio}/26`);
+      }
     }
+    if (ed.folio) {
+      setFolio(ed.folio);
+      if (!ed.company && compSymbol) {
+        setRefNo(`CDCSR/LTC/${compSymbol}/${ed.folio}/26`);
+      }
+    }
+    if (ed.shares) setShares(ed.shares);
+    if (ed.certificates) setCertificates(ed.certificates);
+    if (ed.scripts) setScripts(ed.scripts);
+
+    if (ed.receivedDocs && Array.isArray(ed.receivedDocs) && ed.receivedDocs.length > 0) {
+      setReceivedDocs(ed.receivedDocs);
+      const gap = calculateDocumentGap(ed.receivedDocs);
+      setGapAnalysis(gap);
+      if (gap.missingDocs.length > 0) {
+        setRequiredDocs(gap.missingDocs);
+      }
+    }
+
+    setExtractedDataSummary({
+      folio: ed.folio || folio,
+      company: ed.company || company,
+      deceased: ed.deceased || deceased,
+      legalHeir: ed.legalHeir || legalHeir,
+      contactNo: ed.contactNo || contactNo,
+      address: ed.address || address
+    });
+
+    setUploadSuccessMsg(`Mobile letter scan loaded! Particulars for ${ed.deceased || 'deceased'} automatically populated into letter.`);
+
+    // Mark as processed in background
+    fetch("/api/letters/mobile-uploads", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: scan.id, status: "PROCESSED" }),
+    }).catch(() => {});
   };
 
   const handleCopyText = () => {
@@ -1152,12 +1228,6 @@ Encl.:  As stated above.`;
 
   return (
     <div className="w-full max-w-screen-2xl mx-auto pb-12">
-      {/* Template Navigation, Mobile Upload, and History Bar */}
-      <LetterNavTabs 
-        currentType={mode === "multi" ? "various-folios" : "first-letter"}
-        onOpenMobileInbox={() => setShowMobileInbox(true)}
-        onOpenHistory={() => setShowHistory(true)}
-      />
 
       {/* Mobile Scans Inbox Dialog */}
       <MobileScansInbox 
@@ -1290,18 +1360,7 @@ Encl.:  As stated above.`;
                   )}
 
                   <div className="flex flex-wrap items-center justify-center gap-2">
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        setCameraModalOpen(true);
-                        startCamera("environment");
-                      }}
-                      disabled={uploadingFile}
-                      className="h-8 bg-[#F37021] hover:bg-[#D85B10] text-white font-bold text-xs px-3.5 shadow-2xs flex items-center gap-1.5"
-                    >
-                      <Camera className="h-3.5 w-3.5" />
-                      Live Camera Scan
-                    </Button>
+                    {/* Browse Computer File */}
                     <Button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
@@ -1309,20 +1368,212 @@ Encl.:  As stated above.`;
                       className="h-8 bg-[#0B2B5E] hover:bg-[#103a7a] text-white font-bold text-xs px-3.5 shadow-2xs flex items-center gap-1.5"
                     >
                       <UploadCloud className="h-3.5 w-3.5 text-orange-400" />
-                      {uploadingFile ? `Analyzing (${uploadProgressPercent}%)...` : "Select Letter / Scan"}
+                      {uploadingFile ? `Analyzing (${uploadProgressPercent}%)...` : "Select Letter / Scan (Browse)"}
                     </Button>
+
+                    {/* Mobile Scans Gallery Trigger */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowMobileInbox(true)}
+                      className="h-8 border-amber-300 bg-amber-50 hover:bg-amber-100 text-[#0B2B5E] font-bold text-xs px-3 shadow-2xs relative flex items-center gap-1.5"
+                    >
+                      <Smartphone className="h-3.5 w-3.5 text-[#F37021]" />
+                      <span>Mobile Scans Inbox ({mobileScansList.length})</span>
+                      {mobileScansList.some(s => s.status === "PENDING") && (
+                        <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                      )}
+                    </Button>
+
+                    {/* Live Camera Scan */}
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setCameraModalOpen(true);
+                        startCamera("environment");
+                      }}
+                      disabled={uploadingFile}
+                      className="h-8 bg-[#F37021] hover:bg-[#D85B10] text-white font-bold text-xs px-3 shadow-2xs flex items-center gap-1.5"
+                    >
+                      <Camera className="h-3.5 w-3.5" />
+                      Live Camera
+                    </Button>
+
+                    {/* Letter History */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowHistory(true)}
+                      className="h-8 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs px-3 shadow-2xs flex items-center gap-1.5"
+                    >
+                      <History className="h-3.5 w-3.5 text-slate-600" />
+                      Letter History
+                    </Button>
+
+                    {/* Paste Text */}
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => setPasteModalOpen(true)}
                       disabled={uploadingFile}
-                      className="h-8 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs px-3 shadow-2xs"
+                      className="h-8 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs px-3 shadow-2xs flex items-center gap-1.5"
                     >
                       <ClipboardPaste className="mr-1.5 h-3.5 w-3.5 text-[#F37021]" />
                       Paste Text
                     </Button>
                   </div>
                 </div>
+
+                {/* Real-Time Alert Banner for newly arrived mobile scans */}
+                {newScanAlert && (
+                  <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl shadow-md flex items-center justify-between animate-in slide-in-from-top-2">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="p-1 bg-white/20 rounded-md">
+                        <Smartphone className="h-4 w-4" />
+                      </span>
+                      <span>
+                        <strong>New Scan Received Just Now!</strong> {newScanAlert.notes || newScanAlert.extractedData?.deceased || 'Uploaded from mobile'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleLoadFromMobileScan(newScanAlert)}
+                        className="h-7 text-xs bg-white text-[#0B2B5E] hover:bg-white/90 font-bold"
+                      >
+                        ⚡ Load into Letter Now
+                      </Button>
+                      <button onClick={() => setNewScanAlert(null)} className="text-white/80 hover:text-white p-1">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Active Loaded Physical Scan Banner */}
+                {activeLoadedScan && (
+                  <div className="p-2.5 rounded-xl bg-blue-50/80 border border-blue-200 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div 
+                        onClick={() => setViewingScanImage(activeLoadedScan.imageBase64)}
+                        className="h-10 w-9 rounded-md overflow-hidden border border-blue-300 bg-white cursor-pointer hover:opacity-90 shrink-0 shadow-2xs"
+                        title="Click to view full photo"
+                      >
+                        <img src={activeLoadedScan.imageBase64} alt="Active letter" className="h-full w-full object-cover" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-[#0B2B5E] flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>Active Physical Letter Attached</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500">
+                          Data populated into letter. Click thumbnail to inspect original document.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setViewingScanImage(activeLoadedScan.imageBase64)}
+                        className="h-7 text-[11px] gap-1"
+                      >
+                        <Eye className="h-3 w-3" />
+                        Inspect Photo
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveLoadedScan(null)}
+                        className="text-slate-400 hover:text-slate-600 p-1"
+                        title="Detach photo"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick Selection: Recent Mobile Scans Gallery */}
+                {mobileScansList.length > 0 && (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#0B2B5E]">
+                        <Smartphone className="h-3.5 w-3.5 text-[#F37021]" />
+                        <span>Recent Mobile Scans (موبائل سے موصول شدہ لیٹرز):</span>
+                        <span className="text-[10px] text-slate-500 font-normal hidden sm:inline">Click any letter to auto-populate particulars</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowMobileInbox(true)}
+                        className="text-[11px] font-semibold text-[#0B2B5E] hover:underline flex items-center gap-1"
+                      >
+                        All Scans ({mobileScansList.length}) &rarr;
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                      {mobileScansList.slice(0, 3).map((scan) => {
+                        const isLoaded = activeLoadedScan?.id === scan.id;
+                        const ed = scan.extractedData || {};
+                        const title = ed.deceased ? `Late ${ed.deceased}` : scan.notes || `Scan #${scan.id.slice(0, 6)}`;
+                        return (
+                          <div
+                            key={scan.id}
+                            className={`p-2 rounded-xl border transition-all text-xs flex items-center gap-2.5 ${
+                              isLoaded 
+                                ? "bg-emerald-50/80 border-emerald-400 ring-2 ring-emerald-400/30 shadow-xs" 
+                                : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs"
+                            }`}
+                          >
+                            {/* Thumbnail with click to preview */}
+                            <div
+                              onClick={() => setViewingScanImage(scan.imageBase64)}
+                              className="relative h-14 w-12 rounded-lg bg-slate-100 border overflow-hidden shrink-0 cursor-pointer group"
+                              title="Click to view full image"
+                            >
+                              <img src={scan.imageBase64} alt="Thumb" className="h-full w-full object-cover" />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <Eye className="h-3.5 w-3.5 text-white" />
+                              </div>
+                            </div>
+
+                            {/* Meta info & apply button */}
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="font-bold text-slate-800 truncate text-[11px]" title={title}>
+                                {title}
+                              </div>
+                              <div className="text-[10px] text-slate-500 truncate">
+                                {ed.company || scan.category?.replace(/_/g, " ")} {ed.folio ? `• Folio ${ed.folio}` : ''}
+                              </div>
+                              <div className="flex items-center gap-1.5 pt-0.5">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => handleLoadFromMobileScan(scan)}
+                                  className={`h-6 text-[10px] px-2 py-0 font-bold ${
+                                    isLoaded
+                                      ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                      : "bg-[#0B2B5E] hover:bg-[#103a7a] text-white"
+                                  }`}
+                                >
+                                  {isLoaded ? "✓ Loaded" : "⚡ Apply to Form"}
+                                </Button>
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingScanImage(scan.imageBase64)}
+                                  className="text-[10px] text-slate-500 hover:text-slate-900 underline"
+                                >
+                                  View
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Clean Auto-Reflection Notification */}
                 {extractedDataSummary && (
@@ -2735,6 +2986,26 @@ Encl.:  As stated above.`;
         </DialogContent>
       </Dialog>
 
+      {/* Full Photo Inspector Modal */}
+      <Dialog open={!!viewingScanImage} onOpenChange={() => setViewingScanImage(null)}>
+        <DialogContent className="max-w-4xl p-3 bg-slate-950 border-slate-800 text-white">
+          <DialogHeader className="p-2 pb-2 flex flex-row items-center justify-between border-b border-slate-800">
+            <DialogTitle className="text-sm font-bold text-white flex items-center gap-2">
+              <ImageIcon className="h-4 w-4 text-amber-400" />
+              Physical Letter Scan Inspector (اصل خط کا عکس)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-2 max-h-[80vh] overflow-auto flex items-center justify-center bg-black/40 rounded-lg">
+            {viewingScanImage && (
+              <img 
+                src={viewingScanImage} 
+                alt="Letter Scan High Resolution" 
+                className="max-h-[75vh] w-auto object-contain rounded-md shadow-2xl" 
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
