@@ -56,7 +56,9 @@ import {
   Smartphone,
   History,
   QrCode,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Coins,
+  Calculator
 } from "lucide-react";
 import companiesList from "@/data/companiesList.json";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -156,8 +158,31 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
   const [searchingFolio, setSearchingFolio] = useState(false);
   const [includeStandardCertLine, setIncludeStandardCertLine] = useState(false); // Requirement 13
   const [cleanHeirNameOnly, setCleanHeirNameOnly] = useState(true); // Requirement 9
-  const [stampDutyProvince, setStampDutyProvince] = useState<"Sindh" | "Punjab" | "Federal Capital" | "KPK" | "Balochistan">("Sindh"); // Requirement 12
-  const [includeStampDutyTable, setIncludeStampDutyTable] = useState(false); // Requirement 18
+  // Share Transfer Stamp Duty Calculator State
+  const [stampDutyProvince, setStampDutyProvince] = useState<"Sindh" | "Punjab" | "Federal Capital" | "KPK" | "Balochistan" | "Custom">("Sindh");
+  const [stampDutyRate, setStampDutyRate] = useState<number>(0.25);
+  const [stampFaceValue, setStampFaceValue] = useState<number>(10);
+  const [stampManualOverride, setStampManualOverride] = useState<boolean>(false);
+  const [stampCustomAmount, setStampCustomAmount] = useState<string>("25");
+  const [includeStampDutyTable, setIncludeStampDutyTable] = useState(false);
+
+  const getNumericShares = (sharesStr: string): number => {
+    const cleaned = (sharesStr || "").replace(/[^\d]/g, "");
+    const parsed = parseInt(cleaned, 10);
+    return isNaN(parsed) || parsed === 0 ? 1000 : parsed;
+  };
+
+  const getCalculatedStampAmount = (): number => {
+    if (stampManualOverride) {
+      const parsed = parseInt(stampCustomAmount.replace(/[^\d]/g, ""), 10);
+      return isNaN(parsed) ? 25 : parsed;
+    }
+    const numShares = getNumericShares(shares);
+    const fv = stampFaceValue > 0 ? stampFaceValue : 10;
+    const totalFV = numShares * fv;
+    const computed = Math.round(totalFV * (stampDutyRate / 100));
+    return Math.max(25, computed);
+  };
   const [cdsAccountNo, setCdsAccountNo] = useState("03277-6959");
   const [noFolioComments, setNoFolioComments] = useState("");
   const [previewLayout, setPreviewLayout] = useState<"normal" | "wide" | "hidden">("wide");
@@ -926,9 +951,10 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
     }
     if (requiredDocs.some(d => d.toLowerCase().includes("stamp"))) {
       if (mode === "multi") {
-        list.push("Shares Transfer Stamps for respective amount as mentioned in above table");
+        list.push(`Shares Transfer stamps for respective amount as mentioned in above table (@${stampDutyRate}% of face value of shares)`);
       } else {
-        list.push("Shares Transfer stamps of Rs. 25/- (@0.25% of face value of shares)");
+        const amt = getCalculatedStampAmount();
+        list.push(`Shares Transfer stamps of Rs. ${amt.toLocaleString()}/- (@${stampDutyRate}% of face value of shares)`);
       }
     }
     if (requiredDocs.some(d => d.toLowerCase().includes("dividend"))) {
@@ -1872,14 +1898,33 @@ Encl.:  As stated above.`;
                           <p className="text-xs font-bold text-slate-700">Multiple Folios Breakdown</p>
                           <p className="text-[11px] text-slate-500">Each folio with respective company, share count &amp; cert count.</p>
                         </div>
-                        <Button 
-                          type="button" 
-                          onClick={addMultiFolioRow} 
-                          size="sm" 
-                          className="h-7 text-xs bg-[#0B2B5E] text-white"
-                        >
-                          <Plus className="mr-1 h-3 w-3" /> Add Folio
-                        </Button>
+                        <div className="flex items-center gap-1.5">
+                          <Button 
+                            type="button" 
+                            onClick={() => {
+                              setMultiFolios(prev => prev.map(row => {
+                                const rowShares = getNumericShares(row.shares);
+                                const fv = stampFaceValue > 0 ? stampFaceValue : 10;
+                                const duty = Math.max(25, Math.round((rowShares * fv) * (stampDutyRate / 100)));
+                                return { ...row, stampDuty: `Rs. ${duty.toLocaleString()}/-` };
+                              }));
+                            }} 
+                            variant="outline"
+                            size="sm" 
+                            className="h-7 text-xs border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 font-semibold"
+                            title={`Auto calculate stamp duty using ${stampDutyRate}% and FV Rs. ${stampFaceValue}`}
+                          >
+                            <Calculator className="mr-1 h-3 w-3 text-amber-600" /> Auto-Calc Stamp Duty
+                          </Button>
+                          <Button 
+                            type="button" 
+                            onClick={addMultiFolioRow} 
+                            size="sm" 
+                            className="h-7 text-xs bg-[#0B2B5E] text-white"
+                          >
+                            <Plus className="mr-1 h-3 w-3" /> Add Folio
+                          </Button>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         {/* Warnings for unrecognized symbols or missing folios */}
@@ -2269,6 +2314,154 @@ Encl.:  As stated above.`;
                       </div>
                     </div>
 
+                    {/* STAMP DUTY CALCULATOR & SETTINGS */}
+                    <div className="p-3 bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-white rounded-xl border border-amber-300 space-y-2.5 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-700">
+                            <Coins className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-800 text-xs block">
+                              Share Transfer Stamp Duty Calculator (اسٹیمپ ڈیوٹی)
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              Article 62-a of Stamp Act (Province rate &amp; FV calculation)
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold border border-amber-300">
+                          Active: Rs. {getCalculatedStampAmount().toLocaleString()}/-
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                        {/* Province Selector */}
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                            Province / Jurisdiction:
+                          </label>
+                          <select
+                            value={stampDutyProvince}
+                            onChange={(e: any) => {
+                              const prov = e.target.value;
+                              setStampDutyProvince(prov);
+                              if (prov === "Sindh" || prov === "Punjab" || prov === "Federal Capital" || prov === "KPK" || prov === "Balochistan") {
+                                setStampDutyRate(0.25);
+                              }
+                            }}
+                            className="w-full h-8 text-xs font-semibold rounded-lg border border-slate-300 bg-white px-2 text-slate-800 focus:ring-1 focus:ring-amber-500"
+                          >
+                            <option value="Sindh">Sindh (0.25% prescribed)</option>
+                            <option value="Punjab">Punjab (0.25% prescribed)</option>
+                            <option value="Federal Capital">Federal / Islamabad (0.25%)</option>
+                            <option value="KPK">Khyber Pakhtunkhwa (0.25%)</option>
+                            <option value="Balochistan">Balochistan (0.25%)</option>
+                            <option value="Custom">Custom Rate...</option>
+                          </select>
+                        </div>
+
+                        {/* Stamp Duty Rate (%) */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-600">Rate (% of FV):</label>
+                            <div className="flex gap-1">
+                              {[0.25, 0.5, 1.0].map(r => (
+                                <button
+                                  key={r}
+                                  type="button"
+                                  onClick={() => { setStampDutyRate(r); setStampDutyProvince("Custom"); }}
+                                  className={`text-[9px] px-1 py-0.5 rounded font-bold ${stampDutyRate === r ? 'bg-[#0B2B5E] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                >
+                                  {r}%
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              step="0.05"
+                              min="0"
+                              value={stampDutyRate}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                setStampDutyRate(isNaN(val) ? 0 : val);
+                                setStampDutyProvince("Custom");
+                              }}
+                              className="h-8 text-xs pr-6 font-bold"
+                            />
+                            <span className="absolute right-2 top-2 text-xs text-slate-400 font-bold">%</span>
+                          </div>
+                        </div>
+
+                        {/* Face Value per Share */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-600">Face Value (FV):</label>
+                            <div className="flex gap-1">
+                              {[5, 10, 50, 100].map(fv => (
+                                <button
+                                  key={fv}
+                                  type="button"
+                                  onClick={() => setStampFaceValue(fv)}
+                                  className={`text-[9px] px-1 py-0.5 rounded font-bold ${stampFaceValue === fv ? 'bg-[#0B2B5E] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                >
+                                  {fv}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={stampFaceValue}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                setStampFaceValue(isNaN(val) ? 10 : val);
+                              }}
+                              className="h-8 text-xs pl-7 font-bold"
+                            />
+                            <span className="absolute left-2 top-2 text-xs text-slate-400 font-bold">Rs.</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Manual Override & Quick Calculation Details */}
+                      <div className="flex flex-wrap items-center justify-between pt-2 border-t border-amber-200/60 gap-2">
+                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={stampManualOverride}
+                            onChange={(e) => setStampManualOverride(e.target.checked)}
+                            className="h-3.5 w-3.5 rounded text-[#0B2B5E]"
+                          />
+                          <span>Manual Custom Amount:</span>
+                          {stampManualOverride && (
+                            <div className="inline-flex items-center ml-1">
+                              <span className="text-[11px] text-slate-500 mr-1">Rs.</span>
+                              <Input
+                                value={stampCustomAmount}
+                                onChange={(e) => setStampCustomAmount(e.target.value)}
+                                className="h-6 w-20 text-xs px-1.5 py-0 font-bold text-[#0B2B5E]"
+                                placeholder="e.g. 250"
+                              />
+                              <span className="text-[11px] text-slate-500 ml-1">/-</span>
+                            </div>
+                          )}
+                        </label>
+
+                        <div className="text-[11px] text-slate-600">
+                          {mode === "single" ? (
+                            <span>Formula: {getNumericShares(shares).toLocaleString()} shares × Rs. {stampFaceValue} FV = Total FV Rs. {(getNumericShares(shares) * stampFaceValue).toLocaleString()} @ {stampDutyRate}% = <strong>Rs. {getCalculatedStampAmount().toLocaleString()}/-</strong> (Min Rs. 25/-)</span>
+                          ) : (
+                            <span>In Multi-Folio mode, stamp duty can be calculated per row via <strong>Auto-Calc Stamp Duty</strong> button above.</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[#0B2B5E] flex items-center gap-1.5">
                         <ShieldCheck className="h-3.5 w-3.5 text-[#F37021]" />
@@ -2297,6 +2490,7 @@ Encl.:  As stated above.`;
                       {requiredDocOptions.map((doc, i) => {
                         const isChecked = requiredDocs.includes(doc);
                         const isSuccession = doc.includes("Succession Certificate");
+                        const isStamp = doc.toLowerCase().includes("stamp");
                         return (
                           <div 
                             key={i} 
@@ -2320,6 +2514,15 @@ Encl.:  As stated above.`;
                                 <div className="flex items-center gap-1.5">
                                   <Scale className="h-3.5 w-3.5 text-[#F37021] shrink-0" />
                                   <span className="text-[#0B2B5E] font-bold">{doc}</span>
+                                </div>
+                              ) : isStamp ? (
+                                <div className="flex items-center justify-between">
+                                  <span>
+                                    Shares Transfer stamps {mode === "single" ? `of Rs. ${getCalculatedStampAmount().toLocaleString()}/- (@${stampDutyRate}% of face value)` : `for respective amount as mentioned in table (@${stampDutyRate}%)`}
+                                  </span>
+                                  <Badge className="bg-amber-100 text-amber-800 text-[9px] font-mono px-1.5 py-0">
+                                    {stampManualOverride ? "Manual" : `${stampDutyProvince} (${stampDutyRate}%)`}
+                                  </Badge>
                                 </div>
                               ) : (
                                 <span>{doc}</span>
@@ -2714,7 +2917,7 @@ Encl.:  As stated above.`;
                     </div>
                   )}
 
-                  {scrutinyPosition === "middle" && includeScrutinyNote && scrutinyRemark.trim() && (
+                  {(scrutinyPosition === "middle" || scrutinyPosition === "after_received" || scrutinyPosition === "before_required") && includeScrutinyNote && scrutinyRemark.trim() && (
                     <p className="my-2 p-2 rounded bg-blue-50/70 border border-blue-200 text-[#0B2B5E] font-sans">
                       {scrutinyRemark}
                     </p>
@@ -2752,7 +2955,7 @@ Encl.:  As stated above.`;
                     })}
                   </ol>
 
-                  {scrutinyPosition === "bottom" && includeScrutinyNote && scrutinyRemark.trim() && (
+                  {(scrutinyPosition === "bottom" || scrutinyPosition === "after_required") && includeScrutinyNote && scrutinyRemark.trim() && (
                     <p className="my-2 p-2 rounded bg-blue-50/70 border border-blue-200 text-[#0B2B5E] font-sans">
                       {scrutinyRemark}
                     </p>
@@ -2769,6 +2972,12 @@ Encl.:  As stated above.`;
                       Should you have any query or concern, please feel free to coordinate with us.
                     </p>
                   </div>
+
+                  {scrutinyPosition === "at_end" && includeScrutinyNote && scrutinyRemark.trim() && (
+                    <p className="my-2 p-2 rounded bg-blue-50/70 border border-blue-200 text-[#0B2B5E] font-sans">
+                      {scrutinyRemark}
+                    </p>
+                  )}
 
               {/* Signatures */}
               <div className="pt-4 font-sans space-y-1 border-t">

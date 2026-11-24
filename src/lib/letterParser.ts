@@ -247,8 +247,8 @@ export function parseLetterText(text: string): ParsedLetterResult {
 
   // 4. SINGLE COMPANY NAME & SYMBOL DETECTION
   if (result.mode === "single") {
-    // Check for explicit "Company name:" or "Company:"
-    const compMatch = normalized.match(/(?:Company(?:\s*name)?|Company)[:\s]+([A-Za-z0-9\s&.,'-]+?)(?=[,\r\n]|Folio|Applicant|Father|CNIC|$)/i);
+    // Check for explicit "Company name:", "Comp:", "Unit:", "Securities:", "Co.", etc.
+    const compMatch = normalized.match(/(?:comp(?:\s*name|\s*symbol)?|company(?:\s*name)?|unit|client|co\.)[:\s]+([A-Za-z0-9\s&.,'-\/]+?)(?=[,\r\n]|Folio|Applicant|Father|CNIC|Address|Deceased|$)/i);
     let candidateComp = compMatch ? compMatch[1].trim() : "";
 
     if (!candidateComp) {

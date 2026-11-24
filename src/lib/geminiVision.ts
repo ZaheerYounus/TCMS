@@ -63,7 +63,52 @@ CRITICAL RULES:
 7. Legal Heir Contact / Cell #:
    - Mobile / phone number (e.g. 0300-8638847).
 
-8. Folios and Companies:
+8. Folios and Companies (CRITICAL - CDCSR CLIENT MAPPINGS):
+   - Inward documents and letters frequently abbreviate company names using short symbols or prefixes like 'Comp: CHCC', 'Company: OGDC', 'Unit: KEL', 'Comp: MICL', 'Comp: LTPL'.
+   - ALWAYS recognize these CDCSR client symbols and map them to their official legal name:
+     • CHCC -> Cherat Cement Company Limited
+     • MICL -> Magnum Ice Cream Limited
+     • LTPL -> Lipton Tea Pakistan Limited
+     • OGDC / OGDCL -> Oil & Gas Development Company Limited
+     • KEL / KE -> K-Electric Limited
+     • AKBL -> Askari Bank Limited
+     • ABL -> Allied Bank Limited
+     • SNGP / SNGPL -> Sui Northern Gas Pipelines Limited
+     • SSGC -> Sui Southern Gas Company Limited
+     • PSMC -> Pak Suzuki Motor Company Limited
+     • KHTC -> Khyber Tobacco Company Limited
+     • PIAC / PIA -> Pakistan International Airlines Corporation
+     • HBL -> Habib Bank Limited
+     • MCB -> MCB Bank Limited
+     • UBL -> United Bank Limited
+     • BAHL -> Bank AL Habib Limited
+     • BAFL -> Bank Alfalah Limited
+     • MEBL -> Meezan Bank Limited
+     • FABL / FBL -> Faysal Bank Limited
+     • BIPL -> BankIslami Pakistan Limited
+     • PSO -> Pakistan State Oil Company Limited
+     • POL -> Pakistan Oilfields Limited
+     • PPL -> Pakistan Petroleum Limited
+     • ENGRO -> Engro Corporation Limited
+     • EFERT -> Engro Fertilizers Limited
+     • FFC -> Fauji Fertilizer Company Limited
+     • LUCK -> Lucky Cement Limited
+     • DGKC -> D.G. Khan Cement Company Limited
+     • MLCF -> Maple Leaf Cement Factory Limited
+     • HUBC -> The Hub Power Company Limited
+     • SYS -> Systems Limited
+     • TRG -> TRG Pakistan Limited
+     • PAKT -> Pakistan Tobacco Company Limited
+     • CPHL -> Citi Pharma Limited
+     • SEARL -> The Searle Company Limited
+     • NATF -> National Foods Limited
+     • NRL -> National Refinery Limited
+     • ATRL -> Attock Refinery Limited
+     • APL -> Attock Petroleum Limited
+     • PNSC -> Pakistan National Shipping Corporation
+     • PIBT / PIBTL -> Pakistan International Bulk Terminal Limited
+     • TATM -> Tata Textile Mills Limited
+     • PMPK -> Philip Morris Pakistan Limited
    - Check if folios and companies are listed as comma-separated lists (e.g. "Folio: 655, 43, 564..." and "Company name: OGDC, AKBL, ABL...").
    - Pair them strictly by position: 1st folio with 1st company, 2nd with 2nd, etc.
    - If there are more companies than folios, KEEP ALL companies in the list, and set folio to "— Not provided".
@@ -238,9 +283,12 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
     const rawAddress = (parsedObj.address || '').trim();
     const addressLines = splitAddressIntoThreeLines(rawAddress);
 
-    let singleComp = parsedObj.company || '';
+    let singleComp = (parsedObj.company || '').trim();
+    if (!singleComp && parsedObj.companies && parsedObj.companies.length > 0) {
+      singleComp = (parsedObj.companies[0].company || '').trim();
+    }
     let singleSym = '';
-    if (!isMultiMode && singleComp) {
+    if (singleComp) {
       const formatted = formatCompanyWithSymbol(singleComp);
       singleComp = formatted.fullName || formatted.displayName;
       singleSym = formatted.symbol || lookupSymbolFromName(singleComp) || '';

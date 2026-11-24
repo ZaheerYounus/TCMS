@@ -255,6 +255,7 @@ export async function POST(req: NextRequest) {
       ]),
 
       // 5. Opening Body acknowledging receipt (Optional doc acknowledgment)
+      ...(scrutinyPosition === 'top' ? scrutinyParagraphs : []),
       new Paragraph({
         children: [
           new TextRun({ 
@@ -340,8 +341,8 @@ export async function POST(req: NextRequest) {
         }),
       ]),
 
-      // Position A: After Received Documents
-      ...(scrutinyPosition === 'after_received' ? scrutinyParagraphs : []),
+      // Position A: After Received Documents / Middle
+      ...((scrutinyPosition === 'after_received' || scrutinyPosition === 'middle') ? scrutinyParagraphs : []),
 
       // Lost Share Formalities (Position: before_required)
       ...(duplicatePosition === 'before_required' ? duplicateShareParagraphs : []),
@@ -417,8 +418,8 @@ export async function POST(req: NextRequest) {
         ];
       }),
 
-      // Position C: After Required Documents
-      ...(scrutinyPosition === 'after_required' ? scrutinyParagraphs : []),
+      // Position C: After Required Documents / Bottom
+      ...((scrutinyPosition === 'after_required' || scrutinyPosition === 'bottom') ? scrutinyParagraphs : []),
 
       // Lost Share Formalities (Position: after_required)
       ...(duplicatePosition === 'after_required' ? duplicateShareParagraphs : []),
