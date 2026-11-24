@@ -175,13 +175,13 @@ export function MainLetterGenerator({ initialMode = "single" }: { initialMode?: 
   const getCalculatedStampAmount = (): number => {
     if (stampManualOverride) {
       const parsed = parseInt(stampCustomAmount.replace(/[^\d]/g, ""), 10);
-      return isNaN(parsed) ? 25 : parsed;
+      return isNaN(parsed) ? 0 : parsed;
     }
     const numShares = getNumericShares(shares);
     const fv = stampFaceValue > 0 ? stampFaceValue : 10;
     const totalFV = numShares * fv;
     const computed = Math.round(totalFV * (stampDutyRate / 100));
-    return Math.max(25, computed);
+    return computed > 0 ? computed : 1;
   };
   const [cdsAccountNo, setCdsAccountNo] = useState("03277-6959");
   const [noFolioComments, setNoFolioComments] = useState("");
@@ -1905,7 +1905,7 @@ Encl.:  As stated above.`;
                               setMultiFolios(prev => prev.map(row => {
                                 const rowShares = getNumericShares(row.shares);
                                 const fv = stampFaceValue > 0 ? stampFaceValue : 10;
-                                const duty = Math.max(25, Math.round((rowShares * fv) * (stampDutyRate / 100)));
+                                const duty = Math.max(1, Math.round((rowShares * fv) * (stampDutyRate / 100)));
                                 return { ...row, stampDuty: `Rs. ${duty.toLocaleString()}/-` };
                               }));
                             }} 
@@ -2454,7 +2454,7 @@ Encl.:  As stated above.`;
 
                         <div className="text-[11px] text-slate-600">
                           {mode === "single" ? (
-                            <span>Formula: {getNumericShares(shares).toLocaleString()} shares × Rs. {stampFaceValue} FV = Total FV Rs. {(getNumericShares(shares) * stampFaceValue).toLocaleString()} @ {stampDutyRate}% = <strong>Rs. {getCalculatedStampAmount().toLocaleString()}/-</strong> (Min Rs. 25/-)</span>
+                            <span>Formula: {getNumericShares(shares).toLocaleString()} shares × Rs. {stampFaceValue} FV = Total FV Rs. {(getNumericShares(shares) * stampFaceValue).toLocaleString()} @ {stampDutyRate}% = <strong>Rs. {getCalculatedStampAmount().toLocaleString()}/-</strong></span>
                           ) : (
                             <span>In Multi-Folio mode, stamp duty can be calculated per row via <strong>Auto-Calc Stamp Duty</strong> button above.</span>
                           )}

@@ -1,96 +1,26 @@
 import clientSymbolsData from '@/data/clientSymbols.json';
 import companiesListData from '@/data/companiesList.json';
+import allCompaniesSymbolsData from '@/data/allCompaniesSymbols.json';
 
 /**
- * Official CDCSR Symbol to Full Company Name Registry
+ * Official CDCSR & PSX Symbol to Full Company Name Registry
+ * Contains 300+ listed companies & client companies.
  * Strict exact matching only. Never partial/substring match.
  */
 export const EXACT_SYMBOL_MAP: Record<string, string> = {
-  // Required staff mappings (explicitly mandated)
-  'OGDC': 'Oil & Gas Development Company Limited',
-  'AKBL': 'Askari Bank Limited',
-  'ABL': 'Allied Bank Limited',
-  'MICL': 'Magnum Ice Cream Limited',
-  'LTPL': 'Lipton Tea Pakistan Limited',
-  'BIPL': 'BankIslami Pakistan Limited',
-  'PNSC': 'Pakistan National Shipping Corporation',
-  'PIBT': 'Pakistan International Bulk Terminal Limited',
-  'PIBTL': 'Pakistan International Bulk Terminal Limited',
-  'SNGP': 'Sui Northern Gas Pipelines Limited',
-  'TATM': 'Tata Textile Mills Limited',
-  'PMPK': 'Philip Morris Pakistan Limited',
-  'PSMC': 'Pak Suzuki Motor Company Limited',
-  'PMSC': 'Pak Suzuki Motor Company Limited', // Alias for staff input
-  'KHTC': 'Khyber Tobacco Company Limited',
-  'KEL': 'K-Electric Limited',
-  'PIAC': 'Pakistan International Airlines Corporation',
-  'CHCC': 'Cherat Cement Company Limited',
+  ...(allCompaniesSymbolsData as Record<string, string>),
 
-  // Additional common CDCSR listed companies
-  'HBL': 'Habib Bank Limited',
-  'MCB': 'MCB Bank Limited',
-  'UBL': 'United Bank Limited',
-  'BAHL': 'Bank AL Habib Limited',
-  'BAFL': 'Bank Alfalah Limited',
-  'MEBL': 'Meezan Bank Limited',
-  'FABL': 'Faysal Bank Limited',
-  'SSGC': 'Sui Southern Gas Company Limited',
-  'PSO': 'Pakistan State Oil Company Limited',
-  'POL': 'Pakistan Oilfields Limited',
-  'PPL': 'Pakistan Petroleum Limited',
-  'ENGRO': 'Engro Corporation Limited',
-  'EFERT': 'Engro Fertilizers Limited',
-  'FFC': 'Fauji Fertilizer Company Limited',
-  'FFBL': 'Fauji Fertilizer Bin Qasim Limited',
-  'FATIMA': 'Fatima Fertilizer Company Limited',
-  'LUCK': 'Lucky Cement Limited',
-  'DGKC': 'D.G. Khan Cement Company Limited',
-  'MLCF': 'Maple Leaf Cement Factory Limited',
-  'POWER': 'Power Cement Limited',
-  'HUBC': 'The Hub Power Company Limited',
-  'KAPCO': 'Kot Addu Power Company Limited',
-  'SYS': 'Systems Limited',
-  'TRG': 'TRG Pakistan Limited',
-  'PAKT': 'Pakistan Tobacco Company Limited',
-  'FHAM': 'First Habib Modaraba',
-  'CYAN': 'Cyan Limited',
-  'DLL': 'Dawood Lawrencepur Limited',
-  'DINT': 'Din Textile Mills Limited',
-  'BWHL': 'Baluchistan Wheels Limited',
-  'BCL': 'Bolan Castings Limited',
-  'BNWM': 'Bannu Woolen Mills Limited',
-  'GADT': 'Gadoon Textile Mills Limited',
-  'GAL': 'Ghandhara Automobiles Limited',
-  'GHNI': 'Ghandhara Nissan Limited',
-  'GTYR': 'General Tyre and Rubber Company of Pakistan Limited',
-  'HALEON': 'Haleon Pakistan Limited',
-  'HASCOL': 'Hascol Petroleum Limited',
-  'INDU': 'Indus Motor Company Limited',
-  'INIL': 'International Industries Limited',
-  'ISL': 'International Steels Limited',
-  'ASL': 'Aisha Steel Mills Limited',
-  'AICL': 'Adamjee Insurance Company Limited',
-  'EFUG': 'EFU General Insurance Limited',
-  'EFUL': 'EFU Life Assurance Limited',
-  'SEARL': 'The Searle Company Limited',
-  'AGP': 'AGP Limited',
-  'NATF': 'National Foods Limited',
-  'NRL': 'National Refinery Limited',
-  'ATRL': 'Attock Refinery Limited',
-  'APL': 'Attock Petroleum Limited',
-  'NESTLE': 'Nestle Pakistan Limited',
-  'NBP': 'National Bank of Pakistan',
-  // Common staff aliases & shortcuts
+  // Explicit staff aliases & shortcuts
   'OGDCL': 'Oil & Gas Development Company Limited',
   'SNGPL': 'Sui Northern Gas Pipelines Limited',
   'KE': 'K-Electric Limited',
   'PIA': 'Pakistan International Airlines Corporation',
   'FBL': 'Faysal Bank Limited',
   'CPHL': 'Citi Pharma Limited',
-  'CPPL': 'Cherat Packaging Limited',
   'CHERAT': 'Cherat Cement Company Limited',
   'LIPTON': 'Lipton Tea Pakistan Limited',
   'MAGNUM': 'Magnum Ice Cream Limited',
+  'PMSC': 'Pak Suzuki Motor Company Limited',
 };
 
 /**
@@ -109,6 +39,7 @@ export const FULL_NAME_TO_SYMBOL_MAP: Record<string, string> = {
   'pak suzuki motor company limited': 'PSMC',
   'khyber tobacco company limited': 'KHTC',
 };
+
 for (const [sym, name] of Object.entries(EXACT_SYMBOL_MAP)) {
   const normName = name.toLowerCase().trim();
   if (!FULL_NAME_TO_SYMBOL_MAP[normName]) {
@@ -116,8 +47,11 @@ for (const [sym, name] of Object.entries(EXACT_SYMBOL_MAP)) {
   }
 }
 
-// Add canonical names from companiesList
-const canonicalCompanies: string[] = (companiesListData as string[]).filter(c => c && c.length > 2);
+// Add canonical names from companiesList & full symbol dictionary (300+ companies)
+const canonicalCompanies: string[] = Array.from(new Set([
+  ...(companiesListData as string[]).filter(c => c && c.length > 2 && !c.startsWith('`') && !c.match(/^\d/)),
+  ...Object.values(EXACT_SYMBOL_MAP)
+]));
 
 /**
  * Exact resolution of symbol to full company name.

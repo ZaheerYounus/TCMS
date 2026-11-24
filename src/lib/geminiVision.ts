@@ -63,21 +63,25 @@ CRITICAL RULES:
 7. Legal Heir Contact / Cell #:
    - Mobile / phone number (e.g. 0300-8638847).
 
-8. Folios and Companies (CRITICAL - CDCSR CLIENT MAPPINGS):
+8. Folios and Companies (CRITICAL - 300+ LISTED & CDCSR CLIENT COMPANIES):
+   - CDCSR processes transmission requests for over 300+ listed companies across Pakistan (PSX, CDCSR Client Companies, and MIS database).
    - Inward documents and letters frequently abbreviate company names using short symbols or prefixes like 'Comp: CHCC', 'Company: OGDC', 'Unit: KEL', 'Comp: MICL', 'Comp: LTPL'.
-   - ALWAYS recognize these CDCSR client symbols and map them to their official legal name:
+   - ALWAYS recognize these 300+ company symbols across all sectors and map them to their full registered legal names:
      • CHCC -> Cherat Cement Company Limited
-     • MICL -> Magnum Ice Cream Limited
-     • LTPL -> Lipton Tea Pakistan Limited
+     • MICL / MAGNUM -> Magnum Ice Cream Limited
+     • LTPL / LIPTON -> Lipton Tea Pakistan Limited
      • OGDC / OGDCL -> Oil & Gas Development Company Limited
      • KEL / KE -> K-Electric Limited
      • AKBL -> Askari Bank Limited
      • ABL -> Allied Bank Limited
      • SNGP / SNGPL -> Sui Northern Gas Pipelines Limited
      • SSGC -> Sui Southern Gas Company Limited
-     • PSMC -> Pak Suzuki Motor Company Limited
+     • PSMC / PMSC -> Pak Suzuki Motor Company Limited
      • KHTC -> Khyber Tobacco Company Limited
      • PIAC / PIA -> Pakistan International Airlines Corporation
+     • PIAHCLA / PIAHCLB -> PIA Holding Company Limited
+     • CPPL -> Cherat Packaging Limited
+     • CPHL / CTL -> Citi Pharma Limited
      • HBL -> Habib Bank Limited
      • MCB -> MCB Bank Limited
      • UBL -> United Bank Limited
@@ -85,30 +89,46 @@ CRITICAL RULES:
      • BAFL -> Bank Alfalah Limited
      • MEBL -> Meezan Bank Limited
      • FABL / FBL -> Faysal Bank Limited
-     • BIPL -> BankIslami Pakistan Limited
+     • BIPL / BIPLSC -> BankIslami Pakistan Limited
+     • HMB -> Habib Metropolitan Bank Limited
+     • NBP -> National Bank of Pakistan
+     • JSBL / JSCL -> JS Bank / Jahangir Siddiqui & Co.
+     • SCBPL -> Standard Chartered Bank (Pakistan) Limited
+     • BOP -> The Bank of Punjab | BOK -> The Bank of Khyber | SNBL -> Soneri Bank Limited
      • PSO -> Pakistan State Oil Company Limited
      • POL -> Pakistan Oilfields Limited
      • PPL -> Pakistan Petroleum Limited
-     • ENGRO -> Engro Corporation Limited
-     • EFERT -> Engro Fertilizers Limited
-     • FFC -> Fauji Fertilizer Company Limited
-     • LUCK -> Lucky Cement Limited
-     • DGKC -> D.G. Khan Cement Company Limited
-     • MLCF -> Maple Leaf Cement Factory Limited
-     • HUBC -> The Hub Power Company Limited
-     • SYS -> Systems Limited
-     • TRG -> TRG Pakistan Limited
-     • PAKT -> Pakistan Tobacco Company Limited
-     • CPHL -> Citi Pharma Limited
-     • SEARL -> The Searle Company Limited
-     • NATF -> National Foods Limited
-     • NRL -> National Refinery Limited
-     • ATRL -> Attock Refinery Limited
-     • APL -> Attock Petroleum Limited
-     • PNSC -> Pakistan National Shipping Corporation
-     • PIBT / PIBTL -> Pakistan International Bulk Terminal Limited
-     • TATM -> Tata Textile Mills Limited
-     • PMPK -> Philip Morris Pakistan Limited
+     • ATRL -> Attock Refinery Limited | APL -> Attock Petroleum Limited | NRL -> National Refinery Limited
+     • PRL -> Pakistan Refinery Limited | HASCOL -> Hascol Petroleum Limited | CNERGY / BYCO -> Cnergyico PK Limited
+     • ENGRO -> Engro Corporation Limited | EFERT -> Engro Fertilizers Limited
+     • FFC -> Fauji Fertilizer Company Limited | FFBL -> Fauji Fertilizer Bin Qasim Limited
+     • FATIMA -> Fatima Fertilizer Company Limited | EPBL / EPCL -> Engro Polymer & Chemicals Limited
+     • LUCK -> Lucky Cement Limited | DGKC -> D.G. Khan Cement Company Limited | MLCF -> Maple Leaf Cement Factory Limited
+     • FCCL -> Fauji Cement Company Limited | ACPL -> Attock Cement Pakistan Limited | POWER -> Power Cement Limited
+     • HUBC -> The Hub Power Company Limited | KAPCO -> Kot Addu Power Company Limited | PKGP -> Pakgen Power Limited
+     • SYS -> Systems Limited | TRG -> TRG Pakistan Limited | NETSOL -> NetSol Technologies Limited
+     • AVN -> Avanceon Limited | OCTOPUS -> Octopus Digital Limited | AIRLINK -> Air Link Communication Limited
+     • PTCL / PTC -> Pakistan Telecommunication Company Limited | WTL -> WorldCall Telecom Limited
+     • SEARL -> The Searle Company Limited | AGP -> AGP Limited | GLAXO -> GlaxoSmithKline Pakistan Limited
+     • HALEON -> Haleon Pakistan Limited | ABOT -> Abbott Laboratories (Pakistan) Limited
+     • NESTLE -> Nestle Pakistan Limited | NATF -> National Foods Limited | UPFL / ULEVER -> Unilever Pakistan Foods Limited
+     • COLG -> Colgate-Palmolive (Pakistan) Limited | SCL -> Shield Corporation Limited | SHEZAN -> Shezan International Limited
+     • ASC -> Al Shaheer Corporation Limited | DALDA -> Dalda Foods Limited | BBFL -> Big Bird Foods Limited
+     • INDU -> Indus Motor Company Limited | HCAR -> Honda Atlas Cars Limited | MTL -> Millat Tractors Limited
+     • AGTL -> Al-Ghazi Tractors Limited | GHNI / GAL -> Ghandhara Nissan / Automobiles Limited
+     • BWHL -> Baluchistan Wheels Limited | BCL -> Bolan Castings Limited | GTYR -> General Tyre & Rubber Co.
+     • ASL / ASLPS / ASLCPS -> Aisha Steel Mills Limited | AGHA -> Agha Steel Industries Limited | ISL -> International Steels Limited
+     • INIL -> International Industries Limited | MUGHAL -> Mughal Iron & Steel | ASTL -> Amreli Steels Limited
+     • PCAL -> Pakistan Cables Limited | PECO -> Pakistan Engineering Company Limited
+     • AICL -> Adamjee Insurance Company Limited | EFUG -> EFU General Insurance Limited | EFUL -> EFU Life Assurance Limited
+     • JLICL -> Jubilee Life Insurance Company Limited | IGIHL -> IGI Holdings Limited | CYAN -> Cyan Limited
+     • ILP -> Interloop Limited | NML -> Nishat Mills Limited | GADT -> Gadoon Textile Mills Limited
+     • TATM -> Tata Textile Mills Limited | DINT -> Din Textile Mills Limited | BNWM -> Bannu Woolen Mills Limited
+     • PAKT -> Pakistan Tobacco Company Limited | PNSC -> Pakistan National Shipping Corporation
+     • PIBT / PIBTL -> Pakistan International Bulk Terminal Limited | PICT -> Pakistan International Container Terminal
+     • DCR -> Dolmen City REIT | JVDC -> Javedan Corporation Limited | RPL -> Roshan Packages Limited
+     • IPAK -> International Packaging Films Limited | TGL -> Tariq Glass Industries | GHGL -> Ghani Glass Limited
+     • WCL -> Waves Corporation Limited | 1LPL -> 1LINK (Private) Limited | CDC / CDCSRSL -> CDC Share Registrar Services
    - Check if folios and companies are listed as comma-separated lists (e.g. "Folio: 655, 43, 564..." and "Company name: OGDC, AKBL, ABL...").
    - Pair them strictly by position: 1st folio with 1st company, 2nd with 2nd, etc.
    - If there are more companies than folios, KEEP ALL companies in the list, and set folio to "— Not provided".
