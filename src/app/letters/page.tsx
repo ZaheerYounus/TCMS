@@ -1861,6 +1861,9 @@ Encl.:  As stated above.`;
                       <div>
                         <label className="text-xs font-semibold text-slate-700 block mb-1">Registered Shares</label>
                         <Input 
+                          name="stms_reg_shares"
+                          autoComplete="new-password"
+                          data-lpignore="true"
                           value={shares} 
                           onChange={(e) => setShares(e.target.value)}
                           placeholder="e.g. =1,000=" 
@@ -1870,6 +1873,9 @@ Encl.:  As stated above.`;
                       <div>
                         <label className="text-xs font-semibold text-slate-700 block mb-1">Certificates Count</label>
                         <Input 
+                          name="stms_certs_count"
+                          autoComplete="new-password"
+                          data-lpignore="true"
                           value={certificates} 
                           onChange={(e) => setCertificates(e.target.value)}
                           placeholder="e.g. =01=" 
@@ -1885,6 +1891,9 @@ Encl.:  As stated above.`;
                         Deceased Shareholder Name <span className="text-rose-500">*</span>
                       </label>
                       <Input 
+                        name="stms_deceased_name_multi"
+                        autoComplete="new-password"
+                        data-lpignore="true"
                         value={deceased} 
                         onChange={(e) => setDeceased(e.target.value)}
                         placeholder="e.g. Saiyed Ali Imam Jafri" 
@@ -1952,6 +1961,9 @@ Encl.:  As stated above.`;
                               <div className="w-24">
                                 <span className="text-[10px] text-slate-400 font-semibold uppercase block">Folio #</span>
                                 <Input 
+                                  name={`stms_item_folio_${idx}`}
+                                  autoComplete="new-password"
+                                  data-lpignore="true"
                                   placeholder="Folio #" 
                                   value={row.folio} 
                                   onChange={(e) => updateMultiFolioRow(idx, "folio", e.target.value)}
@@ -1966,6 +1978,9 @@ Encl.:  As stated above.`;
                                   )}
                                 </div>
                                 <Input 
+                                  name={`stms_item_company_${idx}`}
+                                  autoComplete="new-password"
+                                  data-lpignore="true"
                                   placeholder="Company Name (SYMBOL)" 
                                   value={row.company} 
                                   onChange={(e) => updateMultiFolioRow(idx, "company", e.target.value)}
@@ -1975,6 +1990,9 @@ Encl.:  As stated above.`;
                               <div className="w-20">
                                 <span className="text-[10px] text-slate-400 font-semibold uppercase block">Shares</span>
                                 <Input 
+                                  name={`stms_item_shares_${idx}`}
+                                  autoComplete="new-password"
+                                  data-lpignore="true"
                                   placeholder="Shares" 
                                   value={row.shares} 
                                   onChange={(e) => updateMultiFolioRow(idx, "shares", e.target.value)}
@@ -1984,6 +2002,9 @@ Encl.:  As stated above.`;
                               <div className="w-20">
                                 <span className="text-[10px] text-slate-400 font-semibold uppercase block">Certs</span>
                                 <Input 
+                                  name={`stms_item_certs_${idx}`}
+                                  autoComplete="new-password"
+                                  data-lpignore="true"
                                   placeholder="Certs" 
                                   value={row.certificates} 
                                   onChange={(e) => updateMultiFolioRow(idx, "certificates", e.target.value)}
@@ -1993,6 +2014,9 @@ Encl.:  As stated above.`;
                               <div className="w-20">
                                 <span className="text-[10px] text-slate-400 font-semibold uppercase block">Stamp Duty</span>
                                 <Input 
+                                  name={`stms_item_stamp_${idx}`}
+                                  autoComplete="new-password"
+                                  data-lpignore="true"
                                   placeholder="e.g. –" 
                                   value={row.stampDuty || "–"} 
                                   onChange={(e) => updateMultiFolioRow(idx, "stampDuty", e.target.value)}
@@ -2044,6 +2068,9 @@ Encl.:  As stated above.`;
                         Legal Heir Name <span className="text-rose-500">*</span>
                       </label>
                       <Input 
+                        name="stms_applicant_legal_heir"
+                        autoComplete="new-password"
+                        data-lpignore="true"
                         value={legalHeir} 
                         onChange={(e) => setLegalHeir(e.target.value)}
                         placeholder="e.g. Syed Sajjad Imam Jafri" 
@@ -2055,6 +2082,9 @@ Encl.:  As stated above.`;
                         Applicant's Father Name (F/H)
                       </label>
                       <Input 
+                        name="stms_applicant_father"
+                        autoComplete="new-password"
+                        data-lpignore="true"
                         value={applicantFather} 
                         onChange={(e) => setApplicantFather(e.target.value)}
                         placeholder="e.g. Ahmed" 
@@ -2066,6 +2096,9 @@ Encl.:  As stated above.`;
                         Capacity / Relationship (Optional)
                       </label>
                       <Input 
+                        name="stms_applicant_relation"
+                        autoComplete="new-password"
+                        data-lpignore="true"
                         value={relation} 
                         onChange={(e) => setRelation(e.target.value)}
                         placeholder="e.g. Legal Heir / Son / Widow" 
@@ -2077,6 +2110,9 @@ Encl.:  As stated above.`;
                         Mobile / Contact Number
                       </label>
                       <Input 
+                        name="stms_applicant_contact"
+                        autoComplete="new-password"
+                        data-lpignore="true"
                         value={contactNo} 
                         onChange={(e) => setContactNo(e.target.value)}
                         placeholder="e.g. 0333-3535404" 
@@ -2090,6 +2126,9 @@ Encl.:  As stated above.`;
                       Complete Mailing Address
                     </label>
                     <Input 
+                      name="stms_applicant_mailing_address"
+                      autoComplete="new-password"
+                      data-lpignore="true"
                       value={address} 
                       onChange={(e) => setAddress(e.target.value)}
                       placeholder="e.g. D-231, Street 24, South Navy Housing scheme, Clifton, Karachi." 

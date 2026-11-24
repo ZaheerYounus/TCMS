@@ -300,9 +300,9 @@ function enrichWithMISDatabase(parsed: any) {
 async function performHighAccuracyOCR(buffer: Buffer): Promise<string> {
   const timeoutPromise = new Promise<string>((resolve) => {
     setTimeout(() => {
-      console.warn("OCR timeout reached (35s limit), returning fallback");
+      console.warn("OCR timeout reached (8s limit), returning fallback");
       resolve("");
-    }, 35000);
+    }, 8000);
   });
 
   const ocrPromise = (async () => {

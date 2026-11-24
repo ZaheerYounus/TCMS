@@ -210,21 +210,24 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
 `;
 
   const candidateModels = [
-    'gemini-flash-lite-latest',
     'gemini-3.5-flash-lite',
-    'gemini-3.1-flash-lite',
+    'gemini-flash-lite-latest',
     'gemini-3-flash-preview',
   ];
 
   let candidateText = '';
   for (const model of candidateModels) {
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const cleanModel = model.replace(/^models\//, '');
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${key}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
             contents: [
               {
@@ -232,8 +235,8 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
                 parts: [
                   { text: systemPrompt },
                   {
-                    inlineData: {
-                      mimeType: mimeType,
+                    inline_data: {
+                      mime_type: mimeType,
                       data: base64Data
                     }
                   }
@@ -243,9 +246,11 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
             generationConfig: {
               temperature: 0.05,
               maxOutputTokens: 2048,
+              response_mime_type: "application/json"
             }
           })
         });
+        clearTimeout(timeoutId);
 
         if (res.ok) {
           const data = await res.json();
@@ -254,10 +259,16 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
             candidateText = cand;
             break;
           }
+        } else if (res.status === 404) {
+          break; // Don't retry non-existent model
+        } else {
+          console.warn(`Gemini model ${model} status ${res.status}`);
         }
       } catch (e) {
         console.warn(`Gemini model ${model} attempt ${attempt} failed:`, e);
       }
+      if (candidateText) break;
+      await new Promise(r => setTimeout(r, 400));
     }
     if (candidateText) break;
   }
@@ -319,16 +330,16 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no back
       folio: isMultiMode ? (multiFolios[0]?.folio !== '— Not provided' ? multiFolios[0]?.folio : '') : (parsedObj.folio || ''),
       company: isMultiMode ? (multiFolios[0]?.company || '') : singleComp,
       compSymbol: singleSym,
-      deceased: (parsedObj.deceased || '').replace(/^Late\s+/i, '').replace(/\s*\(Late\)/i, '').trim(),
-      applicantFather: (parsedObj.applicantFather || '').replace(/^Late\s+/i, '').replace(/\s*\(Late\)/i, '').trim(),
-      legalHeir: (parsedObj.applicant || parsedObj.legalHeir || '').replace(/^Applicant:\s*/i, '').trim(),
+      deceased: (parsedObj.deceased || parsedObj.deceasedName || '').replace(/^Late\s+/i, '').replace(/\s*\(Late\)/i, '').trim(),
+      applicantFather: (parsedObj.applicantFather || parsedObj.fatherName || '').replace(/^Late\s+/i, '').replace(/\s*\(Late\)/i, '').trim(),
+      legalHeir: (parsedObj.applicant || parsedObj.legalHeir || parsedObj.heir || '').replace(/^Applicant:\s*/i, '').trim(),
       relation: parsedObj.relation || 'Legal Heir',
       cnic: parsedObj.cnic || '',
       address: rawAddress,
       addressLines: addressLines,
-      contactNo: parsedObj.contactNo || '',
-      shares: isMultiMode ? '—' : (parsedObj.shares || ''),
-      certificates: isMultiMode ? '—' : (parsedObj.certificates || ''),
+      contactNo: parsedObj.contactNo || parsedObj.mobile || parsedObj.cell || parsedObj.phone || '',
+      shares: isMultiMode ? '—' : (parsedObj.shares || parsedObj.totalShares || ''),
+      certificates: isMultiMode ? '—' : (parsedObj.certificates || parsedObj.certificatesCount || ''),
       scripts: '',
       multiFolios: multiFolios,
       missingFoliosWarning,
